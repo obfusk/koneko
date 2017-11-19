@@ -18,7 +18,7 @@
 
 koneko - ...
 
-...
+... TODO ...
 
 ## Examples
 
@@ -34,7 +34,7 @@ Hello, World!
 ^D
 ```
 
-...
+... TODO ...
 
 ## Specs & Docs
 

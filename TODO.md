@@ -14,12 +14,16 @@
 * keywords & description (README, github, setup.py)
 * travis
 * pypi (+ gpg?)
+* ack TODO
 
 ## Read
 
 ## Eval
 
 ## REPL
+
+* what to do w/ KeyboardInterrupt?
+* -e + args?
 
 ## Data Types
 

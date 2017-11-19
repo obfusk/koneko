@@ -29,7 +29,7 @@ setup(
   keywords          = "...",  # TODO
   packages          = find_packages(),
   entry_points      = { "console_scripts": ["koneko=koneko:main_"] },
-  python_requires   = ">=3.2"
+  python_requires   = ">=3.2",
   install_requires  = ["pyparsing"],
   extras_require    = { "test": ["coverage"] },
   package_data      = { "koneko": ["lib/*.knk"] },
