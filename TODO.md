@@ -17,9 +17,13 @@
 * ack TODO
 * 子猫 in README
 
+<!-- -->
+
 * other language features?
 * Features from Clojure, Haskell, Factor, Python, Ruby, ...
 * streams!
+
+<!-- -->
 
 * agument order!
 * exception handling (use with!)
@@ -54,6 +58,8 @@ x ``foo y z
 * 'if is ok -> builtin on stack
 * eval(code[, stack, scope])
 
+<!-- -->
+
 * () [] {}, ...
 * tail rec `eval(... call, rec=True) -> True`
 
@@ -78,6 +84,8 @@ x ``foo y z
 * int, float, str
 * Kwd
 * list, dict, Range
+
+<!-- -->
 
 * regex (from re)
 * Kwd (subclass of str w/ repr :foo / :"foo bar")
@@ -186,14 +194,20 @@ __call__(*args)
 * pattern matching?
 * concurrency
 
+<!-- -->
+
 * Python interop
 * other interop?
 * generate bindings?
+
+<!-- -->
 
 * check arity?
 * full ADTs?
 * C++/Haskell/Racket-based compiler/interpreter?
 * compile to JS?
+
+<!-- -->
 
 * GC vs games? bigbang?
 * rules for no GC?
