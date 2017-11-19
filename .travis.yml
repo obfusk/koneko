@@ -11,4 +11,4 @@ python:
 - "nightly"
 - "pypy3"
 install: pip install .
-script: make test PY=python
+script: make test_verbose PY=python
