@@ -1,0 +1,8 @@
+*.pyc
+
+.coverage
+htmlcov
+
+/build
+/dist
+/koneko.egg-info
