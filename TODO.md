@@ -51,7 +51,8 @@
 x ``foo y z
 ```
 
-* \uXXXX, 0xXXX, """..."""
+* \uXXXX, 0xXXX
+* """..."""
 
 ## Eval
 

@@ -44,7 +44,7 @@ def repl(state = None):                                         # {{{1
       print("*** Error ***", e.args); break   # TODO
     if line:
       state = E.eval_str(line, state = state)
-      E.print_stack(state = state)
+      E.print_stack(state)
                                                                 # }}}1
 
 # ... TODO ...
