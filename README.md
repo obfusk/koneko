@@ -11,8 +11,9 @@
 
 <!--
 [![PyPI version](https://badge.fury.io/py/koneko.svg)](https://badge.fury.io/py/koneko)
-[![Build Status](https://travis-ci.org/obfusk/koneko.png)](https://travis-ci.org/obfusk/koneko)
 -->
+
+[![Build Status](https://travis-ci.org/obfusk/koneko.svg?branch=master)](https://travis-ci.org/obfusk/koneko)
 
 ## Description
 

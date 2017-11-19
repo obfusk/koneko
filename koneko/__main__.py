@@ -68,9 +68,9 @@ def test(verbose = False):                                      # {{{1
   """Run doctest on all modules."""
   import doctest, importlib, pkgutil
   tot_f, tot_t = 0, 0
-  for x in pkgutil.iter_modules([__package__]):
-    m = importlib.import_module("."+x.name, __package__)
-    if verbose: print("Testing module {} ...".format(x.name))
+  for _,name,_ in pkgutil.iter_modules([__package__]):
+    m = importlib.import_module("."+name, __package__)
+    if verbose: print("Testing module {} ...".format(name))
     f, t = doctest.testmod(m, verbose = verbose)
     tot_f += f; tot_t += t
     if verbose: print()
