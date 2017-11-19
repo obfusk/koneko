@@ -2,10 +2,7 @@ SHELL   := bash
 PY      ?= python3
 ME      := koneko
 
-.PHONY: all test test_verbose coverage clean publish
-
-all:
-	$(PY) setup.py sdist bdist_wheel
+.PHONY: test test_verbose coverage clean package publish
 
 test:
 	$(PY) -m$(ME) --test
@@ -14,7 +11,7 @@ test_verbose:
 	$(PY) -m$(ME) --test -v
 
 coverage:
-	$(PY) -mcoverage run -m $(ME)
+	$(PY) -mcoverage run -m $(ME) --test
 	$(PY) -mcoverage html
 
 clean:
@@ -22,7 +19,10 @@ clean:
 	find -name '*.pyc' -delete
 	find -name __pycache__ -delete
 
-publish: clean all
+package:
+	$(PY) setup.py sdist bdist_wheel
+
+publish: clean package
 	read -r -p "Are you sure? "; \
 	[[ "$$REPLY" =~ [Yy]* ]] && twine upload dist/*
 
