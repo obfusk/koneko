@@ -52,6 +52,6 @@ $ pydoc3 koneko
 
 ### Standard Library
 
-[LGPLv3+](https://www.gnu.org/licensesl/gpl-3.0.html).
+[LGPLv3+](https://www.gnu.org/licenses/lgpl-3.0.html).
 
 <!-- vim: set tw=70 sw=2 sts=2 et fdm=marker : -->
