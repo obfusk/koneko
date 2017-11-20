@@ -2,7 +2,7 @@
 #
 # File        : koneko/eval.py
 # Maintainer  : Felix C. Stegerman <flx@obfusk.net>
-# Date        : 2017-11-19
+# Date        : 2017-11-20
 #
 # Copyright   : Copyright (C) 2017  Felix C. Stegerman
 # Version     : v0.0.1
@@ -20,7 +20,7 @@ Hello, World!
 ... TODO ...
 """                                                             # }}}1
 
-import pprint
+import pprint # TODO
 
 from . import data as D
 from . import read as R
@@ -51,6 +51,7 @@ def eval_file(name, state = None):
   with open(name) as f:
     return eval_stream(f, state = state)
 
+# TODO
 def print_stack(state):
   """Pretty-print current stack."""
   print("*** Stack ***")

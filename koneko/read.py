@@ -2,7 +2,7 @@
 #
 # File        : koneko/read.py
 # Maintainer  : Felix C. Stegerman <flx@obfusk.net>
-# Date        : 2017-11-19
+# Date        : 2017-11-20
 #
 # Copyright   : Copyright (C) 2017  Felix C. Stegerman
 # Version     : v0.0.1
@@ -20,11 +20,12 @@ TODO
 ... TODO ...
 """                                                             # }}}1
 
-import pyparsing as P
+import pyparsing as P # TODO
 import sys
 
 from . import data as D
 
+# TODO
 unicodeAlNum    = "".join( c for c in map(chr, range(sys.maxunicode))
                              if c.isalnum() )
 stringRx        = r'(?:[^"\\]|\\(?:["\\]|x[0-9a-fA-F]{2}|' \
@@ -32,7 +33,7 @@ stringRx        = r'(?:[^"\\]|\\(?:["\\]|x[0-9a-fA-F]{2}|' \
 rawStringRx     = r'(?:[^"\\]|\\.)*'
 space, spaceRx  = " \n\t\t,", r"[ \n\t\r,]+"
 
-# TODO: use ""
+# TODO: move, use ""
 class Kwd(str):                                                 # {{{1
   """Keyword."""
   def __repr__(self):
@@ -40,9 +41,10 @@ class Kwd(str):                                                 # {{{1
                   super().__repr__())
                                                                 # }}}1
 
+# TODO
 D.Kwd = Kwd
 
-# TODO: record, .foo, !foo
+# TODO: FIXME; record, .foo, !foo
 def _make_parser():                                             # {{{1
   pre, bra    = "'!:", "(){}[]"
   sym         = unicodeAlNum + "~!@$%^&*-_=+|<>/?" + bra
@@ -134,6 +136,7 @@ def _parse_str(s):                                              # {{{1
 
 _parser, _sym = _make_parser()
 
+# TODO: move
 def isident(s):                                                 # {{{1
   """
   Is the string an identifier?
@@ -160,7 +163,7 @@ def isident(s):                                                 # {{{1
          all( c in _sym[1] for c in s[1:] )
                                                                 # }}}1
 
-# TODO: tests, also: failures
+# TODO: more tests, also: failures
 def parse(s):                                                   # {{{1
   r"""
   Parse code into an intermediate result.
@@ -224,7 +227,7 @@ def parse(s):                                                   # {{{1
                                                                 # }}}1
 
 # TODO
-# * `foo, .foo, !foo, **call**
+# * `foo, .foo, !foo, **call**, ...
 def read(s):
   """Parse code into an expression."""
   ...

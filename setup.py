@@ -10,7 +10,7 @@ setup(
   author_email      = "flx@obfusk.net",
   license           = "GPLv3+",
   classifiers       = [
-    "Development Status :: 4 - Beta",
+    "Development Status :: 3 - Alpha",
     "Environment :: Console",
     "Intended Audience :: Developers",
     "License :: OSI Approved :: GNU General Public License v3 or later (GPLv3+)",
@@ -31,7 +31,7 @@ setup(
   entry_points      = { "console_scripts":
                         ["koneko=koneko.__main__:main_"] },
   python_requires   = ">=3.2",
-  install_requires  = ["pyparsing"],
+  install_requires  = "pyparsing regex".split(),
   extras_require    = { "test": ["coverage"] },
   package_data      = { "koneko": ["lib/*.knk"] },
 )

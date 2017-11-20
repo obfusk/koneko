@@ -2,7 +2,7 @@
 #
 # File        : koneko/data.py
 # Maintainer  : Felix C. Stegerman <flx@obfusk.net>
-# Date        : 2017-11-19
+# Date        : 2017-11-20
 #
 # Copyright   : Copyright (C) 2017  Felix C. Stegerman
 # Version     : v0.0.1
@@ -15,7 +15,7 @@ r"""
 ... TODO ...
 """                                                             # }}}1
 
-import itertools, re
+import itertools, re # TODO
 
 from collections import namedtuple
 

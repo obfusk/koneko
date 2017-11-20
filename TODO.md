@@ -2,7 +2,7 @@
 
     File        : TODO.md
     Maintainer  : Felix C. Stegerman <flx@obfusk.net>
-    Date        : 2017-11-19
+    Date        : 2017-11-20
 
     Copyright   : Copyright (C) 2017  Felix C. Stegerman
     Version     : v0.0.1
@@ -11,9 +11,31 @@
 
 ## Misc
 
+* TODO: tick off
+* fix parser (use regex + [\p{L}\p{N}...]) [cur 2.5s, 260M]
+* monkey-patch pyparsing
+* rm RawDict, List, Dict, ...
+* `__repr__` -> show() (data, ...)
+* pprint -> show() (eval); reprlib
+* review data, read; move stuff to misc
+* travis WTF
+* show() + to_str() (`->str`)
+* misc: multi, repr, isident(), ...
+* Kwd -> data
+* show = multimethod(); @show.add(list); `__mro__`; `*a, **k`
+* default to `<<repr(x)>>`?
+* `__koneko_*__`
+* @defmethod(obj, name), @wrapmethod(obj, name, arity)
+* stack <-> args
+* @wrapmethod(list, "append", 1)
+* `__koneko_methods__ = {}`
+* tuples?! in parse()
+
+<!-- -->
+
 * keywords & description (README, github, setup.py)
 * ~~travis~~
-* pypi (+ gpg?)
+* pypi (+ gpg?) + badge direct url
 * ack TODO
 * 子猫 in README
 
@@ -22,6 +44,7 @@
 * other language features?
 * Features from Clojure, Haskell, Factor, Python, Ruby, ...
 * streams!
+* homoiconic!
 
 <!-- -->
 
@@ -29,6 +52,18 @@
 * exception handling (use with!)
 * caveat: refc fails for recursive scope/block.
 * protocol, multi, classes?
+
+## Continuations?
+
+* call/cc needed for in+ext iter? (iter <-> rec); yield?
+* take, drop vs `xs f map -> [ g | [ f g ] xs ]`
+* `xs f filter -> [ g | [ x | 'x g [ 'x f ] [ ] if ] ]`
+* `~ [ g | [ dup g 'f 'drop if ] ]`
+* Block = scope + code
+* stack? "return value"
+* stop, pause?
+* example! py?
+* lazyness?
 
 ## Read
 
@@ -46,6 +81,8 @@
 * Token, Ident, ...
 * istoken()?
 * /"regex"
+* ':kwd or ''id -> create ident?
+* or \foo vs 'foo
 
 ```
 x ``foo y z
@@ -53,6 +90,13 @@ x ``foo y z
 
 * \uXXXX, 0xXXX
 * """..."""
+
+<!-- -->
+
+* `<id>{ ... } -> { ... } <id>{}` ?
+* `<id>( ... ) -> ( ... ) <id>()` ?
+* `<id>[ ... ] -> [ ... ] <id>[]` ?
+* vs `{ x y ... } -> ( (x y) ... ) **dict**`
 
 ## Eval
 
@@ -162,6 +206,8 @@ __call__(*args)
 
 ## Prelude (**prelude**)
 
+prelude if possible, builtin if not or later for optimisation.
+
 * case
 * def = set!
 * drop, dup, swap, ...
@@ -175,6 +221,7 @@ __call__(*args)
 * get-in, set-in!
 * sort, sort!, ...
 * nop?
+* [0,n) etc.
 
 ## Streams
 
