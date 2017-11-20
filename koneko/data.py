@@ -15,6 +15,8 @@ r"""
 ... TODO ...
 """                                                             # }}}1
 
+import itertools, re
+
 from collections import namedtuple
 
 # === Exceptions ===
@@ -42,6 +44,33 @@ class Regex(str):                                               # {{{1
     return self._compiled
                                                                 # }}}1
 
+class List(list):
+  """List."""
+  def __repr__(self):
+    return "( " + "".join( repr(x)+" " for x in self ) + ")"
+
+class Dict(dict):
+  """Dict."""
+  def __repr__(self):
+    return "{" + ",".join( " {!r} {!r}".format(k, v)
+                           for k, v in self.items() ) + " }"
+
+class RawDict(namedtuple("RawDict", "data".split())):
+  """Raw Dict."""
+  def __repr__(self):
+    d = itertools.zip_longest(*[iter(self.data)]*2)
+    return "'{" + ",".join( " {!r} {!r}".format(k, v)
+                            for k, v in d ) + " }"
+
+# === Data Types - Tokens ===
+
+class RawBlock(namedtuple("RawBlock", "params code".split())):
+  """Raw Block."""
+  def __repr__(self):
+    p = "".join( repr(x)+" " for x in self.params )
+    c = "".join( repr(x)+" " for x in self.code   )
+    return "'[ " + (p and p + ". ") + c + "]"
+
 class Ident(namedtuple("Ident", "name".split())):
   """Identifier."""
   def __repr__(self): return self.name
@@ -55,12 +84,6 @@ class Quote(namedtuple("Quote", "ident".split())):
 class Shift(namedtuple("Shift", "ident n".split())):
   """Shifted Identifier."""
   def __repr__(self): return "`"*self.n + repr(self.ident)
-
-class List(list):
-  ...
-
-class Dict(dict):
-  ...
 
 # === Scope ===
 

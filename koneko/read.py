@@ -21,7 +21,7 @@ TODO
 """                                                             # }}}1
 
 import pyparsing as P
-import re, sys
+import sys
 
 from . import data as D
 
@@ -42,78 +42,79 @@ class Kwd(str):                                                 # {{{1
 
 D.Kwd = Kwd
 
-# TODO
-# * setDefaultWhitespaceChars?
-# * ...
+# TODO: record, .foo, !foo
 def _parser():                                                  # {{{1
   pre, bra    = "'!:", "(){}[]"
   sym         = unicodeAlNum + "~!@$%^&*-_=+|<>/?" + bra
   sym_        = sym + pre
 
-  c, r, z     = P.Combine, P.Regex, P.ZeroOrMore
-  l           = lambda x: P.Suppress(P.Literal(x)).leaveWhitespace()
+  c, g, r, s  = P.Combine, P.Group, P.Regex, P.Suppress
+  om, op, zm  = P.OneOrMore, P.Optional, P.ZeroOrMore
+
+  l           = lambda x: s(P.Literal(x)).leaveWhitespace()
   k           = lambda x: P.Keyword(x, sym_)
-  n           = lambda x, y, z = None: \
-                  x.setResultsName(y).setName(z or y)
+  n           = lambda x, name: x.setName(name)
 
   comm        = n(r(";.*"), "comment")
-  ident       = P.Word(sym, sym_)("ident")
-  fident      = n(c(z(c(ident + P.Literal("."))) + ident), "fident",
-                  "identifier") \
-                .setParseAction(lambda t: D.Ident(t[0][0]))
+  reserved    = P.Word(bra, exact = 1) + ~P.Word(sym_)
+  ident       = ~reserved + P.Word(sym, sym_)
+  fident      = n(c(zm(c(ident + P.Literal("."))) + ident),
+                  "identifier").setParseAction(P.tokenMap(D.Ident))
 
   hexint      = r(r"[+-]?0x[0-9a-fA-F]+") \
                 .setParseAction(P.tokenMap(int, 16))
   binint      = r(r"[+-]?0b[01]+") \
                 .setParseAction(P.tokenMap(int, 2))
 
-  nil         = n(k("nil"), "nil") \
-                .setParseAction(lambda t: [None])
+  nil         = n(k("nil"), "nil").setParseAction(lambda t: [None])
   bool_       = n(k("#t") | k("#f"), "bool") \
                 .setParseAction(lambda t: t[0] == "#t")
   float_      = n(P.pyparsing_common.sci_real, "float")   # b4 int!
-  int_        = n( hexint | binint |
-                   P.pyparsing_common.signed_integer, "int")
+  int_        = n(hexint | binint |
+                  P.pyparsing_common.signed_integer, "int")
   str_        = n(c(l('"') + r(stringRx) + l('"')), "string") \
                 .setParseAction(P.tokenMap(_parse_str))
-  kwd         = n(c(l(":") + ( ident | str_ )), "keyword") \
-                .setParseAction(lambda t: Kwd(t[0][0]))
+  kwd         = n(c(l(":") + (ident | str_)), "keyword") \
+                .setParseAction(P.tokenMap(Kwd))
   regex       = n(c(l('/"') + r(rawStringRx) + l('"')), "regex") \
                 .setParseAction(P.tokenMap(D.Regex))
 
-  terms       = P.Forward()
+  ws          = P.Suppress(r(spaceRx)).leaveWhitespace()
+  term        = P.Forward()
 
-  list_       = ...
-  dict_       = ...
+  list_       = n(g(s(k("(")) + ws + op(om(term + ws)) + s(k(")"))),
+                  "list").setParseAction(lambda t: [D.List(t[0])])
+  dict_       = n(g(s(k("{")) + ws + op(om((term + ws)*2)) +
+                    s(k("}"))), "dict") \
+                .setParseAction(lambda t: [D.RawDict(tuple(t[0]))])
+
   record      = ...
-  block       = ... # n( l("{") \
-                # .setParseAction()
 
-  # ~( k("[") k("]") | ... ) + ident
+  block       = n(g(s(k("[")) + ws +
+                    op(g(om(ident + ws))("params") + s(k(".")) + ws) +
+                    op(g(om(term + ws))("code")) +
+                    s(k("]"))), "block").setParseAction(_parse_block)
 
   quote       = n(c(l("'") + fident), "quote") \
-                .setParseAction(lambda t: D.Quote(D.Ident(t[0][0])))
+                .setParseAction(lambda t: D.Quote(D.Ident(t[0])))
   shift       = n(r("`+").leaveWhitespace() + fident, "shift") \
                 .setParseAction(lambda t: D.Shift(t[1], len(t[0])))
+
   shorthands  = ... # .foo !foo
 
   value       = nil | bool_ | float_ | int_ | str_ | kwd | \
-                regex | quote                                   # TODO
-  term        = value | fident | shift
-
-  ws          = P.Suppress(r(spaceRx)).leaveWhitespace()
-  terms      << z( term + ws ) + term
-  program     = P.Optional( terms ).ignore(comm)
+                regex | list_ | dict_ | block | quote           # TODO
+  term       << ( value | fident | shift )
+  program     = op(zm(term + ws) + term).ignore(comm)
 
   return program, (set(sym), set(sym_))
                                                                 # }}}1
 
-def __safasdfs__():
-  array         = g( ik("{") + z(g(value)) + ik("}") )("ary")
-  quotation     = g( ik("[") + z( ~ik("]") + term )("body") +
-                                   ik("]") )("quot")
-  word_def      = g( ik(":") + word("name") + stack_effect("eff") +
-                               z(term)("body") + ik(";") )("wdef")
+# TODO: why is this called twice? _parse_str (etc?) too...
+def _parse_block(t):
+  params  = tuple(map(D.Ident, t[0].get("params", ())))
+  code    = tuple(             t[0].get("code"  , ()) )
+  return D.RawBlock(params, code)
 
 def _parse_str(s):                                              # {{{1
   t, i, n = [], 0, len(s)
@@ -185,6 +186,20 @@ def parse(s):                                                   # {{{1
   >>> parse('/"foo\\bar"')[0]
   /"foo\\bar"
 
+  >>> parse("( 1 2 :foo )")[0]
+  ( 1 2 :foo )
+  >>> parse("{ x 42 'y [ 37 ] }")[0]
+  '{ x 42, 'y '[ 37 ] }
+
+  >>> parse("[,]")[0]
+  '[ ]
+  >>> parse("[,42,]")[0]
+  '[ 42 ]
+  >>> parse("[,x,.,]")[0]
+  '[ x . ]
+  >>> parse("[,x,.,42,]")[0]
+  '[ x . 42 ]
+
   >>> type(parse("'foo")[0]).__name__
   'Quote'
   >>> type(parse("foo")[0]).__name__
@@ -199,8 +214,8 @@ def parse(s):                                                   # {{{1
   >>> parse("`foo")[0]
   `foo
 
-  >>> parse(" ,#t 42 'q,")
-  [True, 42, 'q]
+  >>> print(" ".join(map(repr, parse(" ,#t 42 'q,"))))
+  True 42 'q
 
   ... TODO ...
   """
