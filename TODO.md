@@ -11,7 +11,7 @@
 
 ## Misc
 
-* TODO: tick off
+* ~~TODO: tick off~~
 * fix parser (use regex + [\p{L}\p{N}...]) [cur 2.5s, 260M]
 * monkey-patch pyparsing
 * rm RawDict, List, Dict, ...
@@ -34,10 +34,13 @@
 <!-- -->
 
 * keywords & description (README, github, setup.py)
-* ~~travis~~
 * pypi (+ gpg?) + badge direct url
 * ack TODO
 * 子猫 in README
+
+<!-- -->
+
+* ~~travis~~
 
 <!-- -->
 
@@ -67,28 +70,31 @@
 
 ## Read
 
-* , whitespace
-* ; comment
 * `.foo -> :foo **getattr**`
 * `!foo -> .foo **call**`
 * `foo -> 'foo **call**`
-* isident()
-* unicodeAlNum + ` ~!@$%^&*-_=+|<>/?(){}[] `
-* ' or ! or : not at first
-* full ident w/ .
-* not all digits, not sole (){}[]
-* :"kwd"
 * Token, Ident, ...
 * istoken()?
-* /"regex"
 * ':kwd or ''id -> create ident?
 * or \foo vs 'foo
+
+<!-- -->
+
+* ~~, whitespace~~
+* ~~; comment~~
+* ~~isident()~~
+* ~~unicodeAlNum + ` ~!@$%^&*-_=+|<>/?(){}[] `~~
+* ~~' or ! or : not at first~~
+* ~~full ident w/ .~~
+* ~~not all digits, not sole (){}[]~~
+* ~~:"kwd"~~
+* ~~/"regex"~~
+* ~~~\uXXXX, 0xXXX~~~
 
 ```
 x ``foo y z
 ```
 
-* \uXXXX, 0xXXX
 * """..."""
 
 <!-- -->
@@ -124,21 +130,22 @@ x ``foo y z
 
 ## Data Types
 
-* nil
-* bool (T/F)
-* int, float, str
-* Kwd
-* list, dict, Range
-
-<!-- -->
-
-* regex (from re)
-* Kwd (subclass of str w/ repr :foo / :"foo bar")
+* dict
 * Range (subclass of range), RangeIncl, RangeExcl (.., ...)?
 * Rec: Foo type, Foo{, Foo(; namedtuple + repr(), str()
 * Block (.params, .code, .scope) [ ]
 * RawBlock (.params?, .code) '[ ]
-* KonekoError, StackUnderFlowError, ...
+
+<!-- -->
+
+* ~~nil = None~~
+* ~~bool (#t/#f)~~
+* ~~int, float, str~~
+* ~~Kwd~~
+* ~~Kwd (subclass of str w/ repr :foo / :"foo bar")~~
+* ~~list, dict~~
+* ~~Regex (from re)~~
+* ~~KonekoError, StackUnderFlowError, ...~~
 
 ### Blocks
 
