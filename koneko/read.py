@@ -43,7 +43,7 @@ class Kwd(str):                                                 # {{{1
 D.Kwd = Kwd
 
 # TODO: record, .foo, !foo
-def _parser():                                                  # {{{1
+def _make_parser():                                             # {{{1
   pre, bra    = "'!:", "(){}[]"
   sym         = unicodeAlNum + "~!@$%^&*-_=+|<>/?" + bra
   sym_        = sym + pre
@@ -132,7 +132,7 @@ def _parse_str(s):                                              # {{{1
   return "".join(t)
                                                                 # }}}1
 
-_parser, _sym = _parser()
+_parser, _sym = _make_parser()
 
 def isident(s):                                                 # {{{1
   """
