@@ -20,53 +20,38 @@ TODO
 ... TODO ...
 """                                                             # }}}1
 
-import pyparsing as P # TODO
 import sys
 
+import re as _re, regex
+sys.modules["re"] = regex     # s/regex/re/ for pyparsing *sigh*
+import pyparsing as P
+sys.modules["re"] = _re
+
 from . import data as D
+from . import misc as M
 
-# TODO
-unicodeAlNum    = "".join( c for c in map(chr, range(sys.maxunicode))
-                             if c.isalnum() )
-stringRx        = r'(?:[^"\\]|\\(?:["\\]|x[0-9a-fA-F]{2}|' \
-                                       r'u[0-9a-fA-F]{4}))*'
-rawStringRx     = r'(?:[^"\\]|\\.)*'
-space, spaceRx  = " \n\t\t,", r"[ \n\t\r,]+"
-
-# TODO: move, use ""
-class Kwd(str):                                                 # {{{1
-  """Keyword."""
-  def __repr__(self):
-    return ":" + (super().__str__() if isident(self) else
-                  super().__repr__())
-                                                                # }}}1
-
-# TODO
-D.Kwd = Kwd
-
-# TODO: FIXME; record, .foo, !foo
+# TODO: .foo, !foo, foo{, ...; no RawDict, List, etc.
 def _make_parser():                                             # {{{1
-  pre, bra    = "'!:", "(){}[]"
-  sym         = unicodeAlNum + "~!@$%^&*-_=+|<>/?" + bra
-  sym_        = sym + pre
+  # NB: the order in which matched are tried is important;
+  # e.g. float before int, etc.
 
   c, g, r, s  = P.Combine, P.Group, P.Regex, P.Suppress
   om, op, zm  = P.OneOrMore, P.Optional, P.ZeroOrMore
+  ibody       = r(M.RX_IDENT_BODY).leaveWhitespace()
+  lit         = lambda x: r(regex.escape(x))          # escape + rx
+  l           = lambda x: s(lit(x)).leaveWhitespace() # literal
+  k           = lambda x: lit(x) + ~ibody             # keyword
+  n           = lambda x, name: x.setName(name)       # name it
 
-  l           = lambda x: s(P.Literal(x)).leaveWhitespace()
-  k           = lambda x: P.Keyword(x, sym_)
-  n           = lambda x, name: x.setName(name)
-
-  comm        = n(r(";.*"), "comment")
-  reserved    = P.Word(bra, exact = 1) + ~P.Word(sym_)
-  ident       = ~reserved + P.Word(sym, sym_)
-  fident      = n(c(zm(c(ident + P.Literal("."))) + ident),
+  ws, term    = s(r(M.RX_SPACE)).leaveWhitespace(), P.Forward()
+  comm        = n(r(M.RX_COMMENT), "comment")
+  reserved    = P.Word(M.S_BRACKETS, exact = 1) + ~ibody
+  ident       = ~reserved + r(M.RX_IDENT_C) + ~ibody
+  fident      = n(c(zm(c(ident + lit("."))) + ident),
                   "identifier").setParseAction(P.tokenMap(D.Ident))
 
-  hexint      = r(r"[+-]?0x[0-9a-fA-F]+") \
-                .setParseAction(P.tokenMap(int, 16))
-  binint      = r(r"[+-]?0b[01]+") \
-                .setParseAction(P.tokenMap(int, 2))
+  hexint      = r(M.RX_HEXINT).setParseAction(P.tokenMap(int, 16))
+  binint      = r(M.RX_BININT).setParseAction(P.tokenMap(int, 2))
 
   nil         = n(k("nil"), "nil").setParseAction(lambda t: [None])
   bool_       = n(k("#t") | k("#f"), "bool") \
@@ -74,15 +59,12 @@ def _make_parser():                                             # {{{1
   float_      = n(P.pyparsing_common.sci_real, "float")   # b4 int!
   int_        = n(hexint | binint |
                   P.pyparsing_common.signed_integer, "int")
-  str_        = n(c(l('"') + r(stringRx) + l('"')), "string") \
+  str_        = n(c(l('"') + r(M.RX_STRING) + l('"')), "string") \
                 .setParseAction(P.tokenMap(_parse_str))
   kwd         = n(c(l(":") + (ident | str_)), "keyword") \
-                .setParseAction(P.tokenMap(Kwd))
-  regex       = n(c(l('/"') + r(rawStringRx) + l('"')), "regex") \
+                .setParseAction(P.tokenMap(D.Kwd))
+  regex_      = n(c(l('/"') + r(M.RX_RAWSTRING) + l('"')), "regex") \
                 .setParseAction(P.tokenMap(D.Regex))
-
-  ws          = P.Suppress(r(spaceRx)).leaveWhitespace()
-  term        = P.Forward()
 
   list_       = n(g(s(k("(")) + ws + op(om(term + ws)) + s(k(")"))),
                   "list").setParseAction(lambda t: [D.List(t[0])])
@@ -105,11 +87,9 @@ def _make_parser():                                             # {{{1
   shorthands  = ... # .foo !foo
 
   value       = nil | bool_ | float_ | int_ | str_ | kwd | \
-                regex | list_ | dict_ | block | quote           # TODO
+                regex_ | list_ | dict_ | block | quote          # TODO
   term       << ( value | fident | shift )
-  program     = op(zm(term + ws) + term).ignore(comm)
-
-  return program, (set(sym), set(sym_))
+  return op(zm(term + ws) + term).ignore(comm)
                                                                 # }}}1
 
 # TODO: why is this called twice? _parse_str (etc?) too...
@@ -119,6 +99,17 @@ def _parse_block(t):
   return D.RawBlock(params, code)
 
 def _parse_str(s):                                              # {{{1
+  r"""
+  Parses valid string contents; handles \uXXXX and \xXX etc.
+
+  >>> s = '"\\u732bs like string"'; s[3:7]
+  '732b'
+  >>> _parse_str(s[1:-1])
+  '猫s like string'
+  >>> _parse_str(r"\"\\...")
+  '"\\...'
+  """
+
   t, i, n = [], 0, len(s)
   while i < n:
     if s[i] == '\\':
@@ -134,37 +125,11 @@ def _parse_str(s):                                              # {{{1
   return "".join(t)
                                                                 # }}}1
 
-_parser, _sym = _make_parser()
+_parser = _make_parser()
 
-# TODO: move
-def isident(s):                                                 # {{{1
-  """
-  Is the string an identifier?
-  NB: does not check whether it is a *valid* identifier (i.e. whether
-  it is not e.g. [ or ) or nil.
-
-  >>> isident("nil")
-  True
-  >>> isident("")
-  False
-  >>> isident("42")
-  False
-  >>> isident("foo-bar'")
-  True
-  >>> isident("[子猫]")
-  True
-  >>> isident("'foo")
-  False
-  >>> isident("!@$%^&*")
-  True
-  """
-
-  return len(s) > 0 and not s.isnumeric() and s[0] in _sym[0] and \
-         all( c in _sym[1] for c in s[1:] )
-                                                                # }}}1
-
-# TODO: more tests, also: failures
+# TODO: more tests, also: failures; repr() -> show()
 def parse(s):                                                   # {{{1
+                                                                # {{{2
   r"""
   Parse code into an intermediate result.
 
@@ -196,11 +161,11 @@ def parse(s):                                                   # {{{1
 
   >>> parse("[,]")[0]
   '[ ]
-  >>> parse("[,42,]")[0]
+  >>> parse("[ 42 ]")[0]
   '[ 42 ]
-  >>> parse("[,x,.,]")[0]
+  >>> parse("[ x . ]")[0]
   '[ x . ]
-  >>> parse("[,x,.,42,]")[0]
+  >>> parse("[ x . 42 ]")[0]
   '[ x . 42 ]
 
   >>> type(parse("'foo")[0]).__name__
@@ -221,9 +186,9 @@ def parse(s):                                                   # {{{1
   True 42 'q
 
   ... TODO ...
-  """
+  """                                                           # }}}2
 
-  return list(_parser.parseString(s.strip(space), True))
+  return list(_parser.parseString(s.strip(M.S_SPACE), True))
                                                                 # }}}1
 
 # TODO

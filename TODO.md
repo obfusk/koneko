@@ -12,16 +12,12 @@
 ## Misc
 
 * ~~TODO: tick off~~
-* fix parser (use regex + [\p{L}\p{N}...]) [cur 2.5s, 260M]
-* monkey-patch pyparsing
+* travis WTF
 * rm RawDict, List, Dict, ...
 * `__repr__` -> show() (data, ...)
 * pprint -> show() (eval); reprlib
-* review data, read; move stuff to misc
-* travis WTF
 * show() + to_str() (`->str`)
 * misc: multi, repr, isident(), ...
-* Kwd -> data
 * show = multimethod(); @show.add(list); `__mro__`; `*a, **k`
 * default to `<<repr(x)>>`?
 * `__koneko_*__`
@@ -41,6 +37,10 @@
 <!-- -->
 
 * ~~travis~~
+* ~~fix parser (use regex + [\p{L}\p{N}...]) [cur 2.5s, 260M]~~
+* ~~monkey-patch pyparsing~~
+* ~~Kwd -> data~~
+* ~~review data, read; move stuff to misc~~
 
 <!-- -->
 

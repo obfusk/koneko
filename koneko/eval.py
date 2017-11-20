@@ -20,6 +20,7 @@ Hello, World!
 ... TODO ...
 """                                                             # }}}1
 
+import sys
 import pprint # TODO
 
 from . import data as D

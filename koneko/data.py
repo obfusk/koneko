@@ -15,9 +15,11 @@ r"""
 ... TODO ...
 """                                                             # }}}1
 
-import itertools, re # TODO
+import itertools, regex, sys
 
 from collections import namedtuple
+
+from . import misc as M
 
 # === Exceptions ===
 
@@ -32,6 +34,14 @@ class StackUnderFlowError(KonekoError):
 # === Data Types ===
 
 # TODO: use ""
+class Kwd(str):                                                 # {{{1
+  """Keyword."""
+  def __repr__(self):
+    return ":" + (super().__str__() if M.isident(self) else
+                  super().__repr__())
+                                                                # }}}1
+
+# TODO: use ""
 class Regex(str):                                               # {{{1
   """Regex."""
 
@@ -40,21 +50,24 @@ class Regex(str):                                               # {{{1
   @property
   def compiled(self):
     if not hasattr(self, "_compiled"):
-      self._compiled = re.compile(self)
+      self._compiled = regex.compile(self)
     return self._compiled
                                                                 # }}}1
 
+# TODO: remove
 class List(list):
   """List."""
   def __repr__(self):
     return "( " + "".join( repr(x)+" " for x in self ) + ")"
 
+# TODO: remove
 class Dict(dict):
   """Dict."""
   def __repr__(self):
     return "{" + ",".join( " {!r} {!r}".format(k, v)
                            for k, v in self.items() ) + " }"
 
+# TODO: replace w/ ( ... ) **dict**
 class RawDict(namedtuple("RawDict", "data".split())):
   """Raw Dict."""
   def __repr__(self):
@@ -113,10 +126,9 @@ def stack_pop(st, n = 1):                                       # {{{1
   [2, 3]
   >>> stack
   [1]
-  >>> stack_pop(stack, 2)
-  Traceback (most recent call last):
-    ...
-  koneko.data.StackUnderFlowError: stack underflow: 1 < 2
+  >>> try: stack_pop(stack, 2)
+  ... except StackUnderFlowError as e: print(e)
+  stack underflow: 1 < 2
   """
   if len(st) < n: raise StackUnderFlowError(len(st), n)
   data = st[-n:]; st[-n:] = []
