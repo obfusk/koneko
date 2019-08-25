@@ -12,8 +12,9 @@
 ## Misc
 
 * ~~TODO: tick off~~
-* travis WTF
+* coverage!
 * rm RawDict, List, Dict, ...
+* DictT, ShiftT (sugar; only temp. token)
 * `__repr__` -> show() (data, ...)
 * pprint -> show() (eval); reprlib
 * show() + to_str() (`->str`)
@@ -37,6 +38,7 @@
 <!-- -->
 
 * ~~travis~~
+* ~~travis WTF~~
 * ~~fix parser (use regex + [\p{L}\p{N}...]) [cur 2.5s, 260M]~~
 * ~~monkey-patch pyparsing~~
 * ~~Kwd -> data~~
