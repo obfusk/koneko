@@ -87,7 +87,7 @@ NB: WIP
 >>> cons
 ( 1 2 3 )
 
->>> :mymap [ f . dup empty? [ () ] [ uncons 'f dip 'f map cons ] if ] def
+>>> :mymap [ f . dup empty? [ () ] [ uncons 'f dip 'f mymap cons ] if ] def
 >>> [ dup * ] mymap
 ( 1 4 9 )
 ```
