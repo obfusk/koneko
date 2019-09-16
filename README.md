@@ -20,6 +20,32 @@ koneko - a concatenative not-quite-lisp for kittens
 
 ... TODO ...
 
+Properties:
+  * concatenative
+    - point-free
+    - juxtaposition of expressions denotes function composition
+  * stack-oriented
+    - postfix (reverse polish) notation
+    - functions consume arguments from the stack
+    - functions produce return values on the stack
+  * lisp-like
+    - homoiconic
+    - blocks/lambdas (anonymous functions)
+    - named arguments/points (lexically scoped)
+  * functional
+    - only immutable data structures
+    - does have side effects (I/O)
+    - strict evaluation
+  * dynamically, strongly typed
+
+<!--
+  * strict -> streams
+  * types -> ???
+  * dynamic scope???
+  * mark I/O as "dirty" to allow for optimizing code that is known to
+    be referentially transparent? vs clojure?
+-->
+
 ## Examples
 
 ### Hello World
@@ -39,6 +65,31 @@ Hello, World!
 ### ...
 
 ... TODO ...
+
+### Miscellaneous
+
+NB: WIP
+
+```
+>>> :twice1 [ f . f f ] def             ; with named arguments
+>>> 42 [ + 1 ] twice1
+44
+
+>>> :twice2 [ dup 'call dip call ] def  ; points-free
+>>> 42 [ + 1 ] twice2
+44
+
+>>> clear-stack
+>>> ( 1 2 3 ) uncons show-stack
+( 2 3 )
+1
+>>> cons
+( 1 2 3 )
+
+>>> :mymap [ f . dup empty? [ () ] [ uncons 'f dip 'f map cons ] if ] def
+>>> [ dup * ] mymap
+( 1 4 9 )
+```
 
 ## The Language
 
@@ -143,7 +194,7 @@ Pair( :answer 42 )
 ```
 >>> clear-stack
 
->>> ( :x :y ) :Point defrecord    ; define record type
+>>> :Point ( :x :y ) defrecord    ; define record type
 >>> Point{ x: 1, y: -1 }          ; create record instance
 Point{ x: 1, y: -1 }
 >>> dup .x
@@ -163,17 +214,17 @@ aka Lambdas
 ```
 >>> clear-stack
 
->>> [ 42 ] :myblock def           ; a block that pushes 42 onto the stack
+>>> :myblock [ 42 ] def           ; a block that pushes 42 onto the stack
 >>> 'myblock                      ; put it on the stack
 [ 42 ]
->>> call                          ; call it
+>>> call                          ; call the block on the stack
 42
 >>> myblock
 42
 
 >>> clear-stack
 
->>> [ x y . 'y 'x ] :myswap def   ; a block with parameters
+>>> :myswap [ x y . 'y 'x ] def   ; a block with named arguments
 >>> 1 2 myswap
 1
 >>> show-stack
@@ -183,7 +234,7 @@ aka Lambdas
 
 <!--
 
-* arity? params + body
+* arity? args + body
 * ..., variable arity, apply, ...
 * curry, partial?
 * show-stack + reverse order
@@ -272,9 +323,9 @@ NB: WIP
 ```
 >>> clear-stack
 
->>> 1 :x def
->>> 2 :y def
->>> 3 :x def
+>>> :x 1 def
+>>> :y 2 def
+>>> :z 3 def
 
 >>> ( 'x 'y 'z )
 ( 1 2 3 )
@@ -289,10 +340,10 @@ NB: WIP
 ### Variables
 
 ```
->>> clear-stack                 ; (housekeeping)
+>>> clear-stack
 
->>> 42 :answer def              ; define a variable in the current namespace
->>> [ + 1 ] :inc def            ; can be a value or a block
+>>> :answer 42 def              ; define a variable in the current namespace
+>>> :inc [ + 1 ] def            ; can be a value or a block
 >>> 'answer inc
 43
 ```
@@ -322,20 +373,20 @@ NB: WIP
 >>> 1 2 show-stack
 2
 1
->>> ; [ x y . 'y 'x ] :swap def
+>>> ; :swap [ x y . 'y 'x ] def
 >>> swap show-stack               ; swap top 2 values on stack
 1
 2
->>> ; [ x . 'x 'x ] :dup def
+>>> ; :dup [ x . 'x 'x ] def
 >>> dup show-stack                ; dup(licate) top of stack
 1
 1
 2
->>> ; [ x . ] :drop def
+>>> ; :drop [ x . ] def
 >>> drop show-stack               ; drop (remove) top of stack
 1
 2
->>> ; [ x f . f 'x ] :dip def
+>>> ; :dip [ x f . f 'x ] def
 >>> 3 '+ dip *                    ; remove x, call f, push x
 9
 ```
