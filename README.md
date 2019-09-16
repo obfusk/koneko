@@ -186,6 +186,7 @@ aka Lambdas
 * arity? params + body
 * ..., variable arity, apply, ...
 * curry, partial?
+* show-stack + reverse order
 
 -->
 
