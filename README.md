@@ -20,23 +20,24 @@ koneko - a concatenative not-quite-lisp for kittens
 
 ... TODO ...
 
-Properties:
-  * concatenative
-    - point-free
-    - juxtaposition of expressions denotes function composition
-  * stack-oriented
-    - postfix (reverse polish) notation
-    - functions consume arguments from the stack
-    - functions produce return values on the stack
-  * lisp-like
-    - homoiconic
-    - blocks/lambdas (anonymous functions)
-    - named arguments/points (lexically scoped)
-  * functional
-    - only immutable data structures
-    - does have side effects (I/O)
-    - strict evaluation
-  * dynamically, strongly typed
+### Properties
+
+* concatenative
+  - point-free
+  - juxtaposition of expressions denotes function composition
+* stack-oriented
+  - postfix (reverse polish) notation
+  - functions consume arguments from the stack
+  - functions produce return values on the stack
+* lisp-like
+  - homoiconic
+  - blocks/lambdas (anonymous functions)
+  - named arguments/points (lexically scoped)
+* functional
+  - only immutable data structures
+  - does have side effects (I/O)
+  - strict evaluation
+* dynamically, strongly typed
 
 <!--
   * strict -> streams
