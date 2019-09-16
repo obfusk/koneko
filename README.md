@@ -2,7 +2,7 @@
 
     File        : README.md
     Maintainer  : Felix C. Stegerman <flx@obfusk.net>
-    Date        : 2019-08-26
+    Date        : 2019-09-16
 
     Copyright   : Copyright (C) 2019  Felix C. Stegerman
     Version     : v0.0.1
@@ -127,7 +127,7 @@ Pair( :answer 42 )
 2
 >>> :x get
 42
->>> { 32 5 + 76 3 - => }
+>>> { 32 5 +, 76 3 - => }
 { 37 73 => }
 ```
 
@@ -176,7 +176,8 @@ aka Lambdas
 >>> [ x y . 'y 'x ] :myswap def   ; a block with parameters
 >>> 1 2 myswap
 1
->>> print-stack
+>>> show-stack
+1
 2
 ```
 
@@ -320,13 +321,22 @@ NB: WIP
 >>> 1 2 show-stack
 2
 1
+>>> ; [ x y . 'y 'x ] :swap def
 >>> swap show-stack               ; swap top 2 values on stack
 1
 2
+>>> ; [ x . 'x 'x ] :dup def
 >>> dup show-stack                ; dup(licate) top of stack
 1
 1
 2
+>>> ; [ x . ] :drop def
+>>> drop show-stack               ; drop (remove) top of stack
+1
+2
+>>> ; [ x f . f 'x ] :dip def
+>>> 3 '+ dip *                    ; remove x, call f, push x
+9
 ```
 
 ... TODO ...
