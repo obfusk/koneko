@@ -82,14 +82,21 @@ NB: WIP
 44
 
 >>> :twice3 [ f . [ f f ] ] def         ; "curried"
->>> 42 [ 1 + ] twice3 twice3 twice3 twice3 call
-58
+>>> 0 [ 1 + ] twice3 twice3 twice3 twice3 call
+16
 
->>> 42 [ 1 + ] [ twice3 twice3 ] twice3 call call
-58
+>>> 0 [ 1 + ] [ twice3 twice3 ] twice3 call call
+16
+>>> 0 [ 1 + ] [ twice3 ] twice3 twice3 call call
+16
 
->>> 42 [ 1 + ] ???                      ; TODO
-65578
+>>> 0 [ 1 + ] [ twice3 twice3 ] twice3 twice3 call call
+256
+>>> 0 [ 1 + ] [ twice3 ] twice3 twice3 twice3 call call
+256
+
+>>> 0 [ 1 + ] ???                       ; TODO
+65536
 
 >>> clear-stack
 >>> ( 1 2 3 ) uncons show-stack
