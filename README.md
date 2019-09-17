@@ -74,11 +74,11 @@ NB: WIP
 
 ```
 >>> :twice1 [ f . f f ] def             ; with named arguments
->>> 42 [ + 1 ] twice1
+>>> 42 [ 1 + ] twice1
 44
 
 >>> :twice2 [ dup 'call dip call ] def  ; points-free
->>> 42 [ + 1 ] twice2
+>>> 42 [ 1 + ] twice2
 44
 
 >>> clear-stack
@@ -347,7 +347,7 @@ NB: WIP
 >>> clear-stack
 
 >>> :answer 42 def              ; define a variable in the current namespace
->>> :inc [ + 1 ] def            ; can be a value or a block
+>>> :inc [ 1 + ] def            ; can be a value or a block
 >>> 'answer inc
 43
 ```
