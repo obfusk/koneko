@@ -1,2 +1,3 @@
 language: haskell
+install: cabal v2-install
 script: cabal v2-build && doctest src/
