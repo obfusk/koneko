@@ -3,14 +3,14 @@
 module Koneko.Repl (repl) where
 
 import Control.Monad (unless)
-import Data.Text (Text)
+import Data.Text.Lazy (Text)
 import System.IO (hFlush, stdout)
 import System.IO.Error (catchIOError, isEOFError)
 import System.Posix.IO (stdInput)
 import System.Posix.Terminal (queryTerminal)
 
-import qualified Data.Text as T
-import qualified Data.Text.IO as T
+import qualified Data.Text.Lazy as T
+import qualified Data.Text.Lazy.IO as T
 
 -- TODO: readline? or just rlwrap?
 
