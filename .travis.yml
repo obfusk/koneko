@@ -3,5 +3,5 @@ cabal: "2.4"
 ghc:
   - "8.4.4"
   - "8.6.5"
-install: cabal v2-install
+install: cabal v2-install && cabal v2-install doctest
 script: cabal v2-build && doctest src/
