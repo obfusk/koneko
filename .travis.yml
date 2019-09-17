@@ -3,5 +3,12 @@ cabal: "2.4"
 ghc:
   - "8.4.4"
   - "8.6.5"
-install: cabal v2-install && cabal v2-install doctest
-script: cabal v2-build && doctest src/
+install: |
+  set -e
+  cabal v2-install --only-dependencies --enable-tests
+  cabal v2-install doctest
+script: |
+  set -e
+  export PATH=~/.cabal/bin:"$PATH"
+  cabal v2-build
+  doctest src/
