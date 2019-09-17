@@ -81,6 +81,16 @@ NB: WIP
 >>> 42 [ 1 + ] twice2
 44
 
+>>> :twice3 [ f . [ f f ] ] def         ; "curried"
+>>> 42 [ 1 + ] twice3 twice3 twice3 twice3 call
+58
+
+>>> 42 [ 1 + ] [ twice3 twice3 ] twice3 call call
+58
+
+>>> 42 [ 1 + ] ???                      ; TODO
+65578
+
 >>> clear-stack
 >>> ( 1 2 3 ) uncons show-stack
 ( 2 3 )
@@ -403,6 +413,8 @@ NB: WIP
 
 ```
 ```
+
+<!-- lib/ -->
 
 ... TODO...
 
