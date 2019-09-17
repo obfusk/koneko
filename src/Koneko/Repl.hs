@@ -28,9 +28,8 @@ f :: Text -> Text
 f = T.reverse
 
 prompt' :: Text -> IO (Maybe Text)
-prompt' x = do
-  (Just <$> prompt x) `catchIOError`
-    \e -> if isEOFError e then return Nothing else ioError e
+prompt' x = (Just <$> prompt x) `catchIOError`
+            \e -> if isEOFError e then return Nothing else ioError e
 
 prompt :: Text -> IO Text
 prompt x = do T.putStr x; hFlush stdout; T.getLine
