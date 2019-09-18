@@ -52,7 +52,9 @@ cabal-version:       >=1.10
 library
   -- Modules exported by the library.
   exposed-modules:
+    Koneko.Data
     Koneko.Eval
+    Koneko.Misc
     Koneko.Read
     Koneko.Repl
 
@@ -63,7 +65,7 @@ library
   -- other-extensions:
 
   -- Other library packages from which modules are imported.
-  build-depends:       base >=4.11, text, unix
+  build-depends:       base >=4.11, megaparsec, text, unix
 
   -- Directories containing source files.
   hs-source-dirs:      src
@@ -78,7 +80,9 @@ executable koneko
 
   -- Modules included in this executable, other than Main.
   other-modules:
+    Koneko.Data
     Koneko.Eval
+    Koneko.Misc
     Koneko.Read
     Koneko.Repl
 
@@ -86,7 +90,7 @@ executable koneko
   -- other-extensions:
 
   -- Other library packages from which modules are imported.
-  build-depends:       base >=4.11, cmdargs, text, unix
+  build-depends:       base >=4.11, cmdargs, megaparsec, text, unix
 
   -- Directories containing source files.
   hs-source-dirs:      src

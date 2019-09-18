@@ -14,7 +14,7 @@
 
 module Koneko.Repl (repl, stdinTTY) where
 
-import Control.Monad ((>=>), unless)
+import Control.Monad (unless)
 import Data.Bool (bool)
 import Data.Text.Lazy (Text)
 import System.IO (hFlush, stdout)

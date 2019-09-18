@@ -12,12 +12,25 @@
 
 module Koneko.Read (read) where
 
-import Prelude hiding (read)
-
 import Data.Text.Lazy (Text)
+import Data.Void (Void)
+import Prelude hiding (read)
+import Text.Megaparsec hiding (State)
+import Text.Megaparsec.Char
 
 import qualified Data.Text.Lazy as T
-import qualified Data.Text.Lazy.IO as T
+import qualified Text.Megaparsec.Char.Lexer as L
+
+type Parser = Parsec Void Text
+
+-- TODO:
+--  * whitespace incl ;
+--  * Nil, Bool, Int, Float, Str, Kwd, Rx
+--  * Ident, Quoted Ident
+--  * Pair, List, Dict
+--  * Record
+--  * Block, RawBlock vs Quoted Block
+--  * ~sugar~
 
 -- TODO
 read t = error "read not yet implemented"
