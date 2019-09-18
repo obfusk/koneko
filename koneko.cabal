@@ -65,7 +65,7 @@ library
   -- other-extensions:
 
   -- Other library packages from which modules are imported.
-  build-depends:       base >=4.11, megaparsec, text, unix
+  build-depends:       base >=4.11, hashtables, megaparsec, text, unix
 
   -- Directories containing source files.
   hs-source-dirs:      src
@@ -90,7 +90,8 @@ executable koneko
   -- other-extensions:
 
   -- Other library packages from which modules are imported.
-  build-depends:       base >=4.11, cmdargs, megaparsec, text, unix
+  build-depends:       base >=4.11, cmdargs, hashtables, megaparsec,
+                       text, unix
 
   -- Directories containing source files.
   hs-source-dirs:      src
