@@ -2,7 +2,7 @@
 --
 --  File        : Koneko/Eval.hs
 --  Maintainer  : Felix C. Stegerman <flx@obfusk.net>
---  Date        : 2019-09-17
+--  Date        : 2019-09-18
 --
 --  Copyright   : Copyright (C) 2019  Felix C. Stegerman
 --  Version     : v0.0.1
@@ -18,8 +18,9 @@
 -- >>> :set -XOverloadedStrings
 -- >>> import Data.Maybe
 -- >>> let id = fromJust . ident
+-- >>> let ev x = () <$ evalList x undefined []
 --
--- >>> evalCode [str "Hello, World!", KIdent $ id "say"]
+-- >>> ev [str "Hello, World!", KIdent $ id "say"]
 -- Hello, World!
 --
 -- ... TODO ...
@@ -27,10 +28,7 @@
 
                                                               --  }}}1
 
-module Koneko.Eval (
-  eval, evalList, evalCode, evalFile, evalStdin, evalString, evalText,
-  truthy
-) where
+module Koneko.Eval (eval, evalList, evalText, evalStdin, truthy) where
 
 import Data.Text.Lazy (Text)
 
@@ -43,46 +41,40 @@ import qualified Koneko.Read as R
 import qualified Koneko.Data as D
 
 -- TODO: Either for errors
-type Primitive = Scope -> Stack -> IO Stack
+type Evaluator = Context -> Stack -> IO Stack
 
 -- TODO:
 -- * say, +, -, ... --> defaultScope
-eval :: KValue -> Scope -> Stack -> IO Stack
+eval :: KValue -> Evaluator
 eval x sc st = case x of
   KPrim _   -> return (x:st)
   KPair _   -> error "TODO"
   KList _   -> error "TODO"
-  KIdent i  -> _evalIdent sc st $ unIdent i
+  KIdent i  -> _evalIdent (unIdent i) sc st
   KQuot _   -> error "TODO"
   KBlock _  -> error "TODO"
 
 -- TODO
-_evalIdent :: Scope -> Stack -> Text -> IO Stack
-_evalIdent sc st i = case lookup i primitives of
+_evalIdent :: Text -> Evaluator
+_evalIdent i sc st = case lookup i primitives of
   Just p  -> p sc st
   Nothing -> D.lookup sc i >>= maybe
     (error $ T.unpack i ++ " not found") (primCall sc . (:st))
 
-evalList :: [KValue] -> Scope -> Stack -> IO Stack
+evalList :: [KValue] -> Evaluator
 evalList []     _  st = return st
 evalList (x:xt) sc st = eval x sc st >>= evalList xt sc
 
-evalCode :: [KValue] -> IO ()
-evalCode xs = do sc <- newScope; evalList xs sc [] >> return ()
+evalText :: FilePath -> Text -> Evaluator
+evalText name code c s = evalList (R.read' name code) c s
 
-evalFile :: FilePath -> IO ()
-evalFile f = do s <- T.readFile f; evalCode $ R.read' f s
+evalStdin :: Context -> Stack -> IO ()
+evalStdin c s = () <$ do
+  code <- T.getContents; evalText "(stdin)" code c s
 
-evalStdin :: IO ()
-evalStdin = T.getContents >>= evalText
+-- primitives --
 
-evalString :: String -> IO ()
-evalString = evalText . T.pack
-
-evalText :: Text -> IO ()
-evalText = evalCode . R.read
-
-primitives :: [(Text, Primitive)]
+primitives :: [(Text, Evaluator)]
 primitives = [                                                --  {{{1
     ("call" , primCall),
     ("def"  , primDef),
@@ -90,7 +82,7 @@ primitives = [                                                --  {{{1
     ("say"  , primSay)
   ]                                                           --  }}}1
 
-primCall, primDef, primIf, primSay :: Primitive
+primCall, primDef, primIf, primSay :: Evaluator
 
 primCall _ (_:_ ) = error "TODO"                              --  TODO
 primCall _ _      = stackUnderflow
@@ -103,6 +95,8 @@ primIf _  _             = stackUnderflow
 
 primSay _  (KPrim (KStr s):st)  = st <$ T.putStrLn s
 primSay _  _                    = matchError "say"
+
+-- utilities --
 
 truthy :: KValue -> Bool
 truthy (KPrim KNil)           = False

@@ -2,7 +2,7 @@
 --
 --  File        : Koneko/Data.hs
 --  Maintainer  : Felix C. Stegerman <flx@obfusk.net>
---  Date        : 2019-09-17
+--  Date        : 2019-09-18
 --
 --  Copyright   : Copyright (C) 2019  Felix C. Stegerman
 --  Version     : v0.0.1
@@ -50,16 +50,18 @@
                                                               --  }}}1
 
 module Koneko.Data (
-  Kwd(..), Ident, List(..), Block(..), Scope(..), Pair(..), KPrim(..),
-  KValue(..), Stack, unIdent, ident, newScope, extendScope, lookup,
-  nil, false, true, bool, int, float, str, kwd, pair, list, block
+  Module, Kwd(..), Ident, List(..), Block(..), Scope(..), Context(..),
+  Pair(..), KPrim(..), KValue(..), Stack, unIdent, ident, initStack,
+  initContext, forkScope, scopeInsert, lookup, nil, false, true, bool,
+  int, float, str, kwd, pair, list, block
 ) where
 
 import Data.List (intercalate)
 import Data.Text.Lazy (Text)
 import Prelude hiding (lookup)
 
-import qualified Data.HashTable.IO as H
+import qualified Data.HashMap.Lazy as H
+import qualified Data.HashTable.IO as HT
 import qualified Data.Text.Lazy as T
 
 import Koneko.Misc (isIdent)
@@ -70,26 +72,35 @@ import Koneko.Misc (isIdent)
 --  * Record
 --  * RawBlock vs Quoted Block
 
-type HashTable k v = H.BasicHashTable k v                     --  TODO
+type Identifier         = Text
+type HashTable k v      = HT.BasicHashTable k v
+type ModuleLookupTable  = HashTable Identifier KValue
+type ScopeLookupTable   = H.HashMap Identifier KValue
+type Module             = ModuleLookupTable
 
-newtype Kwd = Kwd { unKwd :: Text }
+newtype Kwd = Kwd { unKwd :: Identifier }
   deriving (Eq, Ord)
 
-newtype Ident = Ident { unIdent :: Text }
+newtype Ident = Ident { unIdent :: Identifier }
   deriving (Eq, Ord)
 
 newtype List = List { unList :: [KValue] }
   deriving (Eq, Ord)
 
 data Block = Block {
-  args  :: [Ident],
-  code  :: [KValue],
-  scope :: Maybe Scope
+  blkArgs   :: [Ident],
+  blkCode   :: [KValue],
+  blkScope  :: Maybe Scope
 }
 
 data Scope = Scope {
-  parent  :: Maybe Scope,   -- no parent <=> is namespace
-  table   :: HashTable Text KValue
+  parent  :: Either Identifier Scope,
+  table   :: ScopeLookupTable
+}
+
+data Context = Context {
+  modules   :: HashTable Identifier Module,
+  ctxScope  :: Scope
 }
 
 -- TODO
@@ -167,15 +178,45 @@ instance Show KValue where
 ident :: Text -> Maybe Ident
 ident s = if isIdent s then Just $ Ident s else Nothing
 
-newScope :: IO Scope
-newScope = H.new >>= return . Scope Nothing
+-- Module/Scope functions --
 
-extendScope :: Scope -> IO Scope
-extendScope p = do sc <- newScope; return sc { parent = Just p }
+mainModule :: Identifier
+mainModule = "__main__"
 
-lookup :: Scope -> Text -> IO (Maybe KValue)
-lookup (Scope p t) k = H.lookup t k >>= maybe up (return . Just)
-  where up = maybe (return Nothing) (flip lookup k) p
+initStack :: Stack
+initStack = []
+
+initContext :: IO Context
+initContext = do
+  modules <- HT.new
+  main    <- HT.new
+  HT.insert modules mainModule main
+  let ctxScope = Scope { parent = Left mainModule, table = H.empty }
+  return Context{..}
+
+forkScope :: Context -> Context
+forkScope c = c { ctxScope = Scope { parent = Right $ ctxScope c,
+                                     table  = H.empty } }
+
+scopeInsert :: Context -> Identifier -> KValue -> Context
+scopeInsert c k v
+  = let s = ctxScope c; t = table s
+    in c { ctxScope = s { table = H.insert k v t } }
+
+lookup :: Context -> Identifier -> IO (Maybe KValue)
+lookup c = lookup' $ ctxScope c
+  where
+    lookup' s k = case H.lookup k $ table s of
+      Nothing -> up k $ parent s
+      v       -> return v
+    up k = either (lookupModule c k) (flip lookup' k)
+
+lookupModule :: Context -> Identifier -> Identifier -> IO (Maybe KValue)
+lookupModule c k modName = do
+  m <- HT.lookup (modules c) modName
+  maybe (return Nothing) (flip HT.lookup k) m
+
+-- "constructors" --
 
 nil, false, true :: KValue
 nil   = KPrim KNil
@@ -204,6 +245,6 @@ list :: [KValue] -> KValue
 list = KList . List
 
 block :: [Ident] -> [KValue] -> Maybe Scope -> KValue
-block args code scope = KBlock Block{..}
+block blkArgs blkCode blkScope = KBlock Block{..}
 
 -- vim: set tw=70 sw=2 sts=2 et fdm=marker :

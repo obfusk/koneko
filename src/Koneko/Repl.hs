@@ -2,7 +2,7 @@
 --
 --  File        : Koneko/Repl.hs
 --  Maintainer  : Felix C. Stegerman <flx@obfusk.net>
---  Date        : 2019-09-17
+--  Date        : 2019-09-18
 --
 --  Copyright   : Copyright (C) 2019  Felix C. Stegerman
 --  Version     : v0.0.1
@@ -25,16 +25,24 @@ import System.Posix.Terminal (queryTerminal)
 import qualified Data.Text.Lazy as T
 import qualified Data.Text.Lazy.IO as T
 
+import qualified Koneko.Data as D
 import qualified Koneko.Eval as E
 
 -- TODO: readline? or just rlwrap?
 
-repl :: IO ()
-repl = stdinTTY >>= (bool E.evalStdin loop)
+repl :: D.Context -> D.Stack -> IO ()
+repl ctx st = stdinTTY >>= \tty -> bool E.evalStdin loop tty ctx st
   where
-    loop      = prompt' ">>> " >>=
-                maybe (T.putStrLn "") (\l -> process l >> loop)
-    process l = unless (T.null l) (E.evalText l)              -- TODO
+    loop :: D.Context -> D.Stack -> IO ()
+    loop c s = prompt' promptText >>= maybe (T.putStrLn "") process
+      where
+        process line = unless (T.null line) $ do
+          s' <- E.evalText "(repl)" line c s
+          unless (null s') $ putStrLn $ show $ head s'        --  TODO
+          loop c s'
+
+promptText :: Text
+promptText = ">>> "
 
 prompt' :: Text -> IO (Maybe Text)
 prompt' x = (Just <$> prompt x) `catchIOError`

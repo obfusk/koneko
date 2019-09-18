@@ -2,7 +2,7 @@
 --
 --  File        : Koneko/Read.hs
 --  Maintainer  : Felix C. Stegerman <flx@obfusk.net>
---  Date        : 2019-09-17
+--  Date        : 2019-09-18
 --
 --  Copyright   : Copyright (C) 2019  Felix C. Stegerman
 --  Version     : v0.0.1

@@ -2,7 +2,7 @@
 --
 --  File        : Main.hs
 --  Maintainer  : Felix C. Stegerman <flx@obfusk.net>
---  Date        : 2019-09-17
+--  Date        : 2019-09-18
 --
 --  Copyright   : Copyright (C) 2019  Felix C. Stegerman
 --  Version     : v0.0.1
@@ -18,10 +18,13 @@ module Main (main) where
 import Control.Monad (when)
 import System.Console.CmdArgs hiding (args)
 
+import qualified Data.Text.Lazy as T
+import qualified Data.Text.Lazy.IO as T
 import qualified System.Console.CmdArgs as CA
 
 import Koneko.Repl (repl, stdinTTY)
 
+import qualified Koneko.Data as D
 import qualified Koneko.Eval as E
 
 version :: String
@@ -33,17 +36,21 @@ data KonekoCmd = KonekoCmd {
   interactive :: Bool
 } deriving (Data, Eq, Show, Typeable)
 
+-- TODO: use args
 main :: IO ()
 main = do
-    isatty        <- stdinTTY
     KonekoCmd{..} <- cmdArgs cmd
-    let int = when interactive repl
+    isatty        <- stdinTTY
+    ctx           <- D.initContext
+    let st = D.initStack; int = when interactive . repl ctx
     case (eval, args) of
-      (Nothing, [])       -> if isatty || interactive then repl
-                             else E.evalStdin
-      (Nothing, script:_) -> E.evalFile script >> int   -- TODO: args'
-      (Just code, _)      -> E.evalString code >> int
+      (Nothing, [])       -> (if isatty || interactive then repl
+                              else E.evalStdin) ctx st
+      (Nothing, script:_) -> evalFile script ctx st >>= int
+      (Just code, _)      -> evalString code ctx st >>= int
   where
+    evalFile f c s  = do code <- T.readFile f; E.evalText f code c s
+    evalString      = E.evalText "(code)" . T.pack
     cmd = KonekoCmd {
       eval        = def &= typ "CODE"
                         &= help "code to run (instead of a script)",
