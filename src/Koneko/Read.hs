@@ -10,18 +10,16 @@
 --
 --  --                                                          ; }}}1
 
-module Koneko.Read (read) where
+module Koneko.Read (read, read') where
 
 import Data.Text.Lazy (Text)
-import Data.Void (Void)
+-- import Data.Void (Void)
 import Prelude hiding (read)
-import Text.Megaparsec hiding (State)
-import Text.Megaparsec.Char
+-- import Text.Megaparsec hiding (State)
 
-import qualified Data.Text.Lazy as T
-import qualified Text.Megaparsec.Char.Lexer as L
+import Koneko.Data
 
-type Parser = Parsec Void Text
+-- type Parser = Parsec Void Text
 
 -- TODO:
 --  * whitespace incl ;
@@ -33,6 +31,11 @@ type Parser = Parsec Void Text
 --  * ~sugar~
 
 -- TODO
-read t = error "read not yet implemented"
+read :: Text -> [KValue]
+read _ = error "read not yet implemented"
+
+-- TODO
+read' :: FilePath -> Text -> [KValue]
+read' _ _ = error "read' not yet implemented"
 
 -- vim: set tw=70 sw=2 sts=2 et fdm=marker :

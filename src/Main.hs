@@ -24,6 +24,7 @@ import Koneko.Repl (repl, stdinTTY)
 
 import qualified Koneko.Eval as E
 
+version :: String
 version = "koneko 0.0.1"
 
 data KonekoCmd = KonekoCmd {
@@ -38,10 +39,10 @@ main = do
     KonekoCmd{..} <- cmdArgs cmd
     let int = when interactive repl
     case (eval, args) of
-      (Nothing, [])           -> if isatty || interactive then repl
-                                 else E.evalStdin
-      (Nothing, script:args') -> E.evalFile script >> int -- TODO: args'
-      (Just code, args')      -> E.evalString code >> int
+      (Nothing, [])       -> if isatty || interactive then repl
+                             else E.evalStdin
+      (Nothing, script:_) -> E.evalFile script >> int   -- TODO: args'
+      (Just code, _)      -> E.evalString code >> int
   where
     cmd = KonekoCmd {
       eval        = def &= typ "CODE"

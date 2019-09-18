@@ -43,6 +43,7 @@ prompt' x = (Just <$> prompt x) `catchIOError`
 prompt :: Text -> IO Text
 prompt x = do T.putStr x; hFlush stdout; T.getLine
 
+stdinTTY :: IO Bool
 stdinTTY = queryTerminal stdInput
 
 -- vim: set tw=70 sw=2 sts=2 et fdm=marker :

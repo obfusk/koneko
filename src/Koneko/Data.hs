@@ -30,8 +30,6 @@
 -- 42
 -- >>> float (-1.23)
 -- -1.23
--- >>> str "I like 猫s"
--- "I like 猫s"
 -- >>> kwd "foo"
 -- :foo
 -- >>> pair (Kwd "answer") $ int 42
@@ -42,20 +40,24 @@
 -- foo
 -- >>> q "foo"
 -- 'foo
--- >>> KBlock [id "x", id "y"] [q "y", q "x"]
+-- >>> block [id "x", id "y"] [q "y", q "x"] undefined
 -- [ x y . 'y 'x ]
+--
+-- >>> str "I like 猫s"
+-- "I like 猫s"
 --
 
                                                               --  }}}1
 
 module Koneko.Data (
   Kwd(..), Ident, List(..), Block(..), Scope(..), Pair(..), KPrim(..),
-  KValue(..), Stack(..), ident, unIdent, nil, false, true, bool, int,
-  float, str, kwd, pair, list, block
+  KValue(..), Stack, unIdent, ident, newScope, extendScope, lookup,
+  nil, false, true, bool, int, float, str, kwd, pair, list, block
 ) where
 
 import Data.List (intercalate)
 import Data.Text.Lazy (Text)
+import Prelude hiding (lookup)
 
 import qualified Data.HashTable.IO as H
 import qualified Data.Text.Lazy as T
@@ -75,9 +77,6 @@ newtype Kwd = Kwd { unKwd :: Text }
 
 newtype Ident = Ident { unIdent :: Text }
   deriving (Eq, Ord)
-
-ident :: Text -> Maybe Ident
-ident s = if isIdent s then Just $ Ident s else Nothing
 
 newtype List = List { unList :: [KValue] }
   deriving (Eq, Ord)
@@ -162,7 +161,21 @@ instance Show KValue where
   show (KPair p)  = show p
   show (KList l)  = show l
   show (KIdent i) = show i
+  show (KQuot x)  = "'" ++ show x
   show (KBlock b) = show b
+
+ident :: Text -> Maybe Ident
+ident s = if isIdent s then Just $ Ident s else Nothing
+
+newScope :: IO Scope
+newScope = H.new >>= return . Scope Nothing
+
+extendScope :: Scope -> IO Scope
+extendScope p = do sc <- newScope; return sc { parent = Just p }
+
+lookup :: Scope -> Text -> IO (Maybe KValue)
+lookup (Scope p t) k = H.lookup t k >>= maybe up (return . Just)
+  where up = maybe (return Nothing) (flip lookup k) p
 
 nil, false, true :: KValue
 nil   = KPrim KNil
