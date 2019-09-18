@@ -11,10 +11,47 @@
 --  --                                                          ; }}}1
 
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE RecordWildCards #-}
+
+                                                              --  {{{1
+-- |
+--
+-- >>> :set -XOverloadedStrings
+-- >>> import Data.Maybe
+-- >>> let id = fromJust . ident; q = KQuot . id
+--
+-- >>> nil
+-- nil
+-- >>> false
+-- #f
+-- >>> true
+-- #t
+-- >>> int 42
+-- 42
+-- >>> float (-1.23)
+-- -1.23
+-- >>> str "I like 猫s"
+-- "I like 猫s"
+-- >>> kwd "foo"
+-- :foo
+-- >>> pair (Kwd "answer") $ int 42
+-- Pair( :answer 42 )
+-- >>> list [int 42, kwd "foo"]
+-- ( 42 :foo )
+-- >>> KIdent $ id "foo"
+-- foo
+-- >>> q "foo"
+-- 'foo
+-- >>> KBlock [id "x", id "y"] [q "y", q "x"]
+-- [ x y . 'y 'x ]
+--
+
+                                                              --  }}}1
 
 module Koneko.Data (
-  Kwd(..), Ident, Block(..), Scope(..), Pair(..), KPrim(..),
-  KValue(..), Stack(..), ident, unIdent
+  Kwd(..), Ident, List(..), Block(..), Scope(..), Pair(..), KPrim(..),
+  KValue(..), Stack(..), ident, unIdent, nil, false, true, bool, int,
+  float, str, kwd, pair, list, block
 ) where
 
 import Data.List (intercalate)
@@ -60,7 +97,7 @@ data Scope = Scope {
 data Pair = Pair { key :: Kwd, value :: KValue }
   deriving (Eq, Ord)
 
--- Todo: Rx
+-- TODO: + Rx
 data KPrim
     = KNil | KBool Bool | KInt Integer | KFloat Double
     | KStr Text | KKwd Kwd
@@ -116,7 +153,7 @@ instance Show KPrim where
   show (KBool b)  = if b then "#t" else "#f"
   show (KInt i)   = show i
   show (KFloat f) = show f
-  show (KStr s)   = show s
+  show (KStr s)   = show s                                    --  TODO
   show (KKwd k)   = show k
 
 -- TODO
@@ -126,5 +163,34 @@ instance Show KValue where
   show (KList l)  = show l
   show (KIdent i) = show i
   show (KBlock b) = show b
+
+nil, false, true :: KValue
+nil   = KPrim KNil
+false = bool False
+true  = bool True
+
+bool :: Bool -> KValue
+bool = KPrim . KBool
+
+int :: Integer -> KValue
+int = KPrim . KInt
+
+float :: Double -> KValue
+float = KPrim . KFloat
+
+str :: Text -> KValue
+str = KPrim . KStr
+
+kwd :: Text -> KValue
+kwd = KPrim . KKwd . Kwd
+
+pair :: Kwd -> KValue -> KValue
+pair k v = KPair $ Pair k v
+
+list :: [KValue] -> KValue
+list = KList . List
+
+block :: [Ident] -> [KValue] -> Maybe Scope -> KValue
+block args code scope = KBlock Block{..}
 
 -- vim: set tw=70 sw=2 sts=2 et fdm=marker :
