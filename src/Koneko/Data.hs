@@ -50,10 +50,11 @@
                                                               --  }}}1
 
 module Koneko.Data (
-  Module, Kwd(..), Ident, List(..), Block(..), Scope(..), Context(..),
-  Pair(..), KPrim(..), KValue(..), Stack, unIdent, ident, initStack,
+  Identifier, Module, PopResult, Kwd(..), Ident, List(..), Block(..),
+  Scope(..), Context(..), Pair(..), KPrim(..), KValue(..), Stack,
+  unIdent, ident, initStack, Push, push', push, Pop, pop, pop',
   initContext, forkScope, scopeInsert, lookup, nil, false, true, bool,
-  int, float, str, kwd, pair, list, block
+  int, float, str, kwd, pair, list, block, Val, val
 ) where
 
 import Data.List (intercalate)
@@ -72,11 +73,13 @@ import Koneko.Misc (isIdent)
 --  * Record
 --  * RawBlock vs Quoted Block
 
-type Identifier         = Text
 type HashTable k v      = HT.BasicHashTable k v
 type ModuleLookupTable  = HashTable Identifier KValue
 type ScopeLookupTable   = H.HashMap Identifier KValue
+
+type Identifier         = Text
 type Module             = ModuleLookupTable
+type PopResult a        = Either String (a, Stack)
 
 newtype Kwd = Kwd { unKwd :: Identifier }
   deriving (Eq, Ord)
@@ -178,13 +181,97 @@ instance Show KValue where
 ident :: Text -> Maybe Ident
 ident s = if isIdent s then Just $ Ident s else Nothing
 
+-- Stack functions --
+
+initStack :: Stack
+initStack = []
+
+push' :: Stack -> KValue -> Stack
+push' = flip (:)
+
+class Push a where
+  push :: Stack -> a -> Stack
+
+instance Push KValue where
+  push = push'
+
+instance (Push a, Push b) => Push (a, b) where
+  push s (x, y) = s `push` x `push` y
+
+instance (Push a, Push b, Push c) => Push (a, b, c) where
+  push s (x, y, z) = s `push` x `push` y `push` z
+
+instance Push Integer where
+  push s x = s `push` (KPrim $ KInt x)
+
+instance Push Text where
+  push s x = s `push` (KPrim $ KStr x)
+
+instance Push Kwd where
+  push s x = s `push` (KPrim $ KKwd x)
+
+class Pop a where
+  pop :: Stack -> PopResult a
+
+instance Pop KValue where
+  pop (x:s) = Right (x,s)
+  pop _     = Left $ stackFail "value"
+
+-- | NB: returns popped items in "reverse" order
+--
+-- >>> let s = initStack `push` 1 `push` 2
+-- >>> fst $ pop' s :: Integer
+-- 2
+-- >>> fst $ pop' s :: (Integer, Integer)
+-- (1,2)
+--
+-- stack: ... 1 2 <- top
+--
+instance (Pop a, Pop b) => Pop (a, b) where
+  pop s = do
+    (x, s1) <- pop s
+    (y, s2) <- pop s1
+    return ((y, x), s2)
+
+-- | NB: returns popped items in "reverse" order
+--
+-- >>> let s = initStack `push` (1, 2, 3)
+-- >>> fst $ pop' s :: (Integer, Integer, Integer)
+-- (1,2,3)
+--
+-- stack: ... 1 2 3 <- top
+--
+instance (Pop a, Pop b, Pop c) => Pop (a, b, c) where
+  pop s = do
+    (x, s1) <- pop s
+    (y, s2) <- pop s1
+    (z, s3) <- pop s2
+    return ((z, y, x), s3)
+
+instance Pop Integer where
+  pop (KPrim (KInt x):s)  = Right (x, s)
+  pop _                   = Left $ stackFail "int"
+
+instance Pop Text where
+  pop (KPrim (KStr x):s)  = Right (x, s)
+  pop _                   = Left $ stackFail "str"
+
+instance Pop Kwd where
+  pop (KPrim (KKwd x):s)  = Right (x, s)
+  pop _                   = Left $ stackFail "kwd"
+
+-- ... TODO ...
+
+pop' :: Pop a => Stack -> (a, Stack)
+pop' s = either error id $ pop s
+
+stackFail :: String -> String
+stackFail s = "*** stack match failed: " ++ s ++ " ***"
+
 -- Module/Scope functions --
 
 mainModule :: Identifier
 mainModule = "__main__"
-
-initStack :: Stack
-initStack = []
 
 initContext :: IO Context
 initContext = do
@@ -246,5 +333,20 @@ list = KList . List
 
 block :: [Ident] -> [KValue] -> Maybe Scope -> KValue
 block blkArgs blkCode blkScope = KBlock Block{..}
+
+class Val a where
+  val :: a -> KValue
+
+instance Val Bool where
+  val = bool
+
+instance Val Integer where
+  val = int
+
+instance Val Double where
+  val = float
+
+instance Val Text where
+  val = str
 
 -- vim: set tw=70 sw=2 sts=2 et fdm=marker :

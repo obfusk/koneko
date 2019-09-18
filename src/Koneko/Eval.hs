@@ -20,8 +20,11 @@
 -- >>> let id = fromJust . ident
 -- >>> let ev x = () <$ evalList x undefined []
 --
--- >>> ev [str "Hello, World!", KIdent $ id "say"]
+-- >>> ev [str "Hello, World!", KIdent $ id "__say__"]
 -- Hello, World!
+--
+-- >>> evalList [val 1, val 2, KIdent $ id "__int_-__"] undefined []
+-- [-1]
 --
 -- ... TODO ...
 --
@@ -46,24 +49,25 @@ type Evaluator = Context -> Stack -> IO Stack
 -- TODO:
 -- * say, +, -, ... --> defaultScope
 eval :: KValue -> Evaluator
-eval x sc st = case x of
-  KPrim _   -> return (x:st)
+eval x c s = case x of
+  KPrim _   -> return $ s `push` x
   KPair _   -> error "TODO"
   KList _   -> error "TODO"
-  KIdent i  -> _evalIdent (unIdent i) sc st
+  KIdent i  -> _evalIdent (unIdent i) c s
   KQuot _   -> error "TODO"
   KBlock _  -> error "TODO"
 
 -- TODO
 _evalIdent :: Text -> Evaluator
-_evalIdent i sc st = case lookup i primitives of
-  Just p  -> p sc st
-  Nothing -> D.lookup sc i >>= maybe
-    (error $ T.unpack i ++ " not found") (primCall sc . (:st))
+_evalIdent i c s = case lookup i primitives of
+    Just p  -> p c s
+    Nothing -> D.lookup c i >>= maybe err (primCall c . push s)
+  where
+    err = error $ "*** lookup failed: " ++ T.unpack i ++ " ***"
 
 evalList :: [KValue] -> Evaluator
-evalList []     _  st = return st
-evalList (x:xt) sc st = eval x sc st >>= evalList xt sc
+evalList []     _ s = return s
+evalList (x:xt) c s = eval x c s >>= evalList xt c
 
 evalText :: FilePath -> Text -> Evaluator
 evalText name code c s = evalList (R.read' name code) c s
@@ -74,27 +78,31 @@ evalStdin c s = () <$ do
 
 -- primitives --
 
+-- TODO
 primitives :: [(Text, Evaluator)]
 primitives = [                                                --  {{{1
-    ("call" , primCall),
-    ("def"  , primDef),
-    ("if"   , primIf),
-    ("say"  , primSay)
+    ("__call__"   , primCall),
+    ("__def__"    , primDef),
+    ("__if__"     , primIf),
+    ("__say__"    , primSay),
+    ("__int_+__"  , primIntArith (+)),
+    ("__int_-__"  , primIntArith (-)),
+    ("__int_*__"  , primIntArith (*))
   ]                                                           --  }}}1
 
 primCall, primDef, primIf, primSay :: Evaluator
 
-primCall _ (_:_ ) = error "TODO"                              --  TODO
-primCall _ _      = stackUnderflow
+primCall  = error "TODO"
+primDef   = error "TODO"
 
-primDef __ (_:_:_ ) = error "TODO"                            --  TODO
-primDef _  _        = stackUnderflow
+primIf c s  = let ((b, tb, fb), s') = pop' s
+              in primCall c $ push' s' $ if truthy b then tb else fb
 
-primIf sc (fb:tb:b:st)  = primCall sc $ if truthy b then tb:st else fb:st
-primIf _  _             = stackUnderflow
+primSay _ s = let (x, s') = pop' s in s' <$ T.putStrLn x
 
-primSay _  (KPrim (KStr s):st)  = st <$ T.putStrLn s
-primSay _  _                    = matchError "say"
+primIntArith :: (Integer -> Integer -> Integer) -> Evaluator
+primIntArith op _ s
+  = let ((x,y),s') = pop' s in return $ s' `push` (x `op` y)
 
 -- utilities --
 
@@ -102,11 +110,5 @@ truthy :: KValue -> Bool
 truthy (KPrim KNil)           = False
 truthy (KPrim (KBool False))  = False
 truthy _                      = True
-
-stackUnderflow :: a
-stackUnderflow = error "*** stack underflow ***"
-
-matchError :: String -> a
-matchError s = error $ "*** match failed for " ++ s ++ " ***"
 
 -- vim: set tw=70 sw=2 sts=2 et fdm=marker :
