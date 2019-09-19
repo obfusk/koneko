@@ -10,6 +10,7 @@
 --
 --  --                                                          ; }}}1
 
+{-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE RecordWildCards #-}
 
@@ -53,7 +54,7 @@ module Koneko.Data (
   Identifier, Module, PopResult, Kwd(..), Ident, List(..), Block(..),
   Scope(..), Context(..), Pair(..), KPrim(..), KValue(..), Stack,
   unIdent, ident, initStack, Push, push', push, Pop, pop, pop',
-  initContext, forkScope, scopeInsert, lookup, nil, false, true, bool,
+  initContext, forkContext, forkScope, lookup, nil, false, true, bool,
   int, float, str, kwd, pair, list, block, Val, val
 ) where
 
@@ -293,20 +294,23 @@ mainModule = "__main__"
 
 initContext :: IO Context
 initContext = do
-  modules <- HT.new
-  main    <- HT.new
+  modules <- HT.new; main <- HT.new
   HT.insert modules mainModule main
-  let ctxScope = Scope { parent = Left mainModule, table = H.empty }
-  return Context{..}
+  return Context { modules, ctxScope = _newScope mainModule }
 
-forkScope :: Context -> Context
-forkScope c = c { ctxScope = Scope { parent = Right $ ctxScope c,
-                                     table  = H.empty } }
+-- TODO: error if already exists
+forkContext :: Identifier -> Context -> IO Context
+forkContext modName c = do
+  newMod <- HT.new
+  HT.insert (modules c) modName newMod
+  return c { ctxScope = _newScope modName }
 
-scopeInsert :: Context -> Identifier -> KValue -> Context
-scopeInsert c k v
-  = let s = ctxScope c; t = table s
-    in c { ctxScope = s { table = H.insert k v t } }
+_newScope :: Identifier -> Scope
+_newScope m = Scope { parent = Left m, table = H.empty }
+
+forkScope :: [(Identifier, KValue)] -> Context -> Context
+forkScope l c = c { ctxScope = Scope { parent = Right $ ctxScope c,
+                                       table  = H.fromList l } }
 
 lookup :: Context -> Identifier -> IO (Maybe KValue)
 lookup c = lookup' $ ctxScope c
@@ -318,8 +322,10 @@ lookup c = lookup' $ ctxScope c
 
 lookupModule :: Context -> Identifier -> Identifier -> IO (Maybe KValue)
 lookupModule c k modName = do
-  m <- HT.lookup (modules c) modName
-  maybe (return Nothing) (flip HT.lookup k) m
+    m <- HT.lookup (modules c) modName
+    maybe err (flip HT.lookup k) m
+  where
+    err = error $ "*** module not found: " ++ (T.unpack modName) ++ " ***"
 
 -- "constructors" --
 
