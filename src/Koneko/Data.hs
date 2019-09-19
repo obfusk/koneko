@@ -57,13 +57,16 @@ module Koneko.Data (
   int, float, str, kwd, pair, list, block, Val, val
 ) where
 
+import Data.Char (isPrint, ord)
 import Data.List (intercalate)
 import Data.Text.Lazy (Text)
+import Numeric (showHex)
 import Prelude hiding (lookup)
 
 import qualified Data.HashMap.Lazy as H
 import qualified Data.HashTable.IO as HT
 import qualified Data.Text.Lazy as T
+import qualified Prelude as P
 
 import Koneko.Misc (isIdent)
 
@@ -72,6 +75,8 @@ import Koneko.Misc (isIdent)
 --  * Dict
 --  * Record
 --  * RawBlock vs Quoted Block
+
+-- types --
 
 type HashTable k v      = HT.BasicHashTable k v
 type ModuleLookupTable  = HashTable Identifier KValue
@@ -128,6 +133,8 @@ data KValue
 
 type Stack = [KValue]
 
+-- instances --
+
 -- TODO
 instance Eq Block where
   Block a c _ == Block a' c' _ = (a,c) == (a',c')
@@ -166,7 +173,7 @@ instance Show KPrim where
   show (KBool b)  = if b then "#t" else "#f"
   show (KInt i)   = show i
   show (KFloat f) = show f
-  show (KStr s)   = show s                                    --  TODO
+  show (KStr s)   = showStr s
   show (KKwd k)   = show k
 
 -- TODO
@@ -180,6 +187,17 @@ instance Show KValue where
 
 ident :: Text -> Maybe Ident
 ident s = if isIdent s then Just $ Ident s else Nothing
+
+showStr :: Text -> String
+showStr s = T.unpack $ T.concat ["\"", T.concatMap f s, "\""]
+  where
+    f c = maybe (g c) id $ P.lookup c backSlashes
+    g c = if isPrint c then T.singleton c else h (ord c)
+    h n = let (p,m) = if n <= 0xffff then ("\\u",4) else ("\\U",8)
+          in p `T.append` T.justifyRight m '0' (T.pack $ showHex n "")
+
+backSlashes :: [(Char, Text)]
+backSlashes = zip "\r\n\t\"\\" ["\\r","\\n","\\t","\\\"","\\\\"]
 
 -- Stack functions --
 
