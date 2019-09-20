@@ -59,17 +59,17 @@ type Evaluator = Context -> Stack -> IO Stack
 eval :: KValue -> Evaluator
 eval x c s = case x of
   KPrim _   -> return $ s `push` x
-  KPair _   -> error "TODO"
+  KPair _   -> error "eval: unexpected pair"
   KList _   -> error "TODO"
-  KIdent i  -> _evalIdent (unIdent i) c s
-  KQuot _   -> error "TODO"
+  KIdent i  -> _evalIdent (unIdent i) c s >>= primCall c
+  KQuot i   -> _evalIdent (unIdent i) c s
   KBlock _  -> error "TODO"
 
 -- TODO
 _evalIdent :: Text -> Evaluator
 _evalIdent i c s = case lookup i primitives of
     Just p  -> p c s
-    Nothing -> D.lookup c i >>= maybe err (primCall c . push s)
+    Nothing -> D.lookup c i >>= maybe err (return . push s)
   where
     err = error $ "*** lookup failed: " ++ T.unpack i ++ " ***"
 

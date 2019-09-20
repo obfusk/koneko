@@ -45,6 +45,8 @@ build-type:          Simple
 -- README.
 extra-source-files:  CHANGELOG.md, README.md, LICENSE.LGPLv3.STDLIB
 
+data-files:          lib/**/*.knk
+
 -- Constraint on the version of Cabal needed to build this package.
 cabal-version:       >=1.10
 
@@ -58,9 +60,13 @@ library
     Koneko.Read
     Koneko.Repl
     Koneko.Test
+    Paths_koneko
 
   -- Modules included in this library but not exported.
   -- other-modules:
+
+  autogen-modules:
+    Paths_koneko
 
   -- LANGUAGE extensions used by modules in this package.
   -- other-extensions:
@@ -91,6 +97,10 @@ executable koneko
     Koneko.Read
     Koneko.Repl
     Koneko.Test
+    Paths_koneko
+
+  autogen-modules:
+    Paths_koneko
 
   -- LANGUAGE extensions used by modules in this package.
   -- other-extensions:

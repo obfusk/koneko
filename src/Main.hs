@@ -2,7 +2,7 @@
 --
 --  File        : Main.hs
 --  Maintainer  : Felix C. Stegerman <flx@obfusk.net>
---  Date        : 2019-09-18
+--  Date        : 2019-09-20
 --
 --  Copyright   : Copyright (C) 2019  Felix C. Stegerman
 --  Version     : v0.0.1
@@ -16,6 +16,7 @@
 module Main (main) where
 
 import Control.Monad (when)
+import Data.Version (showVersion)
 import System.Console.CmdArgs hiding (args)
 
 import qualified Data.Text.Lazy as T
@@ -26,9 +27,10 @@ import Koneko.Repl (repl, stdinTTY)
 
 import qualified Koneko.Data as D
 import qualified Koneko.Eval as E
+import qualified Paths_koneko as P
 
 version :: String
-version = "koneko 0.0.1"
+version = "koneko " ++ showVersion P.version
 
 data KonekoCmd = KonekoCmd {
   eval        :: Maybe String,

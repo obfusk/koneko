@@ -11,13 +11,23 @@
 --  --                                                          ; }}}1
 
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE RecordWildCards #-}
 
                                                               --  {{{1
 -- |
 --
 -- >>> :set -XOverloadedStrings
--- >>> read "nil #f 42 3.14 \"Hello, World!\" :foo foo"
+-- >>> let x = read "nil #f 42 3.14 \"Hello, World!\" :foo foo"
+-- >>> x
 -- [nil,#f,42,3.14,"Hello, World!",:foo,foo]
+-- >>> map D.typeOf x
+-- [<nil>,<bool>,<int>,<float>,<str>,<kwd>,<ident>]
+--
+-- >>> let x = read "( 1 2 :foo ) 'foo [ x . 'x 'x ]"
+-- >>> x
+-- [( 1 2 :foo ),'foo,[ x . 'x 'x ]]
+-- >>> map D.typeOf x
+-- [<list>,<quot>,<block>]
 --
 -- ... TODO ...
 --
@@ -28,7 +38,6 @@ module Koneko.Read (read, read') where
 
 import Data.Char (isSpace)
 import Data.Functor
-import Data.Maybe (fromJust)
 import Data.Text.Lazy (Text)
 import Prelude hiding (lookup, quot, read)
 import Text.Megaparsec
@@ -37,8 +46,9 @@ import Text.Megaparsec.Char hiding (space, space1)
 import qualified Data.Text.Lazy as T
 import qualified Text.Megaparsec.Char.Lexer as L
 
-import Koneko.Data (Kwd(..), List(..), KPrim(..), KValue(..))
-import Koneko.Misc (Parser, pIdent, pInt, pFloat)
+import Koneko.Data (Kwd(..), Ident, List(..), Block(..), KPrim(..),
+                    KValue(..))
+import Koneko.Misc (Parser, pIdent, brackets, pInt, pFloat)
 
 import qualified Koneko.Data as D
 
@@ -48,6 +58,7 @@ import qualified Koneko.Data as D
 --  * RawBlock vs Quoted Block
 --  * ~sugar~
 --  * parser labels
+--  * test corner cases & failures
 
 read :: Text -> [KValue]
 read = read' "(read)"
@@ -87,21 +98,31 @@ prim = KPrim <$> choice prims
     prims = map (try . lexeme) [nil, int, float] ++
             map        lexeme  [bool, str, kwd]
 
--- TODO
-list = empty {- KList . List <$> (a <|> b)
+list = try $ KList . List <$> (a <|> b)
   where
-    a = [] <$ string "()"
-    b = between (string "(") (string ")") values' -}
+    a = [] <$ symbol "()"
+    b = symbol "(" *> manyTill value (symbol ")")
 
-ident = lexeme $ KIdent . fromJust . D.ident <$> pIdent
+-- | NB: also matches float and int but they match earlier
+ident = KIdent <$> ident_
+
+ident_ :: Parser Ident
+ident_ = notFollowedBy (lexeme $ oneOf brackets) *> idt
+  where
+    idt = lexeme $ D.ident <$> pIdent >>=
+          maybe (fail "invalid ident") return
+
+quot = char '\'' >> KQuot <$> ident_
 
 -- TODO
-quot = empty
+block = try $ KBlock <$> do
+  _ <- symbol "["
+  blkArgs <- concat <$> (optional $ try $ manyTill ident_ $ symbol ".")
+  blkCode <- manyTill value (symbol "]")
+  let blkScope = Nothing in return Block{..}
 
--- TODO
-block = empty
-
-value = choice [prim, list, ident, quot, block]
+-- | NB: match ident last
+value = choice [prim, list, quot, block, ident]
 
 program :: Parser [KValue]
 program = sp *> many value <* eof

@@ -12,7 +12,9 @@
 
 {-# LANGUAGE OverloadedStrings #-}
 
-module Koneko.Misc (Parser, isIdent, pIdent, pInt, pFloat) where
+module Koneko.Misc (
+  Parser, isIdent, pIdent, brackets, pInt, pFloat
+) where
 
 import Data.Maybe (isJust)
 import Data.Text.Lazy (Text)
