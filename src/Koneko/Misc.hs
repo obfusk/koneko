@@ -2,7 +2,7 @@
 --
 --  File        : Koneko/Misc.hs
 --  Maintainer  : Felix C. Stegerman <flx@obfusk.net>
---  Date        : 2019-09-17
+--  Date        : 2019-09-20
 --
 --  Copyright   : Copyright (C) 2019  Felix C. Stegerman
 --  Version     : v0.0.1
@@ -10,13 +10,13 @@
 --
 --  --                                                          ; }}}1
 
-module Koneko.Misc (isIdent) where
+module Koneko.Misc (isIdent, pIdent) where
 
 import Data.Char (isNumber)
 import Data.Maybe (isJust)
 import Data.Text.Lazy (Text)
 import Data.Void (Void)
-import Text.Megaparsec hiding (State)
+import Text.Megaparsec
 import Text.Megaparsec.Char
 
 import qualified Data.Text.Lazy as T

@@ -78,7 +78,7 @@ evalStdin c s = () <$ do
 
 -- primitives --
 
--- TODO
+-- TODO: __=>__, ...
 primitives :: [(Text, Evaluator)]
 primitives = [                                                --  {{{1
     ("__call__"   , primCall),

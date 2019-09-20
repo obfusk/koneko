@@ -2,7 +2,7 @@
 
     File        : README.md
     Maintainer  : Felix C. Stegerman <flx@obfusk.net>
-    Date        : 2019-09-16
+    Date        : 2019-09-20
 
     Copyright   : Copyright (C) 2019  Felix C. Stegerman
     Version     : v0.0.1
@@ -180,7 +180,7 @@ nil
 
 ```
 >>> :answer 42 =>                 ; key/value pair
-Pair( :answer 42 )
+:answer 42 =>
 >>> dup .key
 :answer
 >>> .value
@@ -280,9 +280,9 @@ aka Interfaces
 
 ```
 >>> answer: 42                              ; pair with keyword as key
-Pair( :answer 42 )
+:answer 42 =>
 >>> :answer 42 =>                           ; desugared
-Pair( :answer 42 )
+:answer 42 =>
 
 >>> Point{ x: 1, y: 2 }                     ; constructor with "keys"
 Point{ x: 1, y: 2 }

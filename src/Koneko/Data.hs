@@ -2,7 +2,7 @@
 --
 --  File        : Koneko/Data.hs
 --  Maintainer  : Felix C. Stegerman <flx@obfusk.net>
---  Date        : 2019-09-18
+--  Date        : 2019-09-20
 --
 --  Copyright   : Copyright (C) 2019  Felix C. Stegerman
 --  Version     : v0.0.1
@@ -34,7 +34,7 @@
 -- >>> kwd "foo"
 -- :foo
 -- >>> pair (Kwd "answer") $ int 42
--- Pair( :answer 42 )
+-- :answer 42 =>
 -- >>> list [int 42, kwd "foo"]
 -- ( 42 :foo )
 -- >>> KIdent $ id "foo"
@@ -53,9 +53,9 @@
 module Koneko.Data (
   Identifier, Module, PopResult, Kwd(..), Ident, List(..), Block(..),
   Scope(..), Context(..), Pair(..), KPrim(..), KValue(..), Stack,
-  unIdent, ident, initStack, Push, push', push, Pop, pop, pop',
-  initContext, forkContext, forkScope, lookup, nil, false, true, bool,
-  int, float, str, kwd, pair, list, block, Val, val
+  unIdent, ident, escapeFrom, escapeTo, initStack, Push, push', push,
+  Pop, pop, pop', initContext, forkContext, forkScope, lookup, nil,
+  false, true, bool, int, float, str, kwd, pair, list, block, Val, val
 ) where
 
 import Data.Char (isPrint, ord)
@@ -167,7 +167,7 @@ instance Show Block where
 
 -- TODO
 instance Show Pair where
-  show (Pair k v) = "Pair( " ++ show k ++ " " ++ show v ++ " )"
+  show (Pair k v) = show k ++ " " ++ show v ++ " =>"
 
 instance Show KPrim where
   show KNil       = "nil"
@@ -192,13 +192,15 @@ ident s = if isIdent s then Just $ Ident s else Nothing
 showStr :: Text -> String
 showStr s = T.unpack $ T.concat ["\"", T.concatMap f s, "\""]
   where
-    f c = maybe (g c) id $ P.lookup c backSlashes
+    f c = maybe (g c) id $ P.lookup c bsl
     g c = if isPrint c then T.singleton c else h (ord c)
     h n = let (p,m) = if n <= 0xffff then ("\\u",4) else ("\\U",8)
           in p `T.append` T.justifyRight m '0' (T.pack $ showHex n "")
+    bsl = zip (map T.head escapeTo) escapeFrom
 
-backSlashes :: [(Char, Text)]
-backSlashes = zip "\r\n\t\"\\" ["\\r","\\n","\\t","\\\"","\\\\"]
+escapeFrom, escapeTo :: [Text]
+escapeFrom  = ["\\r","\\n","\\t","\\\"","\\\\"]
+escapeTo    = [ "\r", "\n", "\t",  "\"",  "\\"]
 
 -- Stack functions --
 
@@ -228,6 +230,8 @@ instance Push Text where
 
 instance Push Kwd where
   push s x = s `push` (KPrim $ KKwd x)
+
+-- ... TODO ...
 
 class Pop a where
   pop :: Stack -> PopResult a

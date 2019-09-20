@@ -57,6 +57,7 @@ library
     Koneko.Misc
     Koneko.Read
     Koneko.Repl
+    Koneko.Test
 
   -- Modules included in this library but not exported.
   -- other-modules:
@@ -74,7 +75,8 @@ library
   -- Base language which the package is written in.
   default-language:    Haskell2010
 
-  ghc-options:         -Wall -Werror -fwarn-incomplete-uni-patterns
+  ghc-options:         -Wall -fwarn-incomplete-uni-patterns
+  -- -Werror
 
 
 executable koneko
@@ -88,6 +90,7 @@ executable koneko
     Koneko.Misc
     Koneko.Read
     Koneko.Repl
+    Koneko.Test
 
   -- LANGUAGE extensions used by modules in this package.
   -- other-extensions:
@@ -102,5 +105,6 @@ executable koneko
   -- Base language which the package is written in.
   default-language:    Haskell2010
 
-  ghc-options:         -Wall -Werror -fwarn-incomplete-uni-patterns
+  ghc-options:         -Wall -fwarn-incomplete-uni-patterns
+  -- -Werror
 
