@@ -61,15 +61,17 @@ eval x c s = case x of
   KPrim _   -> return $ s `push` x
   KPair _   -> error "eval: unexpected pair"
   KList _   -> error "TODO"
-  KIdent i  -> _evalIdent (unIdent i) c s >>= primCall c
-  KQuot i   -> _evalIdent (unIdent i) c s
+  KIdent i  -> _evalIdent (unIdent i) c s
+  KQuot i   -> _pushIdent (unIdent i) c s
   KBlock _  -> error "TODO"
 
--- TODO
 _evalIdent :: Text -> Evaluator
-_evalIdent i c s = case lookup i primitives of
-    Just p  -> p c s
-    Nothing -> D.lookup c i >>= maybe err (return . push s)
+_evalIdent i c s  = maybe (_pushIdent i c s >>= primCall c)
+                    (\p -> p c s) $ lookup i primitives
+
+-- TODO
+_pushIdent :: Text -> Evaluator
+_pushIdent i c s = D.lookup c i >>= maybe err (return . push s)
   where
     err = error $ "*** lookup failed: " ++ T.unpack i ++ " ***"
 
