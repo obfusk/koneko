@@ -52,10 +52,12 @@
 
 module Koneko.Data (
   Identifier, Module, PopResult, Kwd(..), Ident, List(..), Block(..),
-  Scope(..), Context(..), Pair(..), KPrim(..), KValue(..), Stack,
-  unIdent, ident, escapeFrom, escapeTo, initStack, Push, push', push,
-  Pop, pop, pop', initContext, forkContext, forkScope, lookup, nil,
-  false, true, bool, int, float, str, kwd, pair, list, block, Val, val
+  Scope(..), Context(..), Pair(..), KPrim(..), KValue(..), KType(..),
+  Stack, unIdent, ident, escapeFrom, escapeTo, initStack, Push, push',
+  push, Pop, pop, pop', initContext, forkContext, forkScope, lookup,
+  typeOf, isNil, isBool, isInt, isFloat, isStr, isKwd, isPair, isList,
+  isIdent, isQuot, isBlock, nil, false, true, bool, int, float, str,
+  kwd, pair, list, block, Val, val
 ) where
 
 import Data.Char (isPrint, ord)
@@ -69,7 +71,7 @@ import qualified Data.HashTable.IO as HT
 import qualified Data.Text.Lazy as T
 import qualified Prelude as P
 
-import Koneko.Misc (isIdent)
+import qualified Koneko.Misc as M
 
 -- TODO:
 --  * Quoted Ident
@@ -92,6 +94,9 @@ newtype Kwd = Kwd { unKwd :: Identifier }
 
 newtype Ident = Ident { unIdent :: Identifier }
   deriving (Eq, Ord)
+
+ident :: Text -> Maybe Ident
+ident s = if M.isIdent s then Just $ Ident s else Nothing
 
 newtype List = List { unList :: [KValue] }
   deriving (Eq, Ord)
@@ -132,6 +137,11 @@ data KValue
     | KBlock Block
   deriving (Eq, Ord)
 
+data KType
+    = TNil | TBool | TInt | TFloat | TStr | TKwd | TPair | TList
+    | TIdent | TQuot | TBlock
+  deriving (Eq, Ord)
+
 type Stack = [KValue]
 
 -- instances --
@@ -145,7 +155,7 @@ instance Ord Block where
   Block a c _ `compare` Block a' c' _ = (a,c) `compare` (a',c')
 
 instance Show Kwd where
-  show (Kwd s) = ":" ++ if isIdent s then T.unpack s else show s
+  show (Kwd s) = ":" ++ if M.isIdent s then T.unpack s else show s
 
 instance Show Ident where
   show (Ident s) = T.unpack s
@@ -182,12 +192,23 @@ instance Show KValue where
   show (KPrim p)  = show p
   show (KPair p)  = show p
   show (KList l)  = show l
-  show (KIdent i) = show i ++ "__"  -- TODO
+  show (KIdent i) = show i
   show (KQuot x)  = "'" ++ show x
   show (KBlock b) = show b
 
-ident :: Text -> Maybe Ident
-ident s = if isIdent s then Just $ Ident s else Nothing
+-- TODO
+instance Show KType where
+  show TNil   = "<nil>"
+  show TBool  = "<bool>"
+  show TInt   = "<int>"
+  show TFloat = "<float>"
+  show TStr   = "<str>"
+  show TKwd   = "<kwd>"
+  show TPair  = "<pair>"
+  show TList  = "<list>"
+  show TIdent = "<ident>"
+  show TQuot  = "<quot>"
+  show TBlock = "<block>"
 
 showStr :: Text -> String
 showStr s = T.unpack $ T.concat ["\"", T.concatMap f s, "\""]
@@ -330,6 +351,37 @@ lookupModule c k modName = do
     maybe err (flip HT.lookup k) m
   where
     err = error $ "*** module not found: " ++ (T.unpack modName) ++ " ***"
+
+-- type predicates --
+
+typeOf :: KValue -> KType
+typeOf (KPrim p) = case p of
+  KNil            ->  TNil
+  KBool _         ->  TBool
+  KInt _          ->  TInt
+  KFloat _        ->  TFloat
+  KStr _          ->  TStr
+  KKwd _          ->  TKwd
+typeOf (KPair _)  =   TPair
+typeOf (KList _)  =   TList
+typeOf (KIdent _) =   TIdent
+typeOf (KQuot _)  =   TQuot
+typeOf (KBlock _) =   TBlock
+
+isNil, isBool, isInt, isFloat, isStr, isKwd, isPair, isList, isIdent,
+  isQuot, isBlock :: KValue -> Bool
+
+isNil   = (TNil   ==) . typeOf
+isBool  = (TBool  ==) . typeOf
+isInt   = (TInt   ==) . typeOf
+isFloat = (TFloat ==) . typeOf
+isStr   = (TStr   ==) . typeOf
+isKwd   = (TKwd   ==) . typeOf
+isPair  = (TPair  ==) . typeOf
+isList  = (TList  ==) . typeOf
+isIdent = (TIdent ==) . typeOf
+isQuot  = (TQuot  ==) . typeOf
+isBlock = (TBlock ==) . typeOf
 
 -- "constructors" --
 

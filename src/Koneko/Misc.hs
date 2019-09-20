@@ -10,9 +10,10 @@
 --
 --  --                                                          ; }}}1
 
-module Koneko.Misc (isIdent, pIdent, matchIf) where
+{-# LANGUAGE OverloadedStrings #-}
 
-import Data.Char (isNumber)
+module Koneko.Misc (Parser, isIdent, pIdent, pInt, pFloat) where
+
 import Data.Maybe (isJust)
 import Data.Text.Lazy (Text)
 import Data.Void (Void)
@@ -20,6 +21,7 @@ import Text.Megaparsec
 import Text.Megaparsec.Char
 
 import qualified Data.Text.Lazy as T
+import qualified Text.Megaparsec.Char.Lexer as L
 
 type Parser = Parsec Void Text
 
@@ -47,26 +49,36 @@ type Parser = Parsec Void Text
 
                                                               --  }}}1
 isIdent :: Text -> Bool
-isIdent = isJust . parseMaybe pIdent
+isIdent s = parses pIdent s && not (parses pInt s || parses pFloat s)
 
--- TODO: still matches -11, 4e3
+-- | NB: also matches float and int
 pIdent :: Parser Text
-pIdent = matchIf (not . T.all isNumber) _pIdent
-
--- NB: also matches numbers
-_pIdent :: Parser Text
-_pIdent = fmap T.pack $ (:) <$> hdChar <*> many tlChar
+pIdent = fmap T.pack $ (:) <$> hdChar <*> many tlChar
   where
     hdChar  = letterChar <|> numberChar <|>
               oneOf identSpecial <|> oneOf brackets
     tlChar  = hdChar <|> oneOf identPre
 
 brackets, identPre, identSpecial :: [Char]
+
 brackets      = "(){}[]"
 identPre      = "'!:"
 identSpecial  = "~@$%^&*-_=+|<>/?"
 
-matchIf :: (a -> Bool) -> Parser a -> Parser a
-matchIf f p = do r <- p; if f r then return r else fail "oops"
+pInt :: Parser Integer
+pInt = dec <|> hex <|> bin
+  where
+    dec = signed L.decimal
+    hex = string "0x" *> L.hexadecimal
+    bin = string "0b" *> L.binary
+
+pFloat :: Parser Double
+pFloat = signed L.float
+
+signed :: Num a => Parser a -> Parser a
+signed = L.signed $ return ()
+
+parses :: Parser a -> Text -> Bool
+parses p = isJust . parseMaybe p
 
 -- vim: set tw=70 sw=2 sts=2 et fdm=marker :

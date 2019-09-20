@@ -18,7 +18,6 @@ import Data.Char (isSpace)
 import Data.Functor
 import Data.Maybe (fromJust)
 import Data.Text.Lazy (Text)
-import Data.Void (Void)
 import Prelude hiding (lookup, quot, read)
 import Text.Megaparsec
 import Text.Megaparsec.Char hiding (space, space1)
@@ -27,11 +26,9 @@ import qualified Data.Text.Lazy as T
 import qualified Text.Megaparsec.Char.Lexer as L
 
 import Koneko.Data (Kwd(..), List(..), KPrim(..), KValue(..))
-import Koneko.Misc (pIdent)
+import Koneko.Misc (Parser, pIdent, pInt, pFloat)
 
 import qualified Koneko.Data as D
-
-type Parser = Parsec Void Text
 
 -- TODO:
 --  * whitespace incl ,
@@ -55,25 +52,14 @@ read' f code
 
 nil, bool, int, float, str, kwd :: Parser KPrim
 
-nil = KNil <$ string "nil"
-
 bool = (KBool False <$ string "#f") <|>
        (KBool True  <$ string "#t")
 
-int = KInt <$> (dec <|> hex <|> bin)
-  where
-    dec = _sig L.decimal
-    hex = string "0x" *> L.hexadecimal
-    bin = string "0b" *> L.binary
-
-float = KFloat <$> _sig L.float
-
-str = KStr <$> _str
-
-kwd = KKwd . Kwd <$> (char ':' *> (_str <|> pIdent))
-
-_sig :: Num a => Parser a -> Parser a
-_sig = L.signed $ return ()
+nil   = KNil        <$ string "nil"
+int   = KInt        <$> pInt
+float = KFloat      <$> pFloat
+str   = KStr        <$> _str
+kwd   = KKwd . Kwd  <$> (char ':' *> (_str <|> pIdent))
 
 _str :: Parser Text
 _str = char '"' >> T.concat <$> manyTill (esc <|> chr) (char '"')
@@ -88,16 +74,18 @@ _str = char '"' >> T.concat <$> manyTill (esc <|> chr) (char '"')
 
 prim, list, ident, quot, block, value :: Parser KValue
 
-prim = KPrim <$> choice [nil, bool, int, float, str, kwd]
+prim = KPrim <$> choice prims
+  where
+    prims = map (try . lexeme) [nil, int, float] ++
+            map        lexeme  [bool, str, kwd]
 
 -- TODO
-list = KList . List <$> (a <|> b)
+list = empty {- KList . List <$> (a <|> b)
   where
     a = [] <$ string "()"
-    b = between (string "(") (string ")") values'
+    b = between (string "(") (string ")") values' -}
 
--- TODO: fix overlap between int, float and ident
-ident = KIdent . fromJust . D.ident <$> pIdent
+ident = lexeme $ KIdent . fromJust . D.ident <$> pIdent
 
 -- TODO
 quot = empty
@@ -107,16 +95,16 @@ block = empty
 
 value = choice [prim, list, ident, quot, block]
 
-values, values', program :: Parser [KValue]
-
--- TODO
-values  = value `sepBy` sp1
-values' = sp1 *> values <* sp1
-
--- TODO
-program = sp *> values <* eof
+program :: Parser [KValue]
+program = sp *> many value <* eof
 
 -- parser: utilities --
+
+lexeme :: Parser a -> Parser a
+lexeme p = p <* (sp1 <|> eof)
+
+symbol :: Text -> Parser Text
+symbol = lexeme . string
 
 sp, sp1, spaceOrComment, space1 :: Parser ()
 
