@@ -16,6 +16,7 @@ module Koneko.Read (read, read') where
 
 import Data.Char (isSpace)
 import Data.Functor
+import Data.Maybe (fromJust)
 import Data.Text.Lazy (Text)
 import Data.Void (Void)
 import Prelude hiding (lookup, quot, read)
@@ -25,7 +26,7 @@ import Text.Megaparsec.Char hiding (space, space1)
 import qualified Data.Text.Lazy as T
 import qualified Text.Megaparsec.Char.Lexer as L
 
-import Koneko.Data (Kwd(..), KPrim(..), KValue(..))
+import Koneko.Data (Kwd(..), List(..), KPrim(..), KValue(..))
 import Koneko.Misc (pIdent)
 
 import qualified Koneko.Data as D
@@ -69,35 +70,34 @@ float = KFloat <$> _sig L.float
 
 str = KStr <$> _str
 
--- TODO: pIdent matches numbers
-kwd = (KKwd . Kwd) <$> (char ':' *> (_str <|> pIdent))
+kwd = KKwd . Kwd <$> (char ':' *> (_str <|> pIdent))
 
 _sig :: Num a => Parser a -> Parser a
 _sig = L.signed $ return ()
 
 _str :: Parser Text
-_str = char '"' >> T.concat <$> manyTill (esc <|> any) (char '"')
+_str = char '"' >> T.concat <$> manyTill (esc <|> chr) (char '"')
   where
     esc = choice [ t <$ string f | (f,t) <- bsl ] <?> "escape sequence"
-    any = T.singleton <$> anySingle <?> "character"
+    chr = T.singleton <$> anySingle <?> "character"
     bsl = zip D.escapeFrom D.escapeTo
 
 -- TODO: rx
 
 -- parser: KValue --
 
-prim, pair, list, ident, quot, block, value :: Parser KValue
+prim, list, ident, quot, block, value :: Parser KValue
 
 prim = KPrim <$> choice [nil, bool, int, float, str, kwd]
 
 -- TODO
-pair = empty
+list = KList . List <$> (a <|> b)
+  where
+    a = [] <$ string "()"
+    b = between (string "(") (string ")") values'
 
--- TODO
-list = empty
-
--- TODO
-ident = empty
+-- TODO: fix overlap between int, float and ident
+ident = KIdent . fromJust . D.ident <$> pIdent
 
 -- TODO
 quot = empty
@@ -105,11 +105,16 @@ quot = empty
 -- TODO
 block = empty
 
-value = choice [prim, pair, list, ident, quot, block]
+value = choice [prim, list, ident, quot, block]
+
+values, values', program :: Parser [KValue]
 
 -- TODO
-program :: Parser [KValue]
-program = sp *> prim `sepBy` sp1
+values  = value `sepBy` sp1
+values' = sp1 *> values <* sp1
+
+-- TODO
+program = sp *> values <* eof
 
 -- parser: utilities --
 

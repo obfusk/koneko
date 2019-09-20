@@ -2,7 +2,7 @@
 --
 --  File        : Koneko/Repl.hs
 --  Maintainer  : Felix C. Stegerman <flx@obfusk.net>
---  Date        : 2019-09-18
+--  Date        : 2019-09-20
 --
 --  Copyright   : Copyright (C) 2019  Felix C. Stegerman
 --  Version     : v0.0.1
@@ -36,9 +36,10 @@ repl ctx st = stdinTTY >>= \tty -> bool E.evalStdin loop tty ctx st
     loop :: D.Context -> D.Stack -> IO ()
     loop c s = prompt' promptText >>= maybe (T.putStrLn "") process
       where
-        process line = unless (T.null line) $ do
+        process line = if T.null line then loop c s else do
           s' <- E.evalText "(repl)" line c s
-          unless (null s') $ putStrLn $ show $ head s'        --  TODO
+          unless (null s' || T.head line `elem` [',',';']) $  --  TODO
+            putStrLn $ show $ head s'
           loop c s'
 
 promptText :: Text

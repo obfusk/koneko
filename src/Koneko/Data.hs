@@ -182,7 +182,7 @@ instance Show KValue where
   show (KPrim p)  = show p
   show (KPair p)  = show p
   show (KList l)  = show l
-  show (KIdent i) = show i
+  show (KIdent i) = show i ++ "__"  -- TODO
   show (KQuot x)  = "'" ++ show x
   show (KBlock b) = show b
 

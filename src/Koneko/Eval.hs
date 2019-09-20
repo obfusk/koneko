@@ -2,7 +2,7 @@
 --
 --  File        : Koneko/Eval.hs
 --  Maintainer  : Felix C. Stegerman <flx@obfusk.net>
---  Date        : 2019-09-18
+--  Date        : 2019-09-20
 --
 --  Copyright   : Copyright (C) 2019  Felix C. Stegerman
 --  Version     : v0.0.1
@@ -78,25 +78,30 @@ evalStdin c s = () <$ do
 
 -- primitives --
 
--- TODO: __=>__, ...
+-- TODO
 primitives :: [(Text, Evaluator)]
 primitives = [                                                --  {{{1
     ("__call__"   , primCall),
-    ("__def__"    , primDef),
     ("__if__"     , primIf),
+    ("__def__"    , primDef),
+    ("__=>__"     , primMkPair),
     ("__say__"    , primSay),
     ("__int_+__"  , primIntArith (+)),
     ("__int_-__"  , primIntArith (-)),
     ("__int_*__"  , primIntArith (*))
   ]                                                           --  }}}1
 
-primCall, primDef, primIf, primSay :: Evaluator
+primCall, primIf, primDef, primMkPair, primSay :: Evaluator
 
-primCall  = error "TODO"
-primDef   = error "TODO"
+primCall = error "TODO"
 
 primIf c s  = let ((b, tb, fb), s') = pop' s
               in primCall c $ push' s' $ if truthy b then tb else fb
+
+primDef = error "TODO"
+
+primMkPair _ s  = let ((k, v), s') = pop' s
+                  in return $ s' `push` pair k v
 
 primSay _ s = let (x, s') = pop' s in s' <$ T.putStrLn x
 

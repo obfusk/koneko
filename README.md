@@ -61,7 +61,7 @@ hello, World!
 $ koneko
 >>> "Hello, World!" say
 Hello, World!
-^D
+>>> ^D
 ```
 
 ### ...
@@ -73,15 +73,15 @@ Hello, World!
 NB: WIP
 
 ```
->>> :twice1 [ f . f f ] def             ; with named arguments
+>>> , :twice1 [ f . f f ] def             ; with named arguments
 >>> 42 [ 1 + ] twice1
 44
 
->>> :twice2 [ dup 'call dip call ] def  ; points-free
+>>> , :twice2 [ dup 'call dip call ] def  ; points-free
 >>> 42 [ 1 + ] twice2
 44
 
->>> :twice3 [ f . [ f f ] ] def         ; "curried"
+>>> , :twice3 [ f . [ f f ] ] def         ; "curried"
 >>> 0 [ 1 + ] twice3 twice3 twice3 twice3 call
 16
 
@@ -95,7 +95,7 @@ NB: WIP
 >>> 0 [ 1 + ] [ twice3 ] twice3 twice3 twice3 call call
 256
 
->>> 0 [ 1 + ] ???                       ; TODO
+>>> 0 [ 1 + ] ???                         ; TODO
 65536
 
 >>> clear-stack
@@ -105,7 +105,7 @@ NB: WIP
 >>> cons
 ( 1 2 3 )
 
->>> :mymap [ f . dup empty? [ ] [ uncons 'f dip 'f mymap cons ] if ] def
+>>> , :mymap [ f . dup empty? [ ] [ uncons 'f dip 'f mymap cons ] if ] def
 >>> [ dup * ] mymap
 ( 1 4 9 )
 ```
@@ -213,9 +213,7 @@ nil
 ### Records
 
 ```
->>> clear-stack
-
->>> :Point ( :x :y ) defrecord    ; define record type
+>>> , :Point ( :x :y ) defrecord  ; define record type
 >>> Point{ x: 1, y: -1 }          ; create record instance
 Point{ x: 1, y: -1 }
 >>> dup .x
@@ -233,9 +231,7 @@ Point{ x: 99, y: -1 }
 aka Lambdas
 
 ```
->>> clear-stack
-
->>> :myblock [ 42 ] def           ; a block that pushes 42 onto the stack
+>>> , :myblock [ 42 ] def         ; a block that pushes 42 onto the stack
 >>> 'myblock                      ; put it on the stack
 [ 42 ]
 >>> call                          ; call the block on the stack
@@ -244,8 +240,7 @@ aka Lambdas
 42
 
 >>> clear-stack
-
->>> :myswap [ x y . 'y 'x ] def   ; a block with named arguments
+>>> , :myswap [ x y . 'y 'x ] def ; a block with named arguments
 >>> 1 2 myswap
 1
 >>> show-stack
@@ -342,11 +337,9 @@ Point{ x: 1, y: 2 }
 NB: WIP
 
 ```
->>> clear-stack
-
->>> :x 1 def
->>> :y 2 def
->>> :z 3 def
+>>> , :x 1 def
+>>> , :y 2 def
+>>> , :z 3 def
 
 >>> ( 'x 'y 'z )
 ( 1 2 3 )
@@ -361,10 +354,8 @@ NB: WIP
 ### Variables
 
 ```
->>> clear-stack
-
->>> :answer 42 def              ; define a variable in the current namespace
->>> :inc [ 1 + ] def            ; can be a value or a block
+>>> , :answer 42 def            ; define a variable in the current namespace
+>>> , :inc [ 1 + ] def          ; can be a value or a block
 >>> 'answer inc
 43
 ```

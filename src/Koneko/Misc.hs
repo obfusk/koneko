@@ -10,7 +10,7 @@
 --
 --  --                                                          ; }}}1
 
-module Koneko.Misc (isIdent, pIdent) where
+module Koneko.Misc (isIdent, pIdent, matchIf) where
 
 import Data.Char (isNumber)
 import Data.Maybe (isJust)
@@ -47,11 +47,15 @@ type Parser = Parsec Void Text
 
                                                               --  }}}1
 isIdent :: Text -> Bool
-isIdent s = not (T.all isNumber s) && (isJust $ parseMaybe pIdent s)
+isIdent = isJust . parseMaybe pIdent
 
--- NB: pIdent matches numbers, isIdent rejects them
+-- TODO: still matches -11, 4e3
 pIdent :: Parser Text
-pIdent = fmap T.pack $ (:) <$> hdChar <*> many tlChar
+pIdent = matchIf (not . T.all isNumber) _pIdent
+
+-- NB: also matches numbers
+_pIdent :: Parser Text
+_pIdent = fmap T.pack $ (:) <$> hdChar <*> many tlChar
   where
     hdChar  = letterChar <|> numberChar <|>
               oneOf identSpecial <|> oneOf brackets
@@ -61,5 +65,8 @@ brackets, identPre, identSpecial :: [Char]
 brackets      = "(){}[]"
 identPre      = "'!:"
 identSpecial  = "~@$%^&*-_=+|<>/?"
+
+matchIf :: (a -> Bool) -> Parser a -> Parser a
+matchIf f p = do r <- p; if f r then return r else fail "oops"
 
 -- vim: set tw=70 sw=2 sts=2 et fdm=marker :
