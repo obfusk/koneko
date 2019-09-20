@@ -12,6 +12,18 @@
 
 {-# LANGUAGE OverloadedStrings #-}
 
+                                                              --  {{{1
+-- |
+--
+-- >>> :set -XOverloadedStrings
+-- >>> read "nil #f 42 3.14 \"Hello, World!\" :foo foo"
+-- [nil,#f,42,3.14,"Hello, World!",:foo,foo]
+--
+-- ... TODO ...
+--
+
+                                                              --  }}}1
+
 module Koneko.Read (read, read') where
 
 import Data.Char (isSpace)
@@ -31,14 +43,10 @@ import Koneko.Misc (Parser, pIdent, pInt, pFloat)
 import qualified Koneko.Data as D
 
 -- TODO:
---  * whitespace incl ,
---  * Nil, Bool, Int, Float, Str, Kwd, Rx
---  * Ident, Quoted Ident
---  * Pair, List, Dict
+--  * Dict
 --  * Record
---  * Block, RawBlock vs Quoted Block
+--  * RawBlock vs Quoted Block
 --  * ~sugar~
---
 --  * parser labels
 
 read :: Text -> [KValue]

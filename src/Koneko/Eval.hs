@@ -18,13 +18,21 @@
 -- >>> :set -XOverloadedStrings
 -- >>> import Data.Maybe
 -- >>> let id = fromJust . ident
--- >>> let ev x = () <$ evalList x undefined []
+-- >>> let ev x = evalList x undefined []
 --
 -- >>> ev [str "Hello, World!", KIdent $ id "__say__"]
 -- Hello, World!
---
--- >>> evalList [val 1, val 2, KIdent $ id "__int_-__"] undefined []
+-- []
+-- >>> ev [val 1, val 2, KIdent $ id "__int_-__"]
 -- [-1]
+--
+-- >>> let ev x = evalText "" x undefined []
+--
+-- >>> ev "\"Hello, World!\" __say__"
+-- Hello, World!
+-- []
+-- >>> ev "1 2 __int_+__"
+-- [3]
 --
 -- ... TODO ...
 --
