@@ -20,7 +20,6 @@ import Data.Version (showVersion)
 import System.Console.CmdArgs hiding (args)
 
 import qualified Data.Text.Lazy as T
-import qualified Data.Text.Lazy.IO as T
 import qualified System.Console.CmdArgs as CA
 
 import Koneko.Repl (repl, stdinTTY)
@@ -43,16 +42,15 @@ main :: IO ()
 main = do
     KonekoCmd{..} <- cmdArgs cmd
     isatty        <- stdinTTY
-    ctx           <- D.initContext
-    let st = D.initStack; int = when interactive . repl ctx
+    ctx           <- E.initContextWithPrelude
+    let st = D.emptyStack; int = when interactive . repl ctx
     case (eval, args) of
       (Nothing, [])       -> (if isatty || interactive then repl
                               else E.evalStdin) ctx st
-      (Nothing, script:_) -> evalFile script ctx st >>= int
+      (Nothing, script:_) -> E.evalFile script ctx st >>= int
       (Just code, _)      -> evalString code ctx st >>= int
   where
-    evalFile f c s  = do code <- T.readFile f; E.evalText f code c s
-    evalString      = E.evalText "(code)" . T.pack
+    evalString = E.evalText "(code)" . T.pack
     cmd = KonekoCmd {
       eval        = def &= typ "CODE"
                         &= help "code to run (instead of a script)",

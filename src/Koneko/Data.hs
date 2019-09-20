@@ -53,11 +53,12 @@
 module Koneko.Data (
   Identifier, Module, PopResult, Kwd(..), Ident, List(..), Block(..),
   Scope(..), Context(..), Pair(..), KPrim(..), KValue(..), KType(..),
-  Stack, unIdent, ident, escapeFrom, escapeTo, initStack, Push, push',
-  push, Pop, pop, pop', initContext, forkContext, forkScope, lookup,
-  typeOf, isNil, isBool, isInt, isFloat, isStr, isKwd, isPair, isList,
-  isIdent, isQuot, isBlock, nil, false, true, bool, int, float, str,
-  kwd, pair, list, block, Val, val
+  Stack, unIdent, ident, escapeFrom, escapeTo, emptyStack, Push,
+  push', push, Pop, pop, pop', mainModule, preludeModule, initContext,
+  forkContext, forkScope, defineIn, lookup, typeOf, isNil, isBool,
+  isInt, isFloat, isStr, isKwd, isPair, isList, isIdent, isQuot,
+  isBlock, nil, false, true, bool, int, float, str, kwd, pair, list,
+  block, Val, val
 ) where
 
 import Data.Char (isPrint, ord)
@@ -225,8 +226,8 @@ escapeTo    = [ "\r", "\n", "\t",  "\"",  "\\"]
 
 -- Stack functions --
 
-initStack :: Stack
-initStack = []
+emptyStack :: Stack
+emptyStack = []
 
 push' :: Stack -> KValue -> Stack
 push' = flip (:)
@@ -263,7 +264,7 @@ instance Pop KValue where
 
 -- | NB: returns popped items in "reverse" order
 --
--- >>> let s = initStack `push` 1 `push` 2
+-- >>> let s = emptyStack `push` 1 `push` 2
 -- >>> fst $ pop' s :: Integer
 -- 2
 -- >>> fst $ pop' s :: (Integer, Integer)
@@ -279,7 +280,7 @@ instance (Pop a, Pop b) => Pop (a, b) where
 
 -- | NB: returns popped items in "reverse" order
 --
--- >>> let s = initStack `push` (1, 2, 3)
+-- >>> let s = emptyStack `push` (1, 2, 3)
 -- >>> fst $ pop' s :: (Integer, Integer, Integer)
 -- (1,2,3)
 --
@@ -317,6 +318,9 @@ stackFail s = "*** stack match failed: " ++ s ++ " ***"
 mainModule :: Identifier
 mainModule = "__main__"
 
+preludeModule :: Identifier
+preludeModule = "__prelude__"
+
 initContext :: IO Context
 initContext = do
   modules <- HT.new; main <- HT.new
@@ -337,18 +341,30 @@ forkScope :: [(Identifier, KValue)] -> Context -> Context
 forkScope l c = c { ctxScope = Scope { parent = Right $ ctxScope c,
                                        table  = H.fromList l } }
 
+-- TODO: error if already exists
+defineIn :: Context -> Identifier -> KValue -> IO ()
+defineIn c k v = do curMod <- scopeModule c; HT.insert curMod k v
+
+scopeModule :: Context -> IO Module
+scopeModule c = let f s = either (getModule c) f $ parent s
+                in f $ ctxScope c
+
 lookup :: Context -> Identifier -> IO (Maybe KValue)
 lookup c = lookup' $ ctxScope c
   where
     lookup' s k = case H.lookup k $ table s of
       Nothing -> up k $ parent s
       v       -> return v
-    up k = either (lookupModule c k) (flip lookup' k)
+    up k = either (modOrPrel k) (flip lookup' k)
+    modOrPrel k modName = lookupModule c k modName >>= maybe
+      (if modName /= preludeModule then lookupModule c k preludeModule
+       else return Nothing) (return . Just)
 
 lookupModule :: Context -> Identifier -> Identifier -> IO (Maybe KValue)
-lookupModule c k modName = do
-    m <- HT.lookup (modules c) modName
-    maybe err (flip HT.lookup k) m
+lookupModule c k modName = getModule c modName >>= flip HT.lookup k
+
+getModule :: Context -> Identifier -> IO Module
+getModule c modName = maybe err id <$> HT.lookup (modules c) modName
   where
     err = error $ "*** module not found: " ++ (T.unpack modName) ++ " ***"
 

@@ -327,7 +327,7 @@ Point{ x: 1, y: 2 }
 * overloaded get for dict, list, record
 * !foo, !foo( ... )
 
-* reader vs eval vs primitive vs builtin vs stdlib
+* reader vs eval vs primitive vs builtin vs prelude vs stdlib
 * [[ ]] is not reader-only sugar
 
 -->
@@ -376,9 +376,13 @@ NB: WIP
 
 ... TODO ...
 
-<!-- really *call*, *if*, ... -->
+<!-- really __call__, __if__, ... -->
 
 ### Builtins
+
+... TODO ...
+
+### Prelude
 
 ```
 >>> clear-stack
@@ -405,12 +409,9 @@ NB: WIP
 
 ... TODO ...
 
-<!-- could be in stdlib -->
+<!-- builtin vs prelude -->
 
 ### Standard Library
-
-```
-```
 
 <!-- lib/ -->
 
