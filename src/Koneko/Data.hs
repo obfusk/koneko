@@ -55,10 +55,10 @@ module Koneko.Data (
   Scope(..), Context(..), Pair(..), KPrim(..), KValue(..), KType(..),
   Stack, unIdent, ident, escapeFrom, escapeTo, emptyStack, Push,
   push', push, Pop, pop, pop', mainModule, preludeModule, initContext,
-  forkContext, forkScope, defineIn, lookup, typeOf, isNil, isBool,
-  isInt, isFloat, isStr, isKwd, isPair, isList, isIdent, isQuot,
-  isBlock, nil, false, true, bool, int, float, str, kwd, pair, list,
-  block, Val, val
+  forkContext, forkScope, defineIn, lookup, typeOf, typeToKwd, isNil,
+  isBool, isInt, isFloat, isStr, isKwd, isPair, isList, isIdent,
+  isQuot, isBlock, nil, false, true, bool, int, float, str, kwd, pair,
+  list, block, Val, val
 ) where
 
 import Data.Char (isPrint, ord)
@@ -387,6 +387,19 @@ typeOf (KList _)  =   TList
 typeOf (KIdent _) =   TIdent
 typeOf (KQuot _)  =   TQuot
 typeOf (KBlock _) =   TBlock
+
+typeToKwd :: KType -> Kwd
+typeToKwd TNil    = Kwd "nil"
+typeToKwd TBool   = Kwd "bool"
+typeToKwd TInt    = Kwd "int"
+typeToKwd TFloat  = Kwd "float"
+typeToKwd TStr    = Kwd "str"
+typeToKwd TKwd    = Kwd "kwd"
+typeToKwd TPair   = Kwd "pair"
+typeToKwd TList   = Kwd "list"
+typeToKwd TIdent  = Kwd "ident"
+typeToKwd TQuot   = Kwd "quot"
+typeToKwd TBlock  = Kwd "block"
 
 isNil, isBool, isInt, isFloat, isStr, isKwd, isPair, isList, isIdent,
   isQuot, isBlock :: KValue -> Bool
