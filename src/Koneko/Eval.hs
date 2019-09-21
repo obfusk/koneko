@@ -11,6 +11,7 @@
 --  --                                                          ; }}}1
 
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE RecordWildCards #-}
 
                                                               --  {{{1
 -- |
@@ -55,11 +56,9 @@ import Paths_koneko (getDataFileName)
 import qualified Koneko.Read as R
 import qualified Koneko.Data as D
 
--- TODO: Either for errors
+-- TODO: Either for errors ??? !!!
 type Evaluator = Context -> Stack -> IO Stack
 
--- TODO:
--- * say, +, -, ... --> defaultScope
 eval :: KValue -> Evaluator
 eval x c s = case x of
   KPrim _         -> return $ s `push` x
@@ -124,7 +123,17 @@ primDef, primCall, primIf, primMkPair, primSay :: Evaluator
 
 primDef c s = let ((Kwd k, v), s') = pop' s in s' <$ defineIn c k v
 
-primCall = error "TODO"
+-- TODO
+primCall c s0 = evalList blkCode ctx s2
+  where
+    (Block{..}, s1)     = pop' s0
+    (s2, args)          = popArgs [] s1 $ reverse blkArgs
+    scope               = maybe err id blkScope
+    ctx                 = forkScope args c scope
+    popArgs r s []      = (s, r)
+    popArgs r s (k:kt)  = let (v, s') = pop' s
+                          in popArgs ((unIdent k, v):r) s' kt
+    err                 = error "*** scopeless block ***"
 
 primIf c s  = let ((b, tb, fb), s') = pop' s
               in primCall c $ push' s' $ if truthy b then tb else fb

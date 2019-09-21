@@ -305,6 +305,10 @@ instance Pop Kwd where
   pop (KPrim (KKwd x):s)  = Right (x, s)
   pop _                   = Left $ stackFail "kwd"
 
+instance Pop Block where
+  pop (KBlock x:s)        = Right (x, s)
+  pop _                   = Left $ stackFail "block"
+
 -- ... TODO ...
 
 pop' :: Pop a => Stack -> (a, Stack)
@@ -337,9 +341,9 @@ forkContext modName c = do
 _newScope :: Identifier -> Scope
 _newScope m = Scope { parent = Left m, table = H.empty }
 
-forkScope :: [(Identifier, KValue)] -> Context -> Context
-forkScope l c = c { ctxScope = Scope { parent = Right $ ctxScope c,
-                                       table  = H.fromList l } }
+forkScope :: [(Identifier, KValue)] -> Context -> Scope -> Context
+forkScope l c s = c { ctxScope = Scope { parent = Right s,
+                                         table  = H.fromList l } }
 
 -- TODO: error if already exists
 defineIn :: Context -> Identifier -> KValue -> IO ()

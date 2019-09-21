@@ -10,8 +10,6 @@
 ;
 ; --                                                            ; }}}1
 
-"*** EVALUATING PRELUDE ***" __say__  ; TODO
-
 :call   [ __call__    ] def
 :if     [ __if__      ] def
 :=>     [ __=>__      ] def
