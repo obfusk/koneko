@@ -2,7 +2,7 @@
 --
 --  File        : Koneko/Read.hs
 --  Maintainer  : Felix C. Stegerman <flx@obfusk.net>
---  Date        : 2019-09-22
+--  Date        : 2019-09-23
 --
 --  Copyright   : Copyright (C) 2019  Felix C. Stegerman
 --  Version     : v0.0.1
@@ -126,7 +126,10 @@ block = try $ KBlock <$> do
 value = choice [prim, list, quot, block, ident]
 
 program :: Parser [KValue]
-program = sp *> many value <* eof
+program = optional shebang *> sp *> many value <* eof
+
+shebang :: Parser ()
+shebang = void $ string "#!" >> many (satisfy (/= '\n')) >> newline
 
 -- parser: utilities --
 
