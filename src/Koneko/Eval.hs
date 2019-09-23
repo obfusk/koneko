@@ -24,7 +24,7 @@
 -- >>> ev [str "Hello, World!", KIdent $ id "__say__"]
 -- Hello, World!
 -- []
--- >>> ev [val 1, val 2, KIdent $ id "__int_-__"]
+-- >>> ev [val 1, val 2, KIdent $ id "__-__"]
 -- [-1]
 --
 -- >>> let ev x = evalText "" x undefined []
@@ -32,7 +32,7 @@
 -- >>> ev "\"Hello, World!\" __say__"
 -- Hello, World!
 -- []
--- >>> ev "1 2 __int_+__"
+-- >>> ev "1 2 __+__"
 -- [3]
 --
 -- ... TODO ...
@@ -46,6 +46,8 @@ module Koneko.Eval (
 ) where
 
 import Control.Exception (throwIO, try)
+import Data.Foldable (traverse_)
+import Data.Maybe (fromJust)  -- careful!
 import Data.Text.Lazy (Text)
 
 import qualified Data.Text.Lazy as T
@@ -110,15 +112,24 @@ evalFile f c s = do code <- T.readFile f; evalText f code c s
 -- TODO
 primitives :: [(Text, Evaluator)]
 primitives = [                                                --  {{{1
-    ("def"        , primDef),
-    ("__call__"   , primCall),
-    ("__if__"     , primIf),
-    ("__=>__"     , primMkPair),
-    ("__say__"    , primSay),
-    ("__int_+__"  , primIntArith (+)),
-    ("__int_-__"  , primIntArith (-)),
-    ("__int_*__"  , primIntArith (*))
+    ("def"      , primDef),
+    ("__call__" , primCall),
+    ("__if__"   , primIf),
+    ("__=>__"   , primMkPair),
+    ("__say__"  , primSay),
+    ("__+__"    , primIntArith (+)),
+    ("__-__"    , primIntArith (-)),
+    ("__*__"    , primIntArith (*))
   ]                                                           --  }}}1
+
+preludePrims :: Context -> IO ()
+preludePrims ctx
+    = traverse_ def $ [ T.drop 2 $ T.dropEnd 2 k |
+                        (k, _) <- primitives, "__" `T.isPrefixOf` k ]
+  where
+    def name = defineIn ctx name $ blk $ "__" <> name <> "__"
+    blk name = KBlock $ Block [] [idt name] $ Just $ ctxScope ctx
+    idt      = KIdent . fromJust . ident   --  safe!
 
 primDef, primCall, primIf, primMkPair, primSay :: Evaluator
 
@@ -157,6 +168,7 @@ initContextWithPrelude = do
   ctx   <- D.initContext
   ctxP  <- D.forkContext D.preludeModule ctx
   pre   <- preludeFile
+  preludePrims ctxP
   ctx <$ evalFile pre ctxP D.emptyStack
 
 -- utilities --

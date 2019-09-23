@@ -2,7 +2,7 @@
 ;
 ; File        : prelude.knk
 ; Maintainer  : Felix C. Stegerman <flx@obfusk.net>
-; Date        : 2019-09-20
+; Date        : 2019-09-22
 ;
 ; Copyright   : Copyright (C) 2019  Felix C. Stegerman
 ; Version     : v0.0.1
@@ -10,14 +10,7 @@
 ;
 ; --                                                            ; }}}1
 
-:call   [ __call__    ] def
-:if     [ __if__      ] def
-:=>     [ __=>__      ] def
-:say    [ __say__     ] def
-
-:+      [ __int_+__   ] def           ; TODO
-:-      [ __int_-__   ] def           ; TODO
-:*      [ __int_*__   ] def           ; TODO
+; NB: call, if, etc. are inserted by Koneko.Eval.preludePrims
 
 :swap   [ x y . 'y 'x ] def
 :dup    [ x   . 'x 'x ] def
