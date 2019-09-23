@@ -297,9 +297,9 @@ instance Pop KValue where
 -- | NB: returns popped items in "reverse" order
 --
 -- >>> let s = emptyStack `push` 1 `push` 2
--- >>> fst $ pop' s :: Integer
+-- >>> fst <$> pop' s :: IO Integer
 -- 2
--- >>> fst $ pop' s :: (Integer, Integer)
+-- >>> fst <$> pop' s :: IO (Integer, Integer)
 -- (1,2)
 --
 -- stack: ... 1 2 <- top
@@ -313,7 +313,7 @@ instance (Pop a, Pop b) => Pop (a, b) where
 -- | NB: returns popped items in "reverse" order
 --
 -- >>> let s = emptyStack `push` (1, 2, 3)
--- >>> fst $ pop' s :: (Integer, Integer, Integer)
+-- >>> fst <$> pop' s :: IO (Integer, Integer, Integer)
 -- (1,2,3)
 --
 -- stack: ... 1 2 3 <- top
