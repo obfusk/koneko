@@ -2,7 +2,7 @@
 --
 --  File        : Koneko/Data.hs
 --  Maintainer  : Felix C. Stegerman <flx@obfusk.net>
---  Date        : 2019-09-20
+--  Date        : 2019-09-22
 --
 --  Copyright   : Copyright (C) 2019  Felix C. Stegerman
 --  Version     : v0.0.1
@@ -51,21 +51,23 @@
                                                               --  }}}1
 
 module Koneko.Data (
-  Identifier, Module, PopResult, Kwd(..), Ident, List(..), Block(..),
-  Scope(..), Context(..), Pair(..), KPrim(..), KValue(..), KType(..),
-  Stack, unIdent, ident, escapeFrom, escapeTo, emptyStack, Push,
-  push', push, Pop, pop, pop', mainModule, preludeModule, initContext,
-  forkContext, forkScope, defineIn, lookup, typeOf, typeToKwd, isNil,
-  isBool, isInt, isFloat, isStr, isKwd, isPair, isList, isIdent,
-  isQuot, isBlock, nil, false, true, bool, int, float, str, kwd, pair,
-  list, block, Val, val
+  Identifier, Module, PopResult, Evaluator, KException(..), Kwd(..),
+  Ident, List(..), Block(..), Scope(..), Context(..), Pair(..),
+  KPrim(..), KValue(..), KType(..), Stack, unIdent, ident, escapeFrom,
+  escapeTo, emptyStack, Push, push', push, Pop, pop, pop', mainModule,
+  preludeModule, initContext, forkContext, forkScope, defineIn,
+  lookup, typeOf, typeToKwd, isNil, isBool, isInt, isFloat, isStr,
+  isKwd, isPair, isList, isIdent, isQuot, isBlock, nil, false, true,
+  bool, int, float, str, kwd, pair, list, block, Val, val
 ) where
 
+import Control.Exception (Exception, throwIO)
 import Data.Char (isPrint, ord)
 import Data.List (intercalate)
 import Data.Text.Lazy (Text)
 import Numeric (showHex)
 import Prelude hiding (lookup)
+import Type.Reflection (Typeable)
 
 import qualified Data.HashMap.Lazy as H
 import qualified Data.HashTable.IO as HT
@@ -88,7 +90,21 @@ type ScopeLookupTable   = H.HashMap Identifier KValue
 
 type Identifier         = Text
 type Module             = ModuleLookupTable
-type PopResult a        = Either String (a, Stack)
+type PopResult a        = Either KException (a, Stack)
+
+type Evaluator          = Context -> Stack -> IO Stack
+
+data KException
+    = ParseError !String      -- ^ parse error
+    | EvalUnexpected !String  -- ^ unexpected value during eval
+    | EvalScopelessBlock      -- ^ block w/o scope during eval
+    | ModuleNotFound !String  -- ^ module not found
+    | LookupFailed !String    -- ^ ident lookup failed
+    | StackUnderflow          -- ^ stack was empty
+    | StackExpected !String   -- ^ stack did not contain expected value
+  deriving Typeable
+
+instance Exception KException
 
 newtype Kwd = Kwd { unKwd :: Identifier }
   deriving (Eq, Ord)
@@ -146,6 +162,15 @@ data KType
 type Stack = [KValue]
 
 -- instances --
+
+instance Show KException where
+  show (ParseError msg)       = "parse error: " ++ msg
+  show (EvalUnexpected what)  = "cannot eval " ++ what
+  show (EvalScopelessBlock)   = "cannot eval scopeless block"
+  show (ModuleNotFound name)  = "no module named " ++ name
+  show (LookupFailed name)    = "name " ++ name ++ " is not defined"
+  show (StackUnderflow)       = "stack underflow"
+  show (StackExpected what)   = "expected " ++ what ++ " on stack"
 
 -- TODO
 instance Eq Block where
@@ -217,7 +242,7 @@ showStr s = T.unpack $ T.concat ["\"", T.concatMap f s, "\""]
     f c = maybe (g c) id $ P.lookup c bsl
     g c = if isPrint c then T.singleton c else h (ord c)
     h n = let (p,m) = if n <= 0xffff then ("\\u",4) else ("\\U",8)
-          in p `T.append` T.justifyRight m '0' (T.pack $ showHex n "")
+          in p <> T.justifyRight m '0' (T.pack $ showHex n "")
     bsl = zip (map T.head escapeTo) escapeFrom
 
 escapeFrom, escapeTo :: [Text]
@@ -255,12 +280,19 @@ instance Push Kwd where
 
 -- ... TODO ...
 
+pop :: Pop a => Stack -> PopResult a
+pop []  = Left StackUnderflow
+pop s   = pop_ s
+
+pop' :: Pop a => Stack -> IO (a, Stack)
+pop' s = either throwIO return $ pop s
+
 class Pop a where
-  pop :: Stack -> PopResult a
+  pop_ :: Stack -> PopResult a
 
 instance Pop KValue where
-  pop (x:s) = Right (x,s)
-  pop _     = Left $ stackFail "value"
+  pop_ (x:s)  = Right (x, s)
+  pop_ _      = Left StackUnderflow
 
 -- | NB: returns popped items in "reverse" order
 --
@@ -273,7 +305,7 @@ instance Pop KValue where
 -- stack: ... 1 2 <- top
 --
 instance (Pop a, Pop b) => Pop (a, b) where
-  pop s = do
+  pop_ s = do
     (x, s1) <- pop s
     (y, s2) <- pop s1
     return ((y, x), s2)
@@ -287,35 +319,29 @@ instance (Pop a, Pop b) => Pop (a, b) where
 -- stack: ... 1 2 3 <- top
 --
 instance (Pop a, Pop b, Pop c) => Pop (a, b, c) where
-  pop s = do
+  pop_ s = do
     (x, s1) <- pop s
     (y, s2) <- pop s1
     (z, s3) <- pop s2
     return ((z, y, x), s3)
 
 instance Pop Integer where
-  pop (KPrim (KInt x):s)  = Right (x, s)
-  pop _                   = Left $ stackFail "int"
+  pop_ (KPrim (KInt x):s) = Right (x, s)
+  pop_ _                  = Left $ StackExpected "int"
 
 instance Pop Text where
-  pop (KPrim (KStr x):s)  = Right (x, s)
-  pop _                   = Left $ stackFail "str"
+  pop_ (KPrim (KStr x):s) = Right (x, s)
+  pop_ _                  = Left $ StackExpected "str"
 
 instance Pop Kwd where
-  pop (KPrim (KKwd x):s)  = Right (x, s)
-  pop _                   = Left $ stackFail "kwd"
+  pop_ (KPrim (KKwd x):s) = Right (x, s)
+  pop_ _                  = Left $ StackExpected "kwd"
 
 instance Pop Block where
-  pop (KBlock x:s)        = Right (x, s)
-  pop _                   = Left $ stackFail "block"
+  pop_ (KBlock x:s)       = Right (x, s)
+  pop_ _                  = Left $ StackExpected "block"
 
 -- ... TODO ...
-
-pop' :: Pop a => Stack -> (a, Stack)
-pop' s = either error id $ pop s
-
-stackFail :: String -> String
-stackFail s = "*** stack match failed: " ++ s ++ " ***"
 
 -- Module/Scope functions --
 
@@ -368,9 +394,9 @@ lookupModule :: Context -> Identifier -> Identifier -> IO (Maybe KValue)
 lookupModule c k modName = getModule c modName >>= flip HT.lookup k
 
 getModule :: Context -> Identifier -> IO Module
-getModule c modName = maybe err id <$> HT.lookup (modules c) modName
+getModule c modName = HT.lookup (modules c) modName >>= maybe err return
   where
-    err = error $ "*** module not found: " ++ (T.unpack modName) ++ " ***"
+    err = throwIO $ ModuleNotFound $ T.unpack modName
 
 -- type predicates --
 

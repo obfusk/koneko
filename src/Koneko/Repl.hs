@@ -2,7 +2,7 @@
 --
 --  File        : Koneko/Repl.hs
 --  Maintainer  : Felix C. Stegerman <flx@obfusk.net>
---  Date        : 2019-09-20
+--  Date        : 2019-09-22
 --
 --  Copyright   : Copyright (C) 2019  Felix C. Stegerman
 --  Version     : v0.0.1
@@ -30,6 +30,11 @@ import qualified Koneko.Eval as E
 
 -- TODO: readline? or just rlwrap?
 
+-- | NB: when an exception is caught during the evaluation of a line,
+-- the exeption is printed and the repl continues with the stack reset
+-- to what it was before that line; however, any definitions that were
+-- added to a module before the exception occurred will have taken
+-- effect.
 repl :: D.Context -> D.Stack -> IO ()
 repl ctx st = stdinTTY >>= \tty -> bool E.evalStdin loop tty ctx st
   where
@@ -37,10 +42,14 @@ repl ctx st = stdinTTY >>= \tty -> bool E.evalStdin loop tty ctx st
     loop c s = prompt' promptText >>= maybe (T.putStrLn "") process
       where
         process line = if T.null line then loop c s else do
-          s' <- E.evalText "(repl)" line c s
-          unless (null s' || T.head line `elem` [',',';']) $  --  TODO
-            putStrLn $ show $ head s'
-          loop c s'
+          r <- E.tryK $ E.evalText "(repl)" line c s
+          case r of
+            Left e    -> do showErr e; loop c s
+            Right s'  -> do unless (shouldSkip s' line) $
+                              putStrLn $ show $ head s'       --  TODO
+                            loop c s'
+    shouldSkip s line = null s || T.head line `elem` [',',';']
+    showErr e         = putStrLn $ "*** ERROR: " ++ show e
 
 promptText :: Text
 promptText = ">>> "

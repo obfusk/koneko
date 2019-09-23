@@ -2,7 +2,7 @@
 --
 --  File        : Koneko/Read.hs
 --  Maintainer  : Felix C. Stegerman <flx@obfusk.net>
---  Date        : 2019-09-20
+--  Date        : 2019-09-22
 --
 --  Copyright   : Copyright (C) 2019  Felix C. Stegerman
 --  Version     : v0.0.1
@@ -36,6 +36,7 @@
 
 module Koneko.Read (read, read') where
 
+import Control.Exception (throw)
 import Data.Char (isSpace)
 import Data.Functor
 import Data.Text.Lazy (Text)
@@ -64,8 +65,8 @@ read :: Text -> [KValue]
 read = read' "(read)"
 
 read' :: FilePath -> Text -> [KValue]
-read' f code
-  = either (error . errorBundlePretty) id $ parse program f code
+read' f code  = either (throw . D.ParseError . errorBundlePretty) id
+              $ parse program f code
 
 -- parser: KPrim --
 

@@ -2,7 +2,7 @@
 --
 --  File        : Koneko/Eval.hs
 --  Maintainer  : Felix C. Stegerman <flx@obfusk.net>
---  Date        : 2019-09-20
+--  Date        : 2019-09-22
 --
 --  Copyright   : Copyright (C) 2019  Felix C. Stegerman
 --  Version     : v0.0.1
@@ -41,10 +41,11 @@
                                                               --  }}}1
 
 module Koneko.Eval (
-  eval, evalList, evalText, evalStdin, evalFile,
+  tryK, eval, evalList, evalText, evalStdin, evalFile,
   initContextWithPrelude, truthy
 ) where
 
+import Control.Exception (throwIO, try)
 import Data.Text.Lazy (Text)
 
 import qualified Data.Text.Lazy as T
@@ -56,13 +57,13 @@ import Paths_koneko (getDataFileName)
 import qualified Koneko.Read as R
 import qualified Koneko.Data as D
 
--- TODO: Either for errors ??? !!!
-type Evaluator = Context -> Stack -> IO Stack
+tryK :: IO a -> IO (Either KException a)
+tryK = try
 
 eval :: KValue -> Evaluator
 eval x c s = case x of
   KPrim _         -> return $ s `push` x
-  KPair _         -> error "eval: unexpected pair"
+  KPair _         -> throwIO $ EvalUnexpected "pair"
   KList (List l)  -> _evalList l c s
   KIdent i        -> _evalIdent (unIdent i) c s
   KQuot i         -> _pushIdent (unIdent i) c s
@@ -82,7 +83,7 @@ _evalIdent i c s  = maybe (_pushIdent i c s >>= primCall c)
 _pushIdent :: Text -> Evaluator
 _pushIdent i c s = D.lookup c i >>= maybe err (return . push s)
   where
-    err = error $ "*** lookup failed: " ++ T.unpack i ++ " ***"
+    err = throwIO $ LookupFailed $ T.unpack i
 
 _evalBlock :: Block -> Evaluator
 _evalBlock b c s
@@ -121,31 +122,30 @@ primitives = [                                                --  {{{1
 
 primDef, primCall, primIf, primMkPair, primSay :: Evaluator
 
-primDef c s = let ((Kwd k, v), s') = pop' s in s' <$ defineIn c k v
+primDef c s = do ((Kwd k, v), s') <- pop' s; s' <$ defineIn c k v
 
 -- TODO
-primCall c s0 = evalList blkCode ctx s2
+primCall c s0 = do
+    (Block{..}, s1) <- pop' s0
+    scope           <- maybe err return blkScope
+    (s2, args)      <- popArgs [] s1 $ reverse blkArgs
+    evalList blkCode (forkScope args c scope) s2
   where
-    (Block{..}, s1)     = pop' s0
-    (s2, args)          = popArgs [] s1 $ reverse blkArgs
-    scope               = maybe err id blkScope
-    ctx                 = forkScope args c scope
-    popArgs r s []      = (s, r)
-    popArgs r s (k:kt)  = let (v, s') = pop' s
-                          in popArgs ((unIdent k, v):r) s' kt
-    err                 = error "*** scopeless block ***"
+    popArgs r s []      = return (s, r)
+    popArgs r s (k:kt)  = do  (v, s') <- pop' s
+                              popArgs ((unIdent k, v):r) s' kt
+    err = throwIO EvalScopelessBlock
 
-primIf c s  = let ((b, tb, fb), s') = pop' s
-              in primCall c $ push' s' $ if truthy b then tb else fb
+primIf c s = do ((b, tb, fb), s') <- pop' s
+                primCall c $ push' s' $ if truthy b then tb else fb
 
-primMkPair _ s  = let ((k, v), s') = pop' s
-                  in return $ s' `push` pair k v
+primMkPair _ s = do ((k, v), s') <- pop' s; return $ s' `push` pair k v
 
-primSay _ s = let (x, s') = pop' s in s' <$ T.putStrLn x
+primSay _ s = do (x, s') <- pop' s; s' <$ T.putStrLn x
 
 primIntArith :: (Integer -> Integer -> Integer) -> Evaluator
-primIntArith op _ s
-  = let ((x,y),s') = pop' s in return $ s' `push` (x `op` y)
+primIntArith op _ s = do  ((x, y), s') <- pop' s
+                          return $ s' `push` (x `op` y)
 
 -- prelude --
 
