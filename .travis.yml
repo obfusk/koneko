@@ -1,10 +1,14 @@
 language: haskell
-cabal: "2.4"
-ghc:
-  - "8.0.2" # bionic
-  - "8.4.4" # buster
-  - "8.6.5" # unstable
-  - "8.8.1" # experimental
+matrix:
+  include:
+    - cabal:  "2.4"
+      ghc:  "8.0.2" # bionic
+    - cabal:  "2.4"
+      ghc:  "8.4.4" # buster
+    - cabal:  "2.4"
+      ghc:  "8.6.5" # unstable
+    - cabal:  "3.0"
+      ghc:  "8.8.1" # experimental
 install: |
   set -e
   cabal v2-install --only-dependencies
@@ -14,3 +18,6 @@ script: |
   export PATH=~/.cabal/bin:"$PATH"
   cabal v2-build
   doctest src/
+cache:
+  directories:
+    - $HOME/.cabal
