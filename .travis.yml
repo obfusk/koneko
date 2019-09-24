@@ -12,6 +12,7 @@ matrix:
   allow_failures:
     - ghc:  "8.0.2"
     - ghc:  "8.8.1"
+  fast_finish: true
 install: |
   set -e
   cabal v2-install --only-dependencies
