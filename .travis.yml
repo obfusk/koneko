@@ -11,6 +11,7 @@ matrix:
       ghc:  "8.8.1" # experimental
   allow_failures:
     - ghc:  "8.0.2"
+    - ghc:  "8.8.1"
 install: |
   set -e
   cabal v2-install --only-dependencies
