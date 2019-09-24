@@ -72,7 +72,7 @@ library
   -- other-extensions:
 
   -- Other library packages from which modules are imported.
-  build-depends:       base >=4.11, hashtables, megaparsec, text,
+  build-depends:       base >=4.9, hashtables, megaparsec, text,
                        unix, unordered-containers
 
   -- Directories containing source files.
@@ -105,7 +105,7 @@ executable koneko
   -- other-extensions:
 
   -- Other library packages from which modules are imported.
-  build-depends:       base >=4.11, cmdargs, hashtables, megaparsec,
+  build-depends:       base >=4.9, cmdargs, hashtables, megaparsec,
                        text, unix, unordered-containers
 
   -- Directories containing source files.

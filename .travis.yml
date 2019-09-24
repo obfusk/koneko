@@ -1,8 +1,10 @@
 language: haskell
 cabal: "2.4"
 ghc:
-  - "8.4.4"
-  - "8.6.5"
+  - "8.0.2" # bionic
+  - "8.4.4" # buster
+  - "8.6.5" # unstable
+  - "8.8.1" # experimental
 install: |
   set -e
   cabal v2-install --only-dependencies

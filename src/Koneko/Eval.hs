@@ -48,6 +48,7 @@ module Koneko.Eval (
 import Control.Exception (throwIO, try)
 import Data.Foldable (traverse_)
 import Data.Maybe (fromJust)  -- careful!
+import Data.Monoid ((<>))
 import Data.Text.Lazy (Text)
 
 import qualified Data.Text.Lazy as T

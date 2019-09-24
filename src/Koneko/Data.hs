@@ -64,10 +64,11 @@ module Koneko.Data (
 import Control.Exception (Exception, throwIO)
 import Data.Char (isPrint, ord)
 import Data.List (intercalate)
+import Data.Monoid ((<>))
 import Data.Text.Lazy (Text)
+import Data.Typeable (Typeable)
 import Numeric (showHex)
 import Prelude hiding (lookup)
-import Type.Reflection (Typeable)
 
 import qualified Data.HashMap.Lazy as H
 import qualified Data.HashTable.IO as HT
