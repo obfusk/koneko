@@ -46,7 +46,24 @@ extra-source-files:  CHANGELOG.md, README.md, LICENSE.LGPLv3.STDLIB
 data-files:          lib/**/*.knk
 
 
+common deps
+  -- Other library packages from which modules are imported.
+  build-depends:       base >=4.9, hashtables, megaparsec, text,
+                       unix, unordered-containers
+
+  -- Directories containing source files.
+  hs-source-dirs:      src
+
+  -- Base language which the package is written in.
+  default-language:    Haskell2010
+
+  ghc-options:         -Wall -fwarn-incomplete-uni-patterns
+                       -Werror -fno-warn-unused-imports
+
+
 library
+  import:              deps
+
   -- Modules exported by the library.
   exposed-modules:
     Koneko.Data
@@ -66,21 +83,10 @@ library
   -- LANGUAGE extensions used by modules in this package.
   -- other-extensions:
 
-  -- Other library packages from which modules are imported.
-  build-depends:       base >=4.9, hashtables, megaparsec, text,
-                       unix, unordered-containers
-
-  -- Directories containing source files.
-  hs-source-dirs:      src
-
-  -- Base language which the package is written in.
-  default-language:    Haskell2010
-
-  ghc-options:         -Wall -fwarn-incomplete-uni-patterns
-                       -Werror -fno-warn-unused-imports
-
 
 executable koneko
+  import:              deps
+
   -- .hs or .lhs file containing the Main module.
   main-is:             Main.hs
 
@@ -101,15 +107,13 @@ executable koneko
   -- other-extensions:
 
   -- Other library packages from which modules are imported.
-  build-depends:       base >=4.9, cmdargs, hashtables, megaparsec,
-                       text, unix, unordered-containers
+  build-depends:       cmdargs
 
-  -- Directories containing source files.
-  hs-source-dirs:      src
 
-  -- Base language which the package is written in.
-  default-language:    Haskell2010
-
-  ghc-options:         -Wall -fwarn-incomplete-uni-patterns
-                       -Werror -fno-warn-unused-imports
+test-suite doctests
+  import:              deps
+  type:                exitcode-stdio-1.0
+  main-is:             doctests.hs
+  build-depends:       doctest
+  ghc-options:         -threaded
 
