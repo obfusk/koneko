@@ -1,28 +1,45 @@
 language: haskell
+cabal: "2.4"
+
 matrix:
   include:
-    - cabal:  "2.4"
-      ghc:  "8.0.2" # bionic
-    - cabal:  "2.4"
-      ghc:  "8.4.4" # buster
-    - cabal:  "2.4"
-      ghc:  "8.6.5" # unstable
-    - cabal:  "3.0"
-      ghc:  "8.8.1" # experimental
+  - &bionic
+    ghc:  "8.0.2"
+  - &buster
+    ghc:  "8.4.4"
+  - &unstable
+    ghc:  "8.6.5"
+  - &experimental
+    ghc:  "8.8.1"
+    cabal:  "3.0"
+
+  - <<: *bionic
+    env: WARNALL=yes
+  - <<: *buster
+    env: WARNALL=yes
+  - <<: *unstable
+    env: WARNALL=yes
+  - <<: *experimental
+    env: WARNALL=yes
+
   allow_failures:
-    - env: WARNALL=yes
+  - env: WARNALL=yes
+
 install: |
   set -xe
   cabal v2-update
+
 script: |
   set -xe
   [ "$WARNALL" = no ] || sed -i 's/-fno-warn-unused-imports//' koneko.cabal
   cabal v2-build --write-ghc-environment-files=always --enable-tests
   cabal v2-run doctests   # nicer output than v2-test
+
 env:
+  global:
   - WARNALL=no
-  - WARNALL=yes
+
 cache:
   directories:
-    - $HOME/.cabal
-    - $HOME/.ghc
+  - $HOME/.cabal
+  - $HOME/.ghc
