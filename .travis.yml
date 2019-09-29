@@ -9,13 +9,19 @@ matrix:
       ghc:  "8.6.5" # unstable
     - cabal:  "3.0"
       ghc:  "8.8.1" # experimental
+  allow_failures:
+    - env: WARNALL=yes
 install: |
   set -xe
   cabal v2-update
 script: |
   set -xe
+  [ "$WARNALL" = no ] || sed -i 's/-fno-warn-unused-imports//' koneko.cabal
   cabal v2-build --write-ghc-environment-files=always --enable-tests
   cabal v2-run doctests   # nicer output than v2-test
+env:
+  - WARNALL=no
+  - WARNALL=yes
 cache:
   directories:
     - $HOME/.cabal
