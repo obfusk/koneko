@@ -24,6 +24,10 @@ matrix:
 
   allow_failures:
   - env: WARNALL=yes
+  fast_finish: true
+
+env:
+- WARNALL=no
 
 install: |
   set -xe
@@ -34,10 +38,6 @@ script: |
   [ "$WARNALL" = no ] || sed -i 's/-fno-warn-unused-imports//' koneko.cabal
   cabal v2-build --write-ghc-environment-files=always --enable-tests
   cabal v2-run doctests   # nicer output than v2-test
-
-env:
-  global:
-  - WARNALL=no
 
 cache:
   directories:
