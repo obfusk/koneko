@@ -10,12 +10,12 @@ matrix:
     - cabal:  "3.0"
       ghc:  "8.8.1" # experimental
 install: |
-  set -e
+  set -xe
   cabal v2-update
 script: |
-  set -e
+  set -xe
   cabal v2-build --write-ghc-environment-files=always --enable-tests
-  cabal v2-test
+  cabal v2-run doctests   # nicer output than v2-test
 cache:
   directories:
     - $HOME/.cabal
