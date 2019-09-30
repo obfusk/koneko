@@ -2,7 +2,7 @@
 --
 --  File        : Koneko/Data.hs
 --  Maintainer  : Felix C. Stegerman <flx@obfusk.net>
---  Date        : 2019-09-22
+--  Date        : 2019-09-30
 --
 --  Copyright   : Copyright (C) 2019  Felix C. Stegerman
 --  Version     : v0.0.1
@@ -52,7 +52,7 @@
 
 module Koneko.Data (
   Identifier, Module, PopResult, Evaluator, KException(..), Kwd(..),
-  Ident, List(..), Block(..), Scope(..), Context(..), Pair(..),
+  Ident, List(..), Block(..), Scope, Context, ctxScope, Pair(..),
   KPrim(..), KValue(..), KType(..), Stack, unIdent, ident, escapeFrom,
   escapeTo, emptyStack, Push, push', push, Pop, pop, pop', mainModule,
   preludeModule, initContext, forkContext, forkScope, defineIn,
@@ -368,9 +368,11 @@ forkContext modName c = do
 _newScope :: Identifier -> Scope
 _newScope m = Scope { parent = Left m, table = H.empty }
 
+-- TODO: can this create unnecessary duplicates?
 forkScope :: [(Identifier, KValue)] -> Context -> Scope -> Context
-forkScope l c s = c { ctxScope = Scope { parent = Right s,
-                                         table  = H.fromList l } }
+forkScope [] c s  = c { ctxScope = s }
+forkScope l  c s  = c { ctxScope = Scope { parent = Right s,
+                                           table  = H.fromList l } }
 
 -- TODO: error if already exists
 defineIn :: Context -> Identifier -> KValue -> IO ()
