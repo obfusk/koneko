@@ -2,7 +2,7 @@
 --
 --  File        : Koneko/Repl.hs
 --  Maintainer  : Felix C. Stegerman <flx@obfusk.net>
---  Date        : 2019-09-22
+--  Date        : 2019-09-30
 --
 --  Copyright   : Copyright (C) 2019  Felix C. Stegerman
 --  Version     : v0.0.1
@@ -12,12 +12,14 @@
 
 {-# LANGUAGE OverloadedStrings #-}
 
-module Koneko.Repl (repl, stdinTTY) where
+module Koneko.Repl (
+  repl, repl', promptText, errorText, stdinTTY
+) where
 
 import Control.Monad (unless)
-import Data.Bool (bool)
+import Data.String (IsString)
 import Data.Text.Lazy (Text)
-import System.IO (hFlush, stdout)
+import System.IO (hFlush, hPutStrLn, stdout, stderr)
 import System.IO.Error (catchIOError, isEOFError)
 import System.Posix.IO (stdInput)
 import System.Posix.Terminal (queryTerminal)
@@ -30,33 +32,39 @@ import qualified Koneko.Eval as E
 
 -- TODO: readline? or just rlwrap?
 
+repl :: D.Context -> D.Stack -> IO ()
+repl c s = () <$ repl' False promptText c s
+
 -- | NB: when an exception is caught during the evaluation of a line,
 -- the exeption is printed and the repl continues with the stack reset
 -- to what it was before that line; however, any definitions that were
 -- added to a module before the exception occurred will have taken
 -- effect.
-repl :: D.Context -> D.Stack -> IO ()
-repl ctx st = stdinTTY >>= \tty -> bool E.evalStdin loop tty ctx st
+repl' :: Bool -> Text -> D.Context -> D.Stack -> IO D.Stack
+repl' breakOnError pr = loop
   where
-    loop :: D.Context -> D.Stack -> IO ()
-    loop c s = prompt' promptText >>= maybe (T.putStrLn "") process
+    loop :: D.Context -> D.Stack -> IO D.Stack
+    loop c s = prompt' pr >>= maybe (s <$ T.putStrLn "") process
       where
         process line = if T.null line then loop c s else do
           r <- E.tryK $ E.evalText "(repl)" line c s
           case r of
-            Left e    -> do showErr e; loop c s
+            Left e    -> do hPutStrLn stderr $ errorText ++ show e
+                            if breakOnError then return s else loop c s
             Right s'  -> do unless (shouldSkip s' line) $
                               putStrLn $ show $ head s'       --  TODO
                             loop c s'
-    shouldSkip s line = null s || T.head line `elem` [',',';']
-    showErr e         = putStrLn $ "*** ERROR: " ++ show e
 
-promptText :: Text
-promptText = ">>> "
+shouldSkip :: D.Stack -> Text -> Bool
+shouldSkip s line = null s || T.head line `elem` [',',';']
+
+promptText, errorText :: IsString s => s
+promptText  = ">>> "
+errorText   = "*** ERROR: "
 
 prompt' :: Text -> IO (Maybe Text)
-prompt' x = (Just <$> prompt x) `catchIOError`
-            \e -> if isEOFError e then return Nothing else ioError e
+prompt' x = (Just <$> prompt x) `catchIOError` \e ->
+            if isEOFError e then return Nothing else ioError e
 
 prompt :: Text -> IO Text
 prompt x = do T.putStr x; hFlush stdout; T.getLine

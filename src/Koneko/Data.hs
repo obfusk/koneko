@@ -52,13 +52,13 @@
 
 module Koneko.Data (
   Identifier, Module, PopResult, Evaluator, KException(..), Kwd(..),
-  Ident, List(..), Block(..), Scope, Context, ctxScope, Pair(..),
-  KPrim(..), KValue(..), KType(..), Stack, unIdent, ident, escapeFrom,
-  escapeTo, emptyStack, Push, push', push, Pop, pop, pop', mainModule,
-  preludeModule, initContext, forkContext, forkScope, defineIn,
-  lookup, typeOf, typeToKwd, isNil, isBool, isInt, isFloat, isStr,
-  isKwd, isPair, isList, isIdent, isQuot, isBlock, nil, false, true,
-  bool, int, float, str, kwd, pair, list, block, Val, val
+  Ident, unIdent, ident, List(..), Block(..), Scope, Context,
+  ctxScope, Pair(..), KPrim(..), KValue(..), KType(..), Stack,
+  escapeFrom, escapeTo, emptyStack, Push, push', push, Pop, pop, pop',
+  mainModule, preludeModule, initContext, forkContext, forkScope,
+  defineIn, lookup, typeOf, typeToKwd, isNil, isBool, isInt, isFloat,
+  isStr, isKwd, isPair, isList, isIdent, isQuot, isBlock, nil, false,
+  true, bool, int, float, str, kwd, pair, list, block, Val, val
 ) where
 
 import Control.Exception (Exception, throwIO)

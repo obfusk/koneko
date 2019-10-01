@@ -48,8 +48,13 @@ data-files:          lib/**/*.knk
 
 common deps
   -- Other library packages from which modules are imported.
-  build-depends:       base >=4.9, hashtables, megaparsec, text,
-                       unix, unordered-containers
+  build-depends:
+    -- included w/ ghc:
+    base >=4.9, directory, filepath, text, unix,
+    -- included w/ haskell-platform:
+    unordered-containers,
+    -- separate packages:
+    cmdargs, formatting, hashtables, megaparsec, silently
 
   -- Directories containing source files.
   hs-source-dirs:      src
@@ -106,14 +111,12 @@ executable koneko
   -- LANGUAGE extensions used by modules in this package.
   -- other-extensions:
 
-  -- Other library packages from which modules are imported.
-  build-depends:       cmdargs
-
 
 test-suite doctests
   import:              deps
   type:                exitcode-stdio-1.0
   main-is:             doctests.hs
   build-depends:       doctest
+  hs-source-dirs:      test
   ghc-options:         -threaded
 

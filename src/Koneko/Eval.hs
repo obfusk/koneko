@@ -2,7 +2,7 @@
 --
 --  File        : Koneko/Eval.hs
 --  Maintainer  : Felix C. Stegerman <flx@obfusk.net>
---  Date        : 2019-09-22
+--  Date        : 2019-09-30
 --
 --  Copyright   : Copyright (C) 2019  Felix C. Stegerman
 --  Version     : v0.0.1
@@ -63,6 +63,7 @@ import qualified Koneko.Data as D
 tryK :: IO a -> IO (Either KException a)
 tryK = try
 
+-- TODO: CTO
 eval :: KValue -> Evaluator
 eval x c s = case x of
   KPrim _         -> return $ s `push` x
@@ -153,6 +154,7 @@ primIf c s = do ((b, tb, fb), s') <- pop' s
 
 primMkPair _ s = do ((k, v), s') <- pop' s; return $ s' `push` pair k v
 
+-- NB: uses stdout implicitly
 primSay _ s = do (x, s') <- pop' s; s' <$ T.putStrLn x
 
 primIntArith :: (Integer -> Integer -> Integer) -> Evaluator

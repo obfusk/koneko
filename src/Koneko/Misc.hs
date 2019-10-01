@@ -2,7 +2,7 @@
 --
 --  File        : Koneko/Misc.hs
 --  Maintainer  : Felix C. Stegerman <flx@obfusk.net>
---  Date        : 2019-09-20
+--  Date        : 2019-09-30
 --
 --  Copyright   : Copyright (C) 2019  Felix C. Stegerman
 --  Version     : v0.0.1
@@ -13,9 +13,10 @@
 {-# LANGUAGE OverloadedStrings #-}
 
 module Koneko.Misc (
-  Parser, isIdent, pIdent, brackets, pInt, pFloat
+  Parser, isIdent, pIdent, brackets, pInt, pFloat, isSpaceOrComma
 ) where
 
+import Data.Char (isSpace)
 import Data.Maybe (isJust)
 import Data.Text.Lazy (Text)
 import Data.Void (Void)
@@ -82,5 +83,8 @@ signed = L.signed $ return ()
 
 parses :: Parser a -> Text -> Bool
 parses p = isJust . parseMaybe p
+
+isSpaceOrComma :: Char -> Bool
+isSpaceOrComma c = isSpace c || c == ','
 
 -- vim: set tw=70 sw=2 sts=2 et fdm=marker :

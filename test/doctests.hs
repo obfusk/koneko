@@ -4,4 +4,4 @@ import Test.DocTest (doctest)
 main :: IO ()
 main = do
   args <- getArgs
-  doctest $ ["-isrc", "src/Main.hs"] ++ args
+  doctest $ ["-isrc", "src/"] ++ args

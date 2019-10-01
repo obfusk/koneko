@@ -2,7 +2,7 @@
 
     File        : README.md
     Maintainer  : Felix C. Stegerman <flx@obfusk.net>
-    Date        : 2019-09-20
+    Date        : 2019-09-30
 
     Copyright   : Copyright (C) 2019  Felix C. Stegerman
     Version     : v0.0.1
@@ -46,6 +46,7 @@ koneko - a concatenative not-quite-lisp for kittens
   * dynamic scope???
   * mark I/O as "dirty" to allow for optimizing code that is known to
     be referentially transparent? vs clojure?
+  * sh/streams/pipes (cf. Haskell Pipes)
 -->
 
 ## Examples
@@ -438,6 +439,18 @@ NB: WIP
 ## Installing
 
 ... TODO ...
+
+<!--
+
+* haskell-platform
+* libghc-cmdargs-dev
+* libghc-doctest-dev
+* libghc-formatting-dev
+* libghc-hashtables-dev
+* libghc-megaparsec-dev
+* libghc-silently-dev
+
+-->
 
 ## TODO
 

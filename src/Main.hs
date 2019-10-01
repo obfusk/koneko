@@ -2,7 +2,7 @@
 --
 --  File        : Main.hs
 --  Maintainer  : Felix C. Stegerman <flx@obfusk.net>
---  Date        : 2019-09-20
+--  Date        : 2019-09-30
 --
 --  Copyright   : Copyright (C) 2019  Felix C. Stegerman
 --  Version     : v0.0.1
@@ -26,14 +26,16 @@ import Koneko.Repl (repl, stdinTTY)
 
 import qualified Koneko.Data as D
 import qualified Koneko.Eval as E
+import qualified Koneko.Test as TE
 import qualified Paths_koneko as P
 
 version :: String
-version = "koneko " ++ showVersion P.version
+version = "koneko 「子猫」 " ++ showVersion P.version
 
 data KonekoCmd = KonekoCmd {
-  eval        :: Maybe String,
   args        :: [String],
+  eval        :: Maybe String,
+  doctest     :: Bool,
   interactive :: Bool
 } deriving (Data, Eq, Show, Typeable)
 
@@ -41,23 +43,28 @@ data KonekoCmd = KonekoCmd {
 main :: IO ()
 main = do
     KonekoCmd{..} <- cmdArgs cmd
-    isatty        <- stdinTTY
-    ctx           <- E.initContextWithPrelude
-    let st = D.emptyStack; int = when interactive . repl ctx
-    case (eval, args) of
-      (Nothing, [])       -> (if isatty || interactive then repl
-                              else E.evalStdin) ctx st
-      (Nothing, script:_) -> E.evalFile script ctx st >>= int
-      (Just code, _)      -> evalString code ctx st >>= int
+    if doctest then TE.doctest' args
+    else do
+      isatty        <- stdinTTY
+      ctx           <- E.initContextWithPrelude
+      let st = D.emptyStack; int = when interactive . repl ctx
+      case (eval, args) of
+        (Nothing, [])       -> (if isatty || interactive then repl
+                                else E.evalStdin) ctx st
+        (Nothing, script:_) -> E.evalFile script ctx st >>= int
+        (Just code, _)      -> evalString code ctx st >>= int
   where
     evalString = E.evalText "(code)" . T.pack
     cmd = KonekoCmd {
+      args        = def &= CA.args &= typ argSpec,
       eval        = def &= typ "CODE"
-                        &= help "code to run (instead of a script)",
-      args        = def &= CA.args &= typ "[SCRIPT] ARGS...",
-      interactive = def &= help "force interactive mode"
-    } &= program "koneko" &= summary version
-      {- &= verbosity &= details ["...", "..."] -}
-      &= help "..."                                           -- TODO
+                        &= help "code to run (instead of a script)"
+                        &= groupname "Flags",
+      doctest     = def &= help "run doctest (instead of a script)",
+      interactive = def &= help "force interactive mode (REPL)"
+    } &= program "koneko" &= summary version &= verbosity
+      {- &= details ... &= help "..." -}                      --  TODO
+    argSpec = "SCRIPT [ARGS...] | --eval CODE [ARGS...]" <>
+              " | --doctest FILE..."
 
 -- vim: set tw=70 sw=2 sts=2 et fdm=marker :

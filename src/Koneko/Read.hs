@@ -2,7 +2,7 @@
 --
 --  File        : Koneko/Read.hs
 --  Maintainer  : Felix C. Stegerman <flx@obfusk.net>
---  Date        : 2019-09-23
+--  Date        : 2019-09-30
 --
 --  Copyright   : Copyright (C) 2019  Felix C. Stegerman
 --  Version     : v0.0.1
@@ -37,7 +37,6 @@
 module Koneko.Read (read, read') where
 
 import Control.Exception (throw)
-import Data.Char (isSpace)
 import Data.Functor
 import Data.Text.Lazy (Text)
 import Prelude hiding (lookup, quot, read)
@@ -49,7 +48,8 @@ import qualified Text.Megaparsec.Char.Lexer as L
 
 import Koneko.Data (Kwd(..), Ident, List(..), Block(..), KPrim(..),
                     KValue(..))
-import Koneko.Misc (Parser, pIdent, brackets, pInt, pFloat)
+import Koneko.Misc (Parser, pIdent, brackets, pInt, pFloat,
+                    isSpaceOrComma)
 
 import qualified Koneko.Data as D
 
@@ -147,8 +147,5 @@ sp1 = skipSome spaceOrComment
 spaceOrComment = space1 <|> (L.skipLineComment ";")
 
 space1 = void $ takeWhile1P (Just "white space") isSpaceOrComma
-
-isSpaceOrComma :: Char -> Bool
-isSpaceOrComma c = isSpace c || c == ','
 
 -- vim: set tw=70 sw=2 sts=2 et fdm=marker :
