@@ -50,7 +50,7 @@ script: |
       }
     else
       cabal_build
-    done
+    fi
     cabal v2-run doctests   # nicer output than v2-test
     cabal v2-run koneko -- --doctest README.md lib/*.knk || true  # TODO
   )
