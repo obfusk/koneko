@@ -26,7 +26,6 @@ import Control.Monad (unless, when)
 import Data.Foldable (foldl', traverse_)
 import Data.Monoid((<>))
 import Data.Text.Lazy (Text)
-import Formatting ((%), fprint, int)
 import Prelude hiding (exp, fail)
 import System.Console.CmdArgs.Verbosity (Verbosity(..), getVerbosity)
 import System.Directory (getTemporaryDirectory, removeFile)
@@ -214,10 +213,10 @@ printSummary total ok fail = do
 
 printTTPF :: Int -> Int -> Int -> IO ()
 printTTPF total ok fail =
-    fprint fmt total (ok + fail) ok fail
-  where
-    fmt = "Total: "%int%", Tried: "%int%", Passed: "%int%
-          ", Failed: "%int%".\n"
+  putStrLn $  "Total: "   ++ (show total) ++
+            ", Tried: "   ++ (show $ ok + fail) ++
+            ", Passed: "  ++ (show ok) ++
+            ", Failed: "  ++ (show fail) ++ "."
 
 printSucc :: Example -> IO ()
 printSucc Example{..} = do

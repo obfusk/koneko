@@ -445,7 +445,6 @@ NB: WIP
 * haskell-platform
 * libghc-cmdargs-dev
 * libghc-doctest-dev
-* libghc-formatting-dev
 * libghc-hashtables-dev
 * libghc-megaparsec-dev
 * libghc-silently-dev

@@ -54,7 +54,7 @@ common deps
     -- included w/ haskell-platform:
     unordered-containers,
     -- separate packages:
-    cmdargs, formatting, hashtables, megaparsec, silently
+    cmdargs, hashtables, megaparsec, silently
 
   -- Directories containing source files.
   hs-source-dirs:      src
