@@ -30,14 +30,30 @@ env:
 - WARNALL=no
 
 install: |
-  set -xe
-  cabal v2-update
+  (
+    set -xe
+    cabal v2-update
+  )
 
 script: |
-  set -xe
-  [ "$WARNALL" = no ] || sed -i 's/-fno-warn-unused-imports//' koneko.cabal
-  cabal v2-build --write-ghc-environment-files=always --enable-tests
-  cabal v2-run doctests   # nicer output than v2-test
+  (
+    set -xe
+    cabal_build() {
+      cabal v2-build --write-ghc-environment-files=always --enable-tests
+    }
+    if [ "$WARNALL" = yes ]; then
+      sed -i 's/-fno-warn-unused-imports//' koneko.cabal
+      cabal_build || {
+        sed -i 's/-Werror//' koneko.cabal
+        cabal_build
+        false
+      }
+    else
+      cabal_build
+    done
+    cabal v2-run doctests   # nicer output than v2-test
+    cabal v2-run koneko -- --doctest README.md lib/*.knk || true  # TODO
+  )
 
 cache:
   directories:
