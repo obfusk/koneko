@@ -16,6 +16,7 @@
 module Main (main) where
 
 import Control.Monad (when)
+import Data.Monoid ((<>))
 import Data.Version (showVersion)
 import System.Console.CmdArgs hiding (args)
 
