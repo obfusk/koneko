@@ -1,0 +1,93 @@
+\documentclass[a4paper,twocolumn]{article}
+
+% \usepackage{amsmath,amssymb,color,graphicx,hyperref,listings}
+% \usepackage{mathtools,mdwlist}
+
+\usepackage{url}
+\usepackage[margin=2cm]{geometry}
+
+\title{
+  koneko: a mew (dys)functional programming language stacked to be
+  pointlessly concatenative as well as argumentatively lambdalicious
+}
+\author{Felix C. Stegerman $<$flx@obfusk.net$>$}
+\date{2019-10-01}
+
+\begin{document}
+
+\maketitle
+
+\abstract
+
+Koneko is a simple concatenative stack-based programming language with
+lisp influences.  It is intended to combine the elegance of the
+(point-free) "concatenation is composition" model with the elegance of
+lisp-like languages (esp. anonymous functions with named arguments).
+
+We describe the syntax and semantics, evaluate the prototype
+interpreter we implemented (in Haskell), identify the advantages and
+disadvantages of the language, and compare koneko to other languages
+and language families.
+
+\section{Introduction}
+
+% ### Properties
+%
+% * concatenative
+%   - point-free
+%   - juxtaposition of expressions denotes function composition
+% * stack-oriented
+%   - postfix (reverse polish) notation
+%   - functions consume arguments from the stack
+%   - functions produce return values on the stack
+% * lisp-like
+%   - homoiconic
+%   - blocks/lambdas (anonymous functions)
+%   - named arguments/points (lexically scoped)
+% * functional
+%   - only immutable data structures
+%   - does have side effects (I/O)
+%   - strict evaluation
+% * dynamically, strongly typed
+
+% unieke/onbekende combinatie van features
+% weinig gebruikt evaluatie model (modulo PostScript)
+% voor- en nadelen van deze combinatie onbekend
+
+% what comes next
+
+\section{The koneko Language}
+
+\subsection*{Syntax}
+
+\subsection*{Semantics}
+
+\subsection*{Future Work}
+
+\section{Examples}
+
+\section{Prototype Interpreter}
+
+\subsection*{Design Choices}
+
+\subsection*{Implementation Choices}
+
+\subsection*{Refection}
+
+\section{Related Work}
+
+\subsection*{Comparisons to Other Languages}
+
+\section{Conclusions}
+
+\section{Links}
+
+The source code of the interpreter is available online at
+\url{https://github.com/obfusk/koneko}.
+
+% ... \cite{bird&wadler} ...
+
+% \bibliographystyle{alpha}
+% \bibliography{references}
+
+\end{document}
