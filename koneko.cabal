@@ -43,7 +43,7 @@ build-type:          Simple
 -- README.
 extra-source-files:  CHANGELOG.md, README.md, LICENSE.LGPLv3.STDLIB
 
-data-files:          lib/**/*.knk
+data-files:          lib/**/*.knk nya/*.cat
 
 
 common deps
@@ -52,7 +52,7 @@ common deps
     -- included w/ ghc:
     base >=4.9, directory, filepath, text, unix,
     -- included w/ haskell-platform:
-    unordered-containers,
+    random, unordered-containers,
     -- separate packages:
     cmdargs, hashtables, megaparsec, silently
 

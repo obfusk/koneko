@@ -2,7 +2,7 @@
 --
 --  File        : Koneko/Eval.hs
 --  Maintainer  : Felix C. Stegerman <flx@obfusk.net>
---  Date        : 2019-09-30
+--  Date        : 2019-09-02
 --
 --  Copyright   : Copyright (C) 2019  Felix C. Stegerman
 --  Version     : v0.0.1
@@ -46,10 +46,15 @@ module Koneko.Eval (
 ) where
 
 import Control.Exception (throwIO, try)
+import Control.Monad (unless)
 import Data.Foldable (traverse_)
+import Data.List (isSuffixOf)
 import Data.Maybe (fromJust)  -- careful!
 import Data.Monoid ((<>))
 import Data.Text.Lazy (Text)
+import System.Directory (listDirectory)
+import System.FilePath ((</>))
+import System.Random (getStdRandom, randomR)
 
 import qualified Data.Text.Lazy as T
 import qualified Data.Text.Lazy.IO as T
@@ -63,7 +68,7 @@ import qualified Koneko.Data as D
 tryK :: IO a -> IO (Either KException a)
 tryK = try
 
--- TODO: CTO
+-- TODO: TCO
 eval :: KValue -> Evaluator
 eval x c s = case x of
   KPrim _         -> return $ s `push` x
@@ -112,9 +117,13 @@ evalFile f c s = do code <- T.readFile f; evalText f code c s
 -- primitives --
 
 -- TODO
-primitives :: [(Text, Evaluator)]
+primitives, __primitives__ :: [(Text, Evaluator)]
 primitives = [                                                --  {{{1
     ("def"      , primDef),
+    ("__nya__"  , nya)
+  ] ++ __primitives__
+__primitives__ = [
+  -- NB: these must all match __*__ for preludePrims
     ("__call__" , primCall),
     ("__if__"   , primIf),
     ("__=>__"   , primMkPair),
@@ -125,9 +134,8 @@ primitives = [                                                --  {{{1
   ]                                                           --  }}}1
 
 preludePrims :: Context -> IO ()
-preludePrims ctx
-    = traverse_ def $ [ T.drop 2 $ T.dropEnd 2 k |
-                        (k, _) <- primitives, "__" `T.isPrefixOf` k ]
+preludePrims ctx  = traverse_ def $ [ T.drop 2 $ T.dropEnd 2 k
+                                    | (k, _) <- __primitives__ ]
   where
     def name = defineIn ctx name $ blk $ "__" <> name <> "__"
     blk name = KBlock $ Block [] [idt name] $ Just $ ctxScope ctx
@@ -180,5 +188,15 @@ truthy :: KValue -> Bool
 truthy (KPrim KNil)           = False
 truthy (KPrim (KBool False))  = False
 truthy _                      = True
+
+-- nya --
+
+nya :: Evaluator
+nya _ s = s <$ do
+  nyaD  <- getDataFileName "nya"
+  cats  <- filter (isSuffixOf ".cat") <$> listDirectory nyaD
+  unless (null cats) $ do
+    i   <- getStdRandom $ randomR (0, length cats -1)
+    (T.readFile $ nyaD </> (cats !! i)) >>= T.putStr
 
 -- vim: set tw=70 sw=2 sts=2 et fdm=marker :
