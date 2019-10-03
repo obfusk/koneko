@@ -54,14 +54,14 @@
 
 module Koneko.Data (
   Identifier, Module, PopResult, Evaluator, KException(..), Kwd(..),
-  Ident, unIdent, ident, List(..), Dict(..), Block(..), Scope,
-  Context, ctxScope, Pair(..), KPrim(..), KValue(..), KType(..),
-  Stack, escapeFrom, escapeTo, emptyStack, Push, push', push, Pop,
-  pop, pop', mainModule, preludeModule, initContext, forkContext,
-  forkScope, defineIn, lookup, typeOf, typeToKwd, isNil, isBool,
-  isInt, isFloat, isStr, isKwd, isPair, isList, isDict, isIdent,
-  isQuot, isBlock, nil, false, true, bool, int, float, str, kwd, pair,
-  list, dict, block, Val, val, truthy
+  Ident, unIdent, ident, List(..), Dict(..), Block(..), Callable(..),
+  Scope, Context, ctxScope, Pair(..), KPrim(..), KValue(..),
+  KType(..), Stack, escapeFrom, escapeTo, emptyStack, Push, push',
+  push, Pop, pop, pop', mainModule, preludeModule, initContext,
+  forkContext, forkScope, defineIn, lookup, typeOf, typeToKwd, isNil,
+  isBool, isInt, isFloat, isStr, isKwd, isPair, isList, isDict,
+  isIdent, isQuot, isBlock, isCallable, nil, false, true, bool, int,
+  float, str, kwd, pair, list, dict, block, callable, Val, val, truthy
 ) where
 
 import Control.Exception (Exception, throw, throwIO)
@@ -134,6 +134,11 @@ data Block = Block {
   blkScope  :: Maybe Scope
 }
 
+data Callable = Callable {
+  cllName :: Identifier,
+  cllRun  :: Evaluator
+}
+
 data Scope = Scope {
   parent  :: Either Identifier Scope,
   table   :: ScopeLookupTable
@@ -162,16 +167,31 @@ data KValue
     | KIdent Ident
     | KQuot Ident                                             --  TODO
     | KBlock Block
+    | KCallable Callable
   deriving (Eq, Ord)
 
 data KType
     = TNil | TBool | TInt | TFloat | TStr | TKwd | TPair | TList
-    | TDict | TIdent | TQuot | TBlock
+    | TDict | TIdent | TQuot | TBlock | TCallable
   deriving (Eq, Ord)
 
 type Stack = [KValue]
 
 -- instances --
+
+instance Eq Block where
+  _ == _ = throw $ UncomparableType "block"
+
+-- TODO
+instance Eq Callable where
+  _ == _ = throw $ UncomparableType "callable"
+
+instance Ord Block where
+  compare _ _ = throw $ UncomparableType "block"
+
+-- TODO
+instance Ord Callable where
+  compare _ _ = throw $ UncomparableType "callable"
 
 instance Show KException where
   show (ParseError msg)         = "parse error: " ++ msg
@@ -182,12 +202,6 @@ instance Show KException where
   show (StackUnderflow)         = "stack underflow"
   show (StackExpected what)     = "expected " ++ what ++ " on stack"
   show (UncomparableType what)  = "uncomparable type " ++ what
-
-instance Eq Block where
-  _ == _ = throw $ UncomparableType "block"
-
-instance Ord Block where
-  compare _ _ = throw $ UncomparableType "block"
 
 instance Show Kwd where
   show (Kwd s) = ":" ++ if M.isIdent s then T.unpack s else show s
@@ -215,6 +229,9 @@ instance Show Block where
       as = T.unpack $ T.intercalate " " (map unIdent a)
       cs = intercalate " " (map show c)
 
+instance Show Callable where
+  show Callable{..} = "#<callable:" ++ T.unpack cllName ++ ">"
+
 instance Show Pair where
   show (Pair k v) = show k ++ " " ++ show v ++ " =>"
 
@@ -227,27 +244,29 @@ instance Show KPrim where
   show (KKwd k)   = show k
 
 instance Show KValue where
-  show (KPrim p)  = show p
-  show (KPair p)  = show p
-  show (KList l)  = show l
-  show (KDict d)  = show d
-  show (KIdent i) = show i
-  show (KQuot x)  = "'" ++ show x
-  show (KBlock b) = show b
+  show (KPrim p)      = show p
+  show (KPair p)      = show p
+  show (KList l)      = show l
+  show (KDict d)      = show d
+  show (KIdent i)     = show i
+  show (KQuot x)      = "'" ++ show x
+  show (KBlock b)     = show b
+  show (KCallable c)  = show c
 
 instance Show KType where
-  show TNil   = "#<::nil>"
-  show TBool  = "#<::bool>"
-  show TInt   = "#<::int>"
-  show TFloat = "#<::float>"
-  show TStr   = "#<::str>"
-  show TKwd   = "#<::kwd>"
-  show TPair  = "#<::pair>"
-  show TList  = "#<::list>"
-  show TDict  = "#<::dict>"
-  show TIdent = "#<::ident>"
-  show TQuot  = "#<::quot>"
-  show TBlock = "#<::block>"
+  show TNil       = "#<::nil>"
+  show TBool      = "#<::bool>"
+  show TInt       = "#<::int>"
+  show TFloat     = "#<::float>"
+  show TStr       = "#<::str>"
+  show TKwd       = "#<::kwd>"
+  show TPair      = "#<::pair>"
+  show TList      = "#<::list>"
+  show TDict      = "#<::dict>"
+  show TIdent     = "#<::ident>"
+  show TQuot      = "#<::quot>"
+  show TBlock     = "#<::block>"
+  show TCallable  = "#<::callable>"
 
 showStr :: Text -> String
 showStr s = T.unpack $ T.concat ["\"", T.concatMap f s, "\""]
@@ -417,48 +436,51 @@ getModule c modName = HT.lookup (modules c) modName >>= maybe err return
 
 typeOf :: KValue -> KType
 typeOf (KPrim p) = case p of
-  KNil            ->  TNil
-  KBool _         ->  TBool
-  KInt _          ->  TInt
-  KFloat _        ->  TFloat
-  KStr _          ->  TStr
-  KKwd _          ->  TKwd
-typeOf (KPair _)  =   TPair
-typeOf (KList _)  =   TList
-typeOf (KDict _)  =   TDict
-typeOf (KIdent _) =   TIdent
-typeOf (KQuot _)  =   TQuot
-typeOf (KBlock _) =   TBlock
+  KNil                ->  TNil
+  KBool _             ->  TBool
+  KInt _              ->  TInt
+  KFloat _            ->  TFloat
+  KStr _              ->  TStr
+  KKwd _              ->  TKwd
+typeOf (KPair _)      =   TPair
+typeOf (KList _)      =   TList
+typeOf (KDict _)      =   TDict
+typeOf (KIdent _)     =   TIdent
+typeOf (KQuot _)      =   TQuot
+typeOf (KBlock _)     =   TBlock
+typeOf (KCallable _)  =   TCallable
 
 typeToKwd :: KType -> Kwd
-typeToKwd TNil    = Kwd "nil"
-typeToKwd TBool   = Kwd "bool"
-typeToKwd TInt    = Kwd "int"
-typeToKwd TFloat  = Kwd "float"
-typeToKwd TStr    = Kwd "str"
-typeToKwd TKwd    = Kwd "kwd"
-typeToKwd TPair   = Kwd "pair"
-typeToKwd TList   = Kwd "list"
-typeToKwd TDict   = Kwd "dict"
-typeToKwd TIdent  = Kwd "ident"
-typeToKwd TQuot   = Kwd "quot"
-typeToKwd TBlock  = Kwd "block"
+typeToKwd TNil        = Kwd "nil"
+typeToKwd TBool       = Kwd "bool"
+typeToKwd TInt        = Kwd "int"
+typeToKwd TFloat      = Kwd "float"
+typeToKwd TStr        = Kwd "str"
+typeToKwd TKwd        = Kwd "kwd"
+typeToKwd TPair       = Kwd "pair"
+typeToKwd TList       = Kwd "list"
+typeToKwd TDict       = Kwd "dict"
+typeToKwd TIdent      = Kwd "ident"
+typeToKwd TQuot       = Kwd "quot"
+typeToKwd TBlock      = Kwd "block"
+typeToKwd TCallable   = Kwd "callable"
 
 isNil, isBool, isInt, isFloat, isStr, isKwd, isPair, isList, isDict,
-  isIdent, isQuot, isBlock :: KValue -> Bool
+  isIdent, isQuot, isBlock, isCallable :: KValue -> Bool
 
-isNil   = (TNil   ==) . typeOf
-isBool  = (TBool  ==) . typeOf
-isInt   = (TInt   ==) . typeOf
-isFloat = (TFloat ==) . typeOf
-isStr   = (TStr   ==) . typeOf
-isKwd   = (TKwd   ==) . typeOf
-isPair  = (TPair  ==) . typeOf
-isList  = (TList  ==) . typeOf
-isDict  = (TDict  ==) . typeOf
-isIdent = (TIdent ==) . typeOf
-isQuot  = (TQuot  ==) . typeOf
-isBlock = (TBlock ==) . typeOf
+isNil       = (TNil       ==) . typeOf
+isBool      = (TBool      ==) . typeOf
+isInt       = (TInt       ==) . typeOf
+isFloat     = (TFloat     ==) . typeOf
+isStr       = (TStr       ==) . typeOf
+isKwd       = (TKwd       ==) . typeOf
+isPair      = (TPair      ==) . typeOf
+isList      = (TList      ==) . typeOf
+isDict      = (TDict      ==) . typeOf
+isIdent     = (TIdent     ==) . typeOf
+isQuot      = (TQuot      ==) . typeOf
+isBlock     = (TBlock     ==) . typeOf
+isCallable  = (TCallable  ==) . typeOf
 
 -- "constructors" --
 
@@ -496,6 +518,9 @@ dict = KDict . Dict . H.fromList . map f
 block :: [Ident] -> [KValue] -> Maybe Scope -> KValue
 block blkArgs blkCode blkScope = KBlock Block{..}
 
+callable :: Identifier -> Evaluator -> KValue
+callable cllName cllRun = KCallable Callable{..}
+
 class Val a where
   val :: a -> KValue
 
@@ -510,6 +535,8 @@ instance Val Double where
 
 instance Val Text where
   val = str
+
+-- utilities --
 
 truthy :: KValue -> Bool
 truthy (KPrim KNil)           = False
