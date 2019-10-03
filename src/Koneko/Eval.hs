@@ -41,7 +41,7 @@
                                                               --  }}}1
 
 module Koneko.Eval (
-  tryK, eval, evalList, evalText, evalStdin, evalFile,
+  tryK, eval, evalList, evalText, evalStdin, evalFile, replPrims,
   initContextWithPrelude, truthy
 ) where
 
@@ -49,7 +49,6 @@ import Control.Exception (throwIO, try)
 import Control.Monad (unless)
 import Data.Foldable (traverse_)
 import Data.List (isSuffixOf)
-import Data.Maybe (fromJust)  -- careful!
 import Data.Monoid ((<>))
 import Data.Text.Lazy (Text)
 import System.Directory (listDirectory)
@@ -119,30 +118,41 @@ evalFile f c s = do code <- T.readFile f; evalText f code c s
 -- TODO
 primitives, __primitives__ :: [(Text, Evaluator)]
 primitives = [                                                --  {{{1
-    ("def"      , primDef),
-    ("__nya__"  , nya)
+    ("def"            , primDef),
+    ("__nya__"        , nya),
+    ("__show-stack__" , showStack),
+    ("__clear-stack__", clearStack)
   ] ++ __primitives__
 __primitives__ = [
   -- NB: these must all match __*__ for preludePrims
-    ("__call__" , primCall),
-    ("__if__"   , primIf),
-    ("__=>__"   , primMkPair),
-    ("__say__"  , primSay),
-    ("__+__"    , primIntArith (+)),
-    ("__-__"    , primIntArith (-)),
-    ("__*__"    , primIntArith (*))
+    ("__call__"       , primCall),
+    ("__if__"         , primIf),
+    ("__=>__"         , primMkPair),
+    ("__say__"        , primSay),
+    ("__+__"          , primIntArith (+)),
+    ("__-__"          , primIntArith (-)),
+    ("__*__"          , primIntArith (*))
   ]                                                           --  }}}1
 
-preludePrims :: Context -> IO ()
-preludePrims ctx  = traverse_ def $ [ T.drop 2 $ T.dropEnd 2 k
-                                    | (k, _) <- __primitives__ ]
+preludePrims, replPrims :: Context -> IO ()
+
+preludePrims ctx
+  = traverse_ (aliasPrim ctx)
+  $ [ T.drop 2 $ T.dropEnd 2 k | (k, _) <- __primitives__ ]
+
+replPrims ctx
+  = traverse_ (aliasPrim ctx) ["show-stack", "clear-stack"]
+
+aliasPrim :: Context -> Identifier -> IO ()
+aliasPrim ctx name = defineIn ctx name $ blk $ "__" <> name <> "__"
   where
-    def name = defineIn ctx name $ blk $ "__" <> name <> "__"
-    blk name = KBlock $ Block [] [idt name] $ Just $ ctxScope ctx
-    idt      = KIdent . fromJust . ident   --  safe!
+    blk i = KBlock $ Block [] [idt i] $ Just $ ctxScope ctx
+    idt   = KIdent . (maybe err id) . ident
+    err   = error "INVALID IDENTIFIER"
 
 primDef, primCall, primIf, primMkPair, primSay :: Evaluator
 
+-- TODO: error if primitive
 primDef c s = do ((Kwd k, v), s') <- pop' s; s' <$ defineIn c k v
 
 -- TODO
@@ -168,6 +178,14 @@ primSay _ s = do (x, s') <- pop' s; s' <$ T.putStrLn x
 primIntArith :: (Integer -> Integer -> Integer) -> Evaluator
 primIntArith op _ s = do  ((x, y), s') <- pop' s
                           return $ s' `push` (x `op` y)
+
+-- repl --
+
+showStack, clearStack :: Evaluator
+
+-- TODO
+showStack   _ s = s <$ traverse_ (putStrLn . show) s
+clearStack  _ _ = return []
 
 -- prelude --
 

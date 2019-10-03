@@ -100,7 +100,7 @@ NB: WIP
 65536
 
 >>> clear-stack
->>> ( 1 2 3 ) uncons show-stack
+>>> , ( 1 2 3 ) uncons show-stack
 ( 2 3 )
 1
 >>> cons
@@ -244,7 +244,7 @@ aka Lambdas
 >>> , :myswap [ x y . 'y 'x ] def ; a block with named arguments
 >>> 1 2 myswap
 1
->>> show-stack
+>>> ,show-stack
 1
 2
 ```
@@ -387,20 +387,20 @@ NB: WIP
 
 ```koneko
 >>> clear-stack
->>> 1 2 show-stack
+>>> , 1 2 show-stack
 2
 1
 >>> ; :swap [ x y . 'y 'x ] def
->>> swap show-stack               ; swap top 2 values on stack
+>>> , swap show-stack             ; swap top 2 values on stack
 1
 2
 >>> ; :dup [ x . 'x 'x ] def
->>> dup show-stack                ; dup(licate) top of stack
+>>> , dup show-stack              ; dup(licate) top of stack
 1
 1
 2
 >>> ; :drop [ x . ] def
->>> drop show-stack               ; drop (remove) top of stack
+>>> , drop show-stack             ; drop (remove) top of stack
 1
 2
 >>> ; :dip [ x f . f 'x ] def

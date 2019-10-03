@@ -41,7 +41,7 @@ repl c s = () <$ repl' False promptText c s
 -- added to a module before the exception occurred will have taken
 -- effect.
 repl' :: Bool -> Text -> D.Context -> D.Stack -> IO D.Stack
-repl' breakOnError pr = loop
+repl' breakOnError pr ctx st = E.replPrims ctx >> loop ctx st
   where
     loop :: D.Context -> D.Stack -> IO D.Stack
     loop c s = prompt' pr >>= maybe (s <$ T.putStrLn "") process

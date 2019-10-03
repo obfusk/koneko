@@ -2,7 +2,7 @@
 --
 --  File        : Koneko/Data.hs
 --  Maintainer  : Felix C. Stegerman <flx@obfusk.net>
---  Date        : 2019-09-30
+--  Date        : 2019-10-02
 --
 --  Copyright   : Copyright (C) 2019  Felix C. Stegerman
 --  Version     : v0.0.1
@@ -113,7 +113,7 @@ newtype Kwd = Kwd { unKwd :: Identifier }
 newtype Ident = Ident { unIdent :: Identifier }
   deriving (Eq, Ord)
 
-ident :: Text -> Maybe Ident
+ident :: Identifier -> Maybe Ident
 ident s = if M.isIdent s then Just $ Ident s else Nothing
 
 newtype List = List { unList :: [KValue] }
