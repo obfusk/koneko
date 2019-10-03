@@ -2,7 +2,7 @@
 --
 --  File        : Koneko/Eval.hs
 --  Maintainer  : Felix C. Stegerman <flx@obfusk.net>
---  Date        : 2019-10-02
+--  Date        : 2019-10-03
 --
 --  Copyright   : Copyright (C) 2019  Felix C. Stegerman
 --  Version     : v0.0.1
@@ -42,18 +42,13 @@
 
 module Koneko.Eval (
   tryK, eval, evalList, evalText, evalStdin, evalFile, replPrims,
-  initContextWithPrelude, truthy
+  initContextWithPrelude
 ) where
 
 import Control.Exception (throwIO, try)
-import Control.Monad (unless)
 import Data.Foldable (traverse_)
-import Data.List (isSuffixOf)
 import Data.Monoid ((<>))
 import Data.Text.Lazy (Text)
-import System.Directory (listDirectory)
-import System.FilePath ((</>))
-import System.Random (getStdRandom, randomR)
 
 import qualified Data.Text.Lazy as T
 import qualified Data.Text.Lazy.IO as T
@@ -63,6 +58,7 @@ import Paths_koneko (getDataFileName)
 
 import qualified Koneko.Read as R
 import qualified Koneko.Data as D
+import qualified Koneko.Prim as Prim
 
 tryK :: IO a -> IO (Either KException a)
 tryK = try
@@ -119,7 +115,7 @@ evalFile f c s = do code <- T.readFile f; evalText f code c s
 primitives, __primitives__ :: [(Text, Evaluator)]
 primitives = [                                                --  {{{1
     ("def"            , primDef),
-    ("__nya__"        , nya),
+    ("__nya__"        , Prim.nya),
     ("__show-stack__" , showStack),
     ("__clear-stack__", clearStack)
   ] ++ __primitives__
@@ -168,7 +164,7 @@ primCall c s0 = do
     err = throwIO EvalScopelessBlock
 
 primIf c s = do ((b, tb, fb), s') <- pop' s
-                primCall c $ push' s' $ if truthy b then tb else fb
+                primCall c $ push' s' $ if D.truthy b then tb else fb
 
 primMkPair _ s = do ((k, v), s') <- pop' s; return $ s' `push` pair k v
 
@@ -199,22 +195,5 @@ initContextWithPrelude = do
   pre   <- preludeFile
   preludePrims ctxP
   ctx <$ evalFile pre ctxP D.emptyStack
-
--- utilities --
-
-truthy :: KValue -> Bool
-truthy (KPrim KNil)           = False
-truthy (KPrim (KBool False))  = False
-truthy _                      = True
-
--- nya --
-
-nya :: Evaluator
-nya _ s = s <$ do
-  nyaD  <- getDataFileName "nya"
-  cats  <- filter (isSuffixOf ".cat") <$> listDirectory nyaD
-  unless (null cats) $ do
-    i   <- getStdRandom $ randomR (0, length cats -1)
-    (T.readFile $ nyaD </> (cats !! i)) >>= T.putStr
 
 -- vim: set tw=70 sw=2 sts=2 et fdm=marker :

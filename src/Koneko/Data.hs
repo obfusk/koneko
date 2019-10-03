@@ -2,7 +2,7 @@
 --
 --  File        : Koneko/Data.hs
 --  Maintainer  : Felix C. Stegerman <flx@obfusk.net>
---  Date        : 2019-10-02
+--  Date        : 2019-10-03
 --
 --  Copyright   : Copyright (C) 2019  Felix C. Stegerman
 --  Version     : v0.0.1
@@ -58,7 +58,8 @@ module Koneko.Data (
   mainModule, preludeModule, initContext, forkContext, forkScope,
   defineIn, lookup, typeOf, typeToKwd, isNil, isBool, isInt, isFloat,
   isStr, isKwd, isPair, isList, isIdent, isQuot, isBlock, nil, false,
-  true, bool, int, float, str, kwd, pair, list, block, Val, val
+  true, bool, int, float, str, kwd, pair, list, block, Val, val,
+  truthy
 ) where
 
 import Control.Exception (Exception, throwIO)
@@ -490,5 +491,10 @@ instance Val Double where
 
 instance Val Text where
   val = str
+
+truthy :: KValue -> Bool
+truthy (KPrim KNil)           = False
+truthy (KPrim (KBool False))  = False
+truthy _                      = True
 
 -- vim: set tw=70 sw=2 sts=2 et fdm=marker :
