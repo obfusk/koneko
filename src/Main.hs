@@ -2,7 +2,7 @@
 --
 --  File        : Main.hs
 --  Maintainer  : Felix C. Stegerman <flx@obfusk.net>
---  Date        : 2019-09-30
+--  Date        : 2019-10-02
 --
 --  Copyright   : Copyright (C) 2019  Felix C. Stegerman
 --  Version     : v0.0.1
@@ -46,8 +46,7 @@ main = do
     KonekoCmd{..} <- cmdArgs cmd
     if doctest then TE.doctest' args
     else do
-      isatty        <- stdinTTY
-      ctx           <- E.initContextWithPrelude
+      isatty <- stdinTTY; ctx <- E.initContextWithPrelude
       let st = D.emptyStack; int = when interactive . repl ctx
       case (eval, args) of
         (Nothing, [])       -> (if isatty || interactive then repl

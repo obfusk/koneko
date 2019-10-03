@@ -2,7 +2,7 @@
 --
 --  File        : Koneko/Test.hs
 --  Maintainer  : Felix C. Stegerman <flx@obfusk.net>
---  Date        : 2019-09-30
+--  Date        : 2019-10-02
 --
 --  Copyright   : Copyright (C) 2019  Felix C. Stegerman
 --  Version     : v0.0.1
@@ -148,12 +148,12 @@ mdCodeBlocks :: [[Text]] -> [Text] -> [[Text]]
 mdCodeBlocks bs [] = reverse bs
 mdCodeBlocks bs ls = mdCodeBlocks (b:bs) $ drop 1 ls''
   where
-    ls' = dropWhile (not . (T.isPrefixOf mdCodeStart)) ls
-    (b, ls'') = break (== mdCodeEnd) $ drop 1 ls'
+    ls'             = dropWhile (/= mdCodeStart) ls
+    (b, ls'')       = break (== mdCodeEnd) $ drop 1 ls'
 
 mdCodeStart, mdCodeEnd :: Text
-mdCodeStart = "```"
-mdCodeEnd   = mdCodeStart
+mdCodeStart = "```koneko"
+mdCodeEnd   = "```"
 
 _isSp :: Char -> Bool
 _isSp = M.isSpaceOrComma
@@ -194,7 +194,7 @@ testExampleGroup verb g = do
         when (verb == Loud) $ printSucc e
         loop (ok+1) fail et c s'
       else do
-        printFail e olines
+        printFail e olines elines
         return (ok, fail+1, s')
     repl = RE.repl' True ""
     asLines x = let l = T.lines $ T.pack x in
@@ -202,7 +202,7 @@ testExampleGroup verb g = do
 
 -- TODO: stderr, "...", ...
 compareOutput :: [Text] -> [Text] -> [Text] -> Bool
-compareOutput exp got _ = exp' == got
+compareOutput exp got err = exp' == got && null err
   where
     exp' = [ if l == "<BLANKLINE>" then "" else l | l <- exp ]
 
@@ -218,6 +218,7 @@ printTTPF total ok fail =
             ", Passed: "  ++ (show ok) ++
             ", Failed: "  ++ (show fail) ++ "."
 
+-- TODO
 printSucc :: Example -> IO ()
 printSucc Example{..} = do
     p "Trying:"   ; p $ indent inputLine
@@ -226,11 +227,14 @@ printSucc Example{..} = do
   where
     p = T.putStrLn
 
-printFail :: Example -> [Text] -> IO ()
-printFail Example{..} out = do
+-- TODO
+printFail :: Example -> [Text] -> [Text] -> IO ()
+printFail Example{..} out err = do
     p "Failed example:" ; p $ indent inputLine
     p "Expected:"       ; traverse_ (p . indent) outputLines
     p "Got:"            ; traverse_ (p . indent) out
+    unless (null err) $ do
+      p "Errors:"       ; traverse_ (p . indent) err
   where
     p = T.hPutStrLn IO.stderr
 

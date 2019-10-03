@@ -2,7 +2,7 @@
 --
 --  File        : Koneko/Repl.hs
 --  Maintainer  : Felix C. Stegerman <flx@obfusk.net>
---  Date        : 2019-09-30
+--  Date        : 2019-10-02
 --
 --  Copyright   : Copyright (C) 2019  Felix C. Stegerman
 --  Version     : v0.0.1
@@ -62,14 +62,16 @@ promptText, errorText :: IsString s => s
 promptText  = ">>> "
 errorText   = "*** ERROR: "
 
+stdinTTY :: IO Bool
+stdinTTY = queryTerminal stdInput
+
+-- utilities --
+
 prompt' :: Text -> IO (Maybe Text)
 prompt' x = (Just <$> prompt x) `catchIOError` \e ->
             if isEOFError e then return Nothing else ioError e
 
 prompt :: Text -> IO Text
 prompt x = do T.putStr x; hFlush stdout; T.getLine
-
-stdinTTY :: IO Bool
-stdinTTY = queryTerminal stdInput
 
 -- vim: set tw=70 sw=2 sts=2 et fdm=marker :

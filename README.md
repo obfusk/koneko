@@ -2,7 +2,7 @@
 
     File        : README.md
     Maintainer  : Felix C. Stegerman <flx@obfusk.net>
-    Date        : 2019-09-30
+    Date        : 2019-10-02
 
     Copyright   : Copyright (C) 2019  Felix C. Stegerman
     Version     : v0.0.1
@@ -73,7 +73,7 @@ Hello, World!
 
 NB: WIP
 
-```
+```koneko
 >>> , :twice1 [ f . f f ] def             ; with named arguments
 >>> 42 [ 1 + ] twice1
 44
@@ -135,7 +135,7 @@ type system with inference may be added in the future.
 
 Nil, Bool, Int, Float, Str, Kwd, Rx
 
-```
+```koneko
 >>> nil             ; nothing to see here...
 nil
 
@@ -179,7 +179,7 @@ nil
 
 ### Pairs, Lists and Dicts
 
-```
+```koneko
 >>> :answer 42 =>                 ; key/value pair
 :answer 42 =>
 >>> dup .key
@@ -213,7 +213,7 @@ nil
 
 ### Records
 
-```
+```koneko
 >>> , :Point ( :x :y ) defrecord  ; define record type
 >>> Point{ x: 1, y: -1 }          ; create record instance
 Point{ x: 1, y: -1 }
@@ -231,7 +231,7 @@ Point{ x: 99, y: -1 }
 
 aka Lambdas
 
-```
+```koneko
 >>> , :myblock [ 42 ] def         ; a block that pushes 42 onto the stack
 >>> 'myblock                      ; put it on the stack
 [ 42 ]
@@ -274,7 +274,7 @@ aka Interfaces
 
 ### Sugar
 
-```
+```koneko
 >>> answer: 42                              ; pair with keyword as key
 :answer 42 =>
 >>> :answer 42 =>                           ; desugared
@@ -310,7 +310,7 @@ Point{ x: 1, y: 2 }
 3
 ```
 
-```
+```koneko
 >>> [[ 1 2 3 + + ]]                         ; grouped expression
 6
 ```
@@ -337,7 +337,7 @@ Point{ x: 1, y: 2 }
 
 NB: WIP
 
-```
+```koneko
 >>> , :x 1 def
 >>> , :y 2 def
 >>> , :z 3 def
@@ -354,7 +354,7 @@ NB: WIP
 
 ### Variables
 
-```
+```koneko
 >>> , :answer 42 def            ; define a variable in the current namespace
 >>> , :inc [ 1 + ] def          ; can be a value or a block
 >>> 'answer inc
@@ -363,7 +363,7 @@ NB: WIP
 
 ### Primitives
 
-```
+```koneko
 >>> 41 [ 1 + ]
 [ 1 + ]
 >>> call                        ; call the block at the top of the stack
@@ -385,7 +385,7 @@ NB: WIP
 
 ### Prelude
 
-```
+```koneko
 >>> clear-stack
 >>> 1 2 show-stack
 2
