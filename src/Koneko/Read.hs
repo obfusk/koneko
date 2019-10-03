@@ -102,7 +102,9 @@ prim = KPrim <$> choice prims
 list = try $ KList . List <$> (a <|> b)
   where
     a = [] <$ symbol "()"
-    b = symbol "(" *> manyTill value (symbol ")")
+    b = symbol "(" *> manyValuesTill (symbol ")")
+
+-- TODO: dict
 
 -- | NB: also matches float and int but they match earlier
 ident = KIdent <$> ident_
@@ -119,14 +121,25 @@ quot = char '\'' >> KQuot <$> ident_
 block = try $ KBlock <$> do
   _ <- symbol "["
   blkArgs <- concat <$> (optional $ try $ manyTill ident_ $ symbol ".")
-  blkCode <- manyTill value (symbol "]")
+  blkCode <- manyValuesTill $ symbol "]"
   let blkScope = Nothing in return Block{..}
 
 -- | NB: match ident last
 value = choice [prim, list, quot, block, ident]
 
+-- ... TODO ...
+
+value_ :: Parser [KValue]
+value_ = (:[]) <$> value
+
+manyValues :: Parser [KValue]
+manyValues = concat <$> many value_
+
+manyValuesTill :: Parser a -> Parser [KValue]
+manyValuesTill end = concat <$> manyTill value_ end
+
 program :: Parser [KValue]
-program = optional shebang *> sp *> many value <* eof
+program = optional shebang *> sp *> manyValues <* eof
 
 shebang :: Parser ()
 shebang = void $ string "#!" >> many (satisfy (/= '\n')) >> newline
