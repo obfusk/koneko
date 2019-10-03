@@ -47,19 +47,21 @@
 -- >>> str "I like 猫s"
 -- "I like 猫s"
 --
+-- ... TODO ...
+--
 
                                                               --  }}}1
 
 module Koneko.Data (
   Identifier, Module, PopResult, Evaluator, KException(..), Kwd(..),
-  Ident, unIdent, ident, List(..), Block(..), Scope, Context,
-  ctxScope, Pair(..), KPrim(..), KValue(..), KType(..), Stack,
-  escapeFrom, escapeTo, emptyStack, Push, push', push, Pop, pop, pop',
-  mainModule, preludeModule, initContext, forkContext, forkScope,
-  defineIn, lookup, typeOf, typeToKwd, isNil, isBool, isInt, isFloat,
-  isStr, isKwd, isPair, isList, isIdent, isQuot, isBlock, nil, false,
-  true, bool, int, float, str, kwd, pair, list, block, Val, val,
-  truthy
+  Ident, unIdent, ident, List(..), Dict(..), Block(..), Scope,
+  Context, ctxScope, Pair(..), KPrim(..), KValue(..), KType(..),
+  Stack, escapeFrom, escapeTo, emptyStack, Push, push', push, Pop,
+  pop, pop', mainModule, preludeModule, initContext, forkContext,
+  forkScope, defineIn, lookup, typeOf, typeToKwd, isNil, isBool,
+  isInt, isFloat, isStr, isKwd, isPair, isList, isDict, isIdent,
+  isQuot, isBlock, nil, false, true, bool, int, float, str, kwd, pair,
+  list, dict, block, Val, val, truthy
 ) where
 
 import Control.Exception (Exception, throwIO)
@@ -79,7 +81,6 @@ import qualified Prelude as P
 import qualified Koneko.Misc as M
 
 -- TODO:
---  * Quoted Ident
 --  * Dict
 --  * Record
 --  * RawBlock vs Quoted Block
@@ -89,6 +90,7 @@ import qualified Koneko.Misc as M
 type HashTable k v      = HT.BasicHashTable k v
 type ModuleLookupTable  = HashTable Identifier KValue
 type ScopeLookupTable   = H.HashMap Identifier KValue
+type DictTable          = H.HashMap Identifier KValue
 
 type Identifier         = Text
 type Module             = ModuleLookupTable
@@ -118,6 +120,10 @@ ident :: Identifier -> Maybe Ident
 ident s = if M.isIdent s then Just $ Ident s else Nothing
 
 newtype List = List { unList :: [KValue] }
+  deriving (Eq, Ord)
+
+-- TODO
+newtype Dict = Dict { unDict :: DictTable }
   deriving (Eq, Ord)
 
 data Block = Block {
@@ -151,6 +157,7 @@ data KValue
     = KPrim KPrim
     | KPair Pair
     | KList List
+    | KDict Dict
     | KIdent Ident
     | KQuot Ident                                             --  TODO
     | KBlock Block
@@ -158,7 +165,7 @@ data KValue
 
 data KType
     = TNil | TBool | TInt | TFloat | TStr | TKwd | TPair | TList
-    | TIdent | TQuot | TBlock
+    | TDict | TIdent | TQuot | TBlock
   deriving (Eq, Ord)
 
 type Stack = [KValue]
@@ -189,8 +196,13 @@ instance Show Ident where
   show (Ident s) = T.unpack s
 
 instance Show List where
-  show (List [])  = "()"                                      --  TODO
+  show (List [])  = "()"
   show (List l)   = "( " ++ intercalate " " (map show l) ++ " )"
+
+instance Show Dict where
+  show (Dict d) = "{ " ++ intercalate " " (map f $ H.toList d) ++ " }"
+    where
+      f (k, v) = show $ Pair (Kwd k) v
 
 -- TODO
 instance Show Block where
@@ -220,23 +232,25 @@ instance Show KValue where
   show (KPrim p)  = show p
   show (KPair p)  = show p
   show (KList l)  = show l
+  show (KDict d)  = show d
   show (KIdent i) = show i
   show (KQuot x)  = "'" ++ show x
   show (KBlock b) = show b
 
 -- TODO
 instance Show KType where
-  show TNil   = "<nil>"
-  show TBool  = "<bool>"
-  show TInt   = "<int>"
-  show TFloat = "<float>"
-  show TStr   = "<str>"
-  show TKwd   = "<kwd>"
-  show TPair  = "<pair>"
-  show TList  = "<list>"
-  show TIdent = "<ident>"
-  show TQuot  = "<quot>"
-  show TBlock = "<block>"
+  show TNil   = "#<::nil>"
+  show TBool  = "#<::bool>"
+  show TInt   = "#<::int>"
+  show TFloat = "#<::float>"
+  show TStr   = "#<::str>"
+  show TKwd   = "#<::kwd>"
+  show TPair  = "#<::pair>"
+  show TList  = "#<::list>"
+  show TDict  = "#<::dict>"
+  show TIdent = "#<::ident>"
+  show TQuot  = "#<::quot>"
+  show TBlock = "#<::block>"
 
 showStr :: Text -> String
 showStr s = T.unpack $ T.concat ["\"", T.concatMap f s, "\""]
@@ -414,6 +428,7 @@ typeOf (KPrim p) = case p of
   KKwd _          ->  TKwd
 typeOf (KPair _)  =   TPair
 typeOf (KList _)  =   TList
+typeOf (KDict _)  =   TDict
 typeOf (KIdent _) =   TIdent
 typeOf (KQuot _)  =   TQuot
 typeOf (KBlock _) =   TBlock
@@ -427,12 +442,13 @@ typeToKwd TStr    = Kwd "str"
 typeToKwd TKwd    = Kwd "kwd"
 typeToKwd TPair   = Kwd "pair"
 typeToKwd TList   = Kwd "list"
+typeToKwd TDict   = Kwd "dict"
 typeToKwd TIdent  = Kwd "ident"
 typeToKwd TQuot   = Kwd "quot"
 typeToKwd TBlock  = Kwd "block"
 
-isNil, isBool, isInt, isFloat, isStr, isKwd, isPair, isList, isIdent,
-  isQuot, isBlock :: KValue -> Bool
+isNil, isBool, isInt, isFloat, isStr, isKwd, isPair, isList, isDict,
+  isIdent, isQuot, isBlock :: KValue -> Bool
 
 isNil   = (TNil   ==) . typeOf
 isBool  = (TBool  ==) . typeOf
@@ -442,6 +458,7 @@ isStr   = (TStr   ==) . typeOf
 isKwd   = (TKwd   ==) . typeOf
 isPair  = (TPair  ==) . typeOf
 isList  = (TList  ==) . typeOf
+isDict  = (TDict  ==) . typeOf
 isIdent = (TIdent ==) . typeOf
 isQuot  = (TQuot  ==) . typeOf
 isBlock = (TBlock ==) . typeOf
@@ -473,6 +490,11 @@ pair k v = KPair $ Pair k v
 
 list :: [KValue] -> KValue
 list = KList . List
+
+dict :: [Pair] -> KValue
+dict = KDict . Dict . H.fromList . map f
+  where
+    f (Pair (Kwd k) v) = (k, v)
 
 block :: [Ident] -> [KValue] -> Maybe Scope -> KValue
 block blkArgs blkCode blkScope = KBlock Block{..}

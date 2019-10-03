@@ -69,6 +69,7 @@ eval x c s = case x of
   KPrim _         -> return $ s `push` x
   KPair _         -> throwIO $ EvalUnexpected "pair"
   KList (List l)  -> _evalList l c s
+  KDict (Dict _)  -> error "TODO"
   KIdent i        -> _evalIdent (unIdent i) c s
   KQuot i         -> _pushIdent (unIdent i) c s
   KBlock b        -> _evalBlock b c s

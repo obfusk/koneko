@@ -2,7 +2,7 @@
 --
 --  File        : Koneko/Read.hs
 --  Maintainer  : Felix C. Stegerman <flx@obfusk.net>
---  Date        : 2019-09-30
+--  Date        : 2019-10-03
 --
 --  Copyright   : Copyright (C) 2019  Felix C. Stegerman
 --  Version     : v0.0.1
@@ -21,13 +21,13 @@
 -- >>> x
 -- [nil,#f,42,3.14,"Hello, World!",:foo,foo]
 -- >>> map D.typeOf x
--- [<nil>,<bool>,<int>,<float>,<str>,<kwd>,<ident>]
+-- [#<::nil>,#<::bool>,#<::int>,#<::float>,#<::str>,#<::kwd>,#<::ident>]
 --
 -- >>> let x = read "( 1 2 :foo ) 'foo [ x . 'x 'x ]"
 -- >>> x
 -- [( 1 2 :foo ),'foo,[ x . 'x 'x ]]
 -- >>> map D.typeOf x
--- [<list>,<quot>,<block>]
+-- [#<::list>,#<::quot>,#<::block>]
 --
 -- ... TODO ...
 --
