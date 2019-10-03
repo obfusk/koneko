@@ -115,11 +115,11 @@ instance Exception KException
 newtype Kwd = Kwd { unKwd :: Identifier }
   deriving (Eq, Ord)
 
-newtype Ident = Ident { unIdent :: Identifier }
+newtype Ident = Ident_ { unIdent :: Identifier }
   deriving (Eq, Ord)
 
 ident :: Identifier -> Maybe Ident
-ident s = if M.isIdent s then Just $ Ident s else Nothing
+ident s = if M.isIdent s then Just $ Ident_ s else Nothing
 
 newtype List = List { unList :: [KValue] }
   deriving (Eq, Ord)
@@ -207,7 +207,7 @@ instance Show Kwd where
   show (Kwd s) = ":" ++ if M.isIdent s then T.unpack s else show s
 
 instance Show Ident where
-  show (Ident s) = T.unpack s
+  show = T.unpack . unIdent
 
 instance Show List where
   show (List [])  = "()"
