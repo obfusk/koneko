@@ -64,7 +64,7 @@ module Koneko.Data (
   list, dict, block, Val, val, truthy
 ) where
 
-import Control.Exception (Exception, throwIO)
+import Control.Exception (Exception, throw, throwIO)
 import Data.Char (isPrint, ord)
 import Data.List (intercalate)
 import Data.Monoid ((<>))
@@ -98,14 +98,16 @@ type PopResult a        = Either KException (a, Stack)
 
 type Evaluator          = Context -> Stack -> IO Stack
 
+-- TODO
 data KException
-    = ParseError !String      -- ^ parse error
-    | EvalUnexpected !String  -- ^ unexpected value during eval
-    | EvalScopelessBlock      -- ^ block w/o scope during eval
-    | ModuleNotFound !String  -- ^ module not found
-    | LookupFailed !String    -- ^ ident lookup failed
-    | StackUnderflow          -- ^ stack was empty
-    | StackExpected !String   -- ^ stack did not contain expected value
+    = ParseError !String        -- ^ parse error
+    | EvalUnexpected !String    -- ^ unexpected value during eval
+    | EvalScopelessBlock        -- ^ block w/o scope during eval
+    | ModuleNotFound !String    -- ^ module not found
+    | LookupFailed !String      -- ^ ident lookup failed
+    | StackUnderflow            -- ^ stack was empty
+    | StackExpected !String     -- ^ stack did not contain expected value
+    | UncomparableType !String  -- ^ uncomparable type
   deriving Typeable
 
 instance Exception KException
@@ -142,7 +144,6 @@ data Context = Context {
   ctxScope  :: Scope
 }
 
--- TODO
 data Pair = Pair { key :: Kwd, value :: KValue }
   deriving (Eq, Ord)
 
@@ -173,21 +174,20 @@ type Stack = [KValue]
 -- instances --
 
 instance Show KException where
-  show (ParseError msg)       = "parse error: " ++ msg
-  show (EvalUnexpected what)  = "cannot eval " ++ what
-  show (EvalScopelessBlock)   = "cannot eval scopeless block"
-  show (ModuleNotFound name)  = "no module named " ++ name
-  show (LookupFailed name)    = "name " ++ name ++ " is not defined"
-  show (StackUnderflow)       = "stack underflow"
-  show (StackExpected what)   = "expected " ++ what ++ " on stack"
+  show (ParseError msg)         = "parse error: " ++ msg
+  show (EvalUnexpected what)    = "cannot eval " ++ what
+  show (EvalScopelessBlock)     = "cannot eval scopeless block"
+  show (ModuleNotFound name)    = "no module named " ++ name
+  show (LookupFailed name)      = "name " ++ name ++ " is not defined"
+  show (StackUnderflow)         = "stack underflow"
+  show (StackExpected what)     = "expected " ++ what ++ " on stack"
+  show (UncomparableType what)  = "uncomparable type " ++ what
 
--- TODO
 instance Eq Block where
-  Block a c _ == Block a' c' _ = (a,c) == (a',c')
+  _ == _ = throw $ UncomparableType "block"
 
--- TODO
 instance Ord Block where
-  Block a c _ `compare` Block a' c' _ = (a,c) `compare` (a',c')
+  compare _ _ = throw $ UncomparableType "block"
 
 instance Show Kwd where
   show (Kwd s) = ":" ++ if M.isIdent s then T.unpack s else show s
@@ -215,7 +215,6 @@ instance Show Block where
       as = T.unpack $ T.intercalate " " (map unIdent a)
       cs = intercalate " " (map show c)
 
--- TODO
 instance Show Pair where
   show (Pair k v) = show k ++ " " ++ show v ++ " =>"
 
@@ -227,7 +226,6 @@ instance Show KPrim where
   show (KStr s)   = showStr s
   show (KKwd k)   = show k
 
--- TODO
 instance Show KValue where
   show (KPrim p)  = show p
   show (KPair p)  = show p
@@ -237,7 +235,6 @@ instance Show KValue where
   show (KQuot x)  = "'" ++ show x
   show (KBlock b) = show b
 
--- TODO
 instance Show KType where
   show TNil   = "#<::nil>"
   show TBool  = "#<::bool>"
