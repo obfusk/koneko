@@ -55,13 +55,14 @@
 module Koneko.Data (
   Identifier, Module, PopResult, Evaluator, KException(..), Kwd(..),
   Ident, unIdent, ident, List(..), Dict(..), Block(..), Callable(..),
-  Scope, Context, ctxScope, Pair(..), KPrim(..), KValue(..),
-  KType(..), Stack, escapeFrom, escapeTo, emptyStack, Push, push',
-  push, Pop, pop, pop', mainModule, preludeModule, initContext,
-  forkContext, forkScope, defineIn, lookup, typeOf, typeToKwd, isNil,
-  isBool, isInt, isFloat, isStr, isKwd, isPair, isList, isDict,
-  isIdent, isQuot, isBlock, isCallable, nil, false, true, bool, int,
-  float, str, kwd, pair, list, dict, block, callable, Val, val, truthy
+  Multi(..), RecordT(..), Record(..), Scope, Context, ctxScope,
+  Pair(..), KPrim(..), KValue(..), KType(..), Stack, escapeFrom,
+  escapeTo, emptyStack, Push, push', push, Pop, pop, pop', mainModule,
+  preludeModule, initContext, forkContext, forkScope, defineIn,
+  lookup, typeOf, typeToKwd, isNil, isBool, isInt, isFloat, isStr,
+  isKwd, isPair, isList, isDict, isIdent, isQuot, isBlock, isCallable,
+  isMulti, isRecordT, isRecord, nil, false, true, bool, int, float,
+  str, kwd, pair, list, dict, block, callable, Val, val, truthy
 ) where
 
 import Control.Exception (Exception, throw, throwIO)
@@ -91,6 +92,7 @@ type HashTable k v      = HT.BasicHashTable k v
 type ModuleLookupTable  = HashTable Identifier KValue
 type ScopeLookupTable   = H.HashMap Identifier KValue
 type DictTable          = H.HashMap Identifier KValue
+type MultiTable         = HashTable [Identifier] Block
 
 type Identifier         = Text
 type Module             = ModuleLookupTable
@@ -139,6 +141,22 @@ data Callable = Callable {
   cllRun  :: Evaluator
 }
 
+data Multi = Multi {
+  mltArgs   :: Int,
+  mltName   :: Identifier,
+  mltTable  :: MultiTable
+}
+
+data RecordT = RecordT {
+  recName   :: Identifier,
+  recFields :: [Identifier]
+} deriving (Eq, Ord)
+
+data Record = Record {
+  recType   :: RecordT,
+  recValues :: [KValue]
+} deriving (Eq, Ord)
+
 data Scope = Scope {
   parent  :: Either Identifier Scope,
   table   :: ScopeLookupTable
@@ -160,19 +178,23 @@ data KPrim
 
 -- TODO
 data KValue
-    = KPrim KPrim
-    | KPair Pair
-    | KList List
-    | KDict Dict
-    | KIdent Ident
-    | KQuot Ident                                             --  TODO
-    | KBlock Block
+    = KPrim     KPrim
+    | KPair     Pair
+    | KList     List
+    | KDict     Dict
+    | KIdent    Ident
+    | KQuot     Ident                                         --  TODO
+    | KBlock    Block
     | KCallable Callable
+    | KMulti    Multi
+    | KRecordT  RecordT
+    | KRecord   Record
   deriving (Eq, Ord)
 
 data KType
     = TNil | TBool | TInt | TFloat | TStr | TKwd | TPair | TList
-    | TDict | TIdent | TQuot | TBlock | TCallable
+    | TDict | TIdent | TQuot | TBlock | TCallable | TMulti | TRecordT
+    | TRecord
   deriving (Eq, Ord)
 
 type Stack = [KValue]
@@ -186,12 +208,18 @@ instance Eq Block where
 instance Eq Callable where
   _ == _ = throw $ UncomparableType "callable"
 
+instance Eq Multi where
+  _ == _ = throw $ UncomparableType "multi"
+
 instance Ord Block where
   compare _ _ = throw $ UncomparableType "block"
 
 -- TODO
 instance Ord Callable where
   compare _ _ = throw $ UncomparableType "callable"
+
+instance Ord Multi where
+  compare _ _ = throw $ UncomparableType "multi"
 
 instance Show KException where
   show (ParseError msg)         = "parse error: " ++ msg
@@ -232,6 +260,20 @@ instance Show Block where
 instance Show Callable where
   show Callable{..} = "#<callable:" ++ T.unpack cllName ++ ">"
 
+instance Show Multi where
+  show Multi{..}  = "#<multi:" ++ show mltArgs ++ ":" ++
+                    T.unpack mltName ++ ">"
+
+instance Show RecordT where
+  show RecordT{..} = "#<record-type:" ++ show recName ++ ">"
+
+instance Show Record where
+  show Record{..} = T.unpack (recName recType) ++ "{ " ++ flds ++ " }"
+    where
+      flds      = intercalate " " $ map f
+                $ zip (recFields recType) recValues
+      f (k, v)  = show $ Pair (Kwd k) v
+
 instance Show Pair where
   show (Pair k v) = show k ++ " " ++ show v ++ " =>"
 
@@ -252,6 +294,9 @@ instance Show KValue where
   show (KQuot x)      = "'" ++ show x
   show (KBlock b)     = show b
   show (KCallable c)  = show c
+  show (KMulti m)     = show m
+  show (KRecordT r)   = show r
+  show (KRecord r)    = show r
 
 instance Show KType where
   show TNil       = "#<::nil>"
@@ -267,6 +312,9 @@ instance Show KType where
   show TQuot      = "#<::quot>"
   show TBlock     = "#<::block>"
   show TCallable  = "#<::callable>"
+  show TMulti     = "#<::multi>"
+  show TRecordT   = "#<::record-type>"
+  show TRecord    = "#<::record>"
 
 showStr :: Text -> String
 showStr s = T.unpack $ T.concat ["\"", T.concatMap f s, "\""]
@@ -449,6 +497,9 @@ typeOf (KIdent _)     =   TIdent
 typeOf (KQuot _)      =   TQuot
 typeOf (KBlock _)     =   TBlock
 typeOf (KCallable _)  =   TCallable
+typeOf (KMulti _)     =   TMulti
+typeOf (KRecordT _)   =   TRecordT
+typeOf (KRecord _)    =   TRecord
 
 typeToKwd :: KType -> Kwd
 typeToKwd TNil        = Kwd "nil"
@@ -464,9 +515,13 @@ typeToKwd TIdent      = Kwd "ident"
 typeToKwd TQuot       = Kwd "quot"
 typeToKwd TBlock      = Kwd "block"
 typeToKwd TCallable   = Kwd "callable"
+typeToKwd TMulti      = Kwd "multi"
+typeToKwd TRecordT    = Kwd "record-type"
+typeToKwd TRecord     = Kwd "record"
 
 isNil, isBool, isInt, isFloat, isStr, isKwd, isPair, isList, isDict,
-  isIdent, isQuot, isBlock, isCallable :: KValue -> Bool
+  isIdent, isQuot, isBlock, isCallable, isMulti, isRecordT, isRecord
+    :: KValue -> Bool
 
 isNil       = (TNil       ==) . typeOf
 isBool      = (TBool      ==) . typeOf
@@ -481,6 +536,9 @@ isIdent     = (TIdent     ==) . typeOf
 isQuot      = (TQuot      ==) . typeOf
 isBlock     = (TBlock     ==) . typeOf
 isCallable  = (TCallable  ==) . typeOf
+isMulti     = (TMulti     ==) . typeOf
+isRecordT   = (TRecordT   ==) . typeOf
+isRecord    = (TRecord    ==) . typeOf
 
 -- "constructors" --
 
@@ -520,6 +578,8 @@ block blkArgs blkCode blkScope = KBlock Block{..}
 
 callable :: Identifier -> Evaluator -> KValue
 callable cllName cllRun = KCallable Callable{..}
+
+-- ...
 
 class Val a where
   val :: a -> KValue

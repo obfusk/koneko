@@ -74,6 +74,9 @@ eval x c s = case x of
   KQuot i         -> _pushIdent (unIdent i) c s
   KBlock b        -> _evalBlock b c s
   KCallable _     -> error "TODO"
+  KMulti _        -> throwIO $ EvalUnexpected "multi"
+  KRecordT _      -> throwIO $ EvalUnexpected "record-type"
+  KRecord _       -> throwIO $ EvalUnexpected "record"
 
 -- TODO
 _evalList :: [KValue] -> Evaluator
