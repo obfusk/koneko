@@ -43,14 +43,6 @@ initCtx ctxMain call = do
 defPrim :: Context -> Builtin -> IO ()
 defPrim ctx f = defineIn ctx (biName f) $ KBuiltin f
 
--- NB: do not export
-aliasPrim :: Context -> Identifier -> IO ()
-aliasPrim ctx name = defineIn ctx name $ blk $ "__" <> name <> "__"
-  where
-    blk i = KBlock $ Block [] [idt i] $ Just $ ctxScope ctx
-    idt   = KIdent . (maybe err id) . ident
-    err   = error "INVALID IDENTIFIER"
-
 -- primitives --
 
 -- TODO: arith, eq, ...
@@ -85,7 +77,11 @@ intToFloat = mkPrim "int->float" $ noTC $ \_ s -> do
 -- repl --
 
 replDef :: Context -> IO ()
-replDef ctx = traverse_ (aliasPrim ctx) ["show-stack", "clear-stack"]
+replDef ctx = do
+    alias "show-stack"  showStack
+    alias "clear-stack" clearStack
+  where
+    alias n f = defineIn ctx n $ KBuiltin f
 
 showStack, clearStack :: Builtin
 

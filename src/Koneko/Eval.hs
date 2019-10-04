@@ -102,9 +102,8 @@ evaluate (x:xt) lvl c s = do
 -- TODO: callable?
 eval1, eval1_ :: KValue -> TCall
 
--- TODO: use __debug__ instead of env!?
 eval1 x pos c s = do
-  debug <- maybe False (== "yes") <$> lookupEnv "KONEKO_DEBUG" -- TODO
+  debug <- maybe False (== true) <$> lookup c "__debug__"
   when debug $ do
     let p = if pos == NormalP then " " else "T"
     putStrLn $ "==> eval<" ++ p ++ "> " ++ show x
