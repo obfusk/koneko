@@ -17,13 +17,13 @@
 -- |
 --
 -- >>> :set -XOverloadedStrings
--- >>> let x = read "nil #f 42 3.14 \"Hello, World!\" :foo foo"
+-- >>> x = read "nil #f 42 3.14 \"Hello, World!\" :foo foo"
 -- >>> x
 -- [nil,#f,42,3.14,"Hello, World!",:foo,foo]
 -- >>> map D.typeOf x
 -- [#<::nil>,#<::bool>,#<::int>,#<::float>,#<::str>,#<::kwd>,#<::ident>]
 --
--- >>> let x = read "( 1 2 :foo ) 'foo [ x . 'x 'x ]"
+-- >>> x = read "( 1 2 :foo ) 'foo [ x . 'x 'x ]"
 -- >>> x
 -- [( 1 2 :foo ),'foo,[ x . 'x 'x ]]
 -- >>> map D.typeOf x

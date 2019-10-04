@@ -19,21 +19,22 @@
 --
 -- >>> :set -XOverloadedStrings
 -- >>> import Data.Maybe
--- >>> let id = fromJust . ident
--- >>> let ev x = eval x undefined []
+-- >>> id = fromJust . ident
+-- >>> ctx <- initContext
+-- >>> ev x = eval x ctx []
 --
--- >>> ev [str "Hello, World!", KIdent $ id "__say__"]
+-- >>> ev [str "Hello, World!", KIdent $ id "say"]
 -- Hello, World!
 -- []
--- >>> ev [val 1, val 2, KIdent $ id "__-__"]
+-- >>> ev [val 1, val 2, KIdent $ id "-"]
 -- [-1]
 --
--- >>> let ev x = evalText "" x undefined []
+-- >>> ev x = evalText "" x ctx []
 --
--- >>> ev "\"Hello, World!\" __say__"
+-- >>> ev "\"Hello, World!\" say"
 -- Hello, World!
 -- []
--- >>> ev "1 2 __+__"
+-- >>> ev "1 2 +"
 -- [3]
 --
 -- ... TODO ...

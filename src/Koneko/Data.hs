@@ -19,7 +19,7 @@
 --
 -- >>> :set -XOverloadedStrings
 -- >>> import Data.Maybe
--- >>> let id = fromJust . ident; q = KQuot . id
+-- >>> id = fromJust . ident; q = KQuot . id
 --
 -- >>> nil
 -- nil
@@ -389,7 +389,7 @@ instance Pop KValue where
 
 -- | NB: returns popped items in "reverse" order
 --
--- >>> let s = emptyStack `push` 1 `push` 2
+-- >>> s = emptyStack `push` 1 `push` 2
 -- >>> fst <$> pop' s :: IO Integer
 -- 2
 -- >>> fst <$> pop' s :: IO (Integer, Integer)
@@ -405,7 +405,7 @@ instance (Pop a, Pop b) => Pop (a, b) where
 
 -- | NB: returns popped items in "reverse" order
 --
--- >>> let s = emptyStack `push` (1, 2, 3)
+-- >>> s = emptyStack `push` (1, 2, 3)
 -- >>> fst <$> pop' s :: IO (Integer, Integer, Integer)
 -- (1,2,3)
 --
