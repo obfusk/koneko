@@ -2,7 +2,7 @@
 --
 --  File        : Koneko/Test.hs
 --  Maintainer  : Felix C. Stegerman <flx@obfusk.net>
---  Date        : 2019-10-02
+--  Date        : 2019-10-03
 --
 --  Copyright   : Copyright (C) 2019  Felix C. Stegerman
 --  Version     : v0.0.1
@@ -177,7 +177,7 @@ testExamples verb ex = do
 -- TODO
 testExampleGroup :: Verbosity -> ExampleGroup -> IO (Int, Int, Int)
 testExampleGroup verb g = do
-    ctx <- E.initContextWithPrelude
+    ctx <- E.initContext
     let st = D.emptyStack; total = length g
     (ok, fail, _) <- loop 0 0 g ctx st
     when (verb == Loud) $ do printTTPF total ok fail; putStrLn ""

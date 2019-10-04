@@ -2,7 +2,7 @@
 --
 --  File        : Koneko/Repl.hs
 --  Maintainer  : Felix C. Stegerman <flx@obfusk.net>
---  Date        : 2019-10-02
+--  Date        : 2019-10-03
 --
 --  Copyright   : Copyright (C) 2019  Felix C. Stegerman
 --  Version     : v0.0.1
@@ -30,6 +30,8 @@ import qualified Data.Text.Lazy.IO as T
 import qualified Koneko.Data as D
 import qualified Koneko.Eval as E
 
+import qualified Koneko.Prim as Prim
+
 -- TODO: readline? or just rlwrap?
 
 repl :: D.Context -> D.Stack -> IO ()
@@ -41,7 +43,7 @@ repl c s = () <$ repl' False promptText c s
 -- added to a module before the exception occurred will have taken
 -- effect.
 repl' :: Bool -> Text -> D.Context -> D.Stack -> IO D.Stack
-repl' breakOnError pr ctx st = E.replPrims ctx >> loop ctx st
+repl' breakOnError pr ctx st = Prim.replDef ctx >> loop ctx st
   where
     loop :: D.Context -> D.Stack -> IO D.Stack
     loop c s = prompt' pr >>= maybe (s <$ T.putStrLn "") process

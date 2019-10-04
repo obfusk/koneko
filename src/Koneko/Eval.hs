@@ -14,8 +14,6 @@
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE TupleSections #-}
 
-{-# OPTIONS_GHC -Wwarn #-}
-
                                                               --  {{{1
 -- |
 --
@@ -44,27 +42,27 @@
                                                               --  }}}1
 
 module Koneko.Eval (
-  tryK, eval, evalText, evalStdin, evalFile, replPrims,
-  initContextWithPrelude
+  tryK, eval, evalText, evalStdin, evalFile, initContext
 ) where
 
 import Control.Exception (throwIO, try)
 import Control.Monad (when)
 import Data.Foldable (traverse_)
 import Data.List (intercalate)
-import Data.Monoid ((<>))
 import Data.Text.Lazy (Text)
+import Prelude hiding (lookup)
 import System.Environment (lookupEnv)
 
 import qualified Data.Text.Lazy as T
 import qualified Data.Text.Lazy.IO as T
 
-import Koneko.Data hiding (lookup)
-import Paths_koneko (getDataFileName)
+import Koneko.Data
 
 import qualified Koneko.Read as R
-import qualified Koneko.Data as D
+
+import qualified Koneko.Bltn as Bltn
 import qualified Koneko.Prim as Prim
+import qualified Koneko.Prld as Prld
 
 tryK :: IO a -> IO (Either KException a)
 tryK = try
@@ -133,7 +131,7 @@ evalList xs c s = do
 
 -- TODO
 pushIdent :: Text -> Evaluator
-pushIdent i c s = D.lookup c i >>= maybe err (return . push s)
+pushIdent i c s = lookup c i >>= maybe err (return . push s)
   where
     err = throwIO $ LookupFailed $ T.unpack i
 
@@ -171,79 +169,15 @@ callBlock Block{..} c s0 = do
 callCallable :: Callable -> Evaluator
 callCallable = error "TODO"
 
--- primitives --
+-- initial context --
 
--- TODO
-primitives, __primitives__ :: [(Text, Evaluator)]
-primitives = [                                                --  {{{1
-    ("def"            , primDef),
-    ("__nya__"        , Prim.nya),
-    ("__show-stack__" , showStack),
-    ("__clear-stack__", clearStack)
-  ] ++ __primitives__
-__primitives__ = [
-  -- NB: these must all match __*__ for preludePrims
---  ("__call__"       , primCall),
-    ("__if__"         , primIf),
-    ("__=>__"         , primMkPair),
-    ("__say__"        , primSay),
-    ("__+__"          , primIntArith (+)),
-    ("__-__"          , primIntArith (-)),
-    ("__*__"          , primIntArith (*))
-  ]                                                           --  }}}1
-
-preludePrims, replPrims :: Context -> IO ()
-
-preludePrims ctx
-  = traverse_ (aliasPrim ctx)
-  $ [ T.drop 2 $ T.dropEnd 2 k | (k, _) <- __primitives__ ]
-
-replPrims ctx
-  = traverse_ (aliasPrim ctx) ["show-stack", "clear-stack"]
-
-aliasPrim :: Context -> Identifier -> IO ()
-aliasPrim ctx name = defineIn ctx name $ blk $ "__" <> name <> "__"
-  where
-    blk i = KBlock $ Block [] [idt i] $ Just $ ctxScope ctx
-    idt   = KIdent . (maybe err id) . ident
-    err   = error "INVALID IDENTIFIER"
-
-primDef, primIf, primMkPair, primSay :: Evaluator
-
--- TODO: error if primitive
-primDef c s = do ((Kwd k, v), s') <- pop' s; s' <$ defineIn c k v
-
-primIf c s = do ((b, tb, fb), s') <- pop' s
-                call c $ push' s' $ if D.truthy b then tb else fb
-
-primMkPair _ s = do ((k, v), s') <- pop' s; return $ s' `push` pair k v
-
--- NB: uses stdout implicitly
-primSay _ s = do (x, s') <- pop' s; s' <$ T.putStrLn x
-
-primIntArith :: (Integer -> Integer -> Integer) -> Evaluator
-primIntArith op _ s = do  ((x, y), s') <- pop' s
-                          return $ s' `push` (x `op` y)
-
--- repl --
-
-showStack, clearStack :: Evaluator
-
--- TODO
-showStack   _ s = s <$ traverse_ (putStrLn . show) s
-clearStack  _ _ = return []
-
--- prelude --
-
-preludeFile :: IO FilePath
-preludeFile = getDataFileName "lib/prelude.knk"
-
-initContextWithPrelude :: IO Context
-initContextWithPrelude = do
-  ctx   <- D.initContext
-  ctxP  <- D.forkContext D.preludeModule ctx
-  pre   <- preludeFile
-  preludePrims ctxP
-  ctx <$ evalFile pre ctxP D.emptyStack
+initContext :: IO Context
+initContext = do
+  ctx     <- initMainContext
+  ctxPrim <- Prim.initCtx ctx call
+  ctxBltn <- Bltn.initCtx ctxPrim
+  ctxPrld <- Prld.initCtx ctxBltn
+  pre     <- Prld.modFile
+  ctx <$ evalFile pre ctxPrld emptyStack
 
 -- vim: set tw=70 sw=2 sts=2 et fdm=marker :

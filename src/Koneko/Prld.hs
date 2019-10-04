@@ -10,7 +10,21 @@
 --
 --  --                                                          ; }}}1
 
-module Koneko.Prld () where
+module Koneko.Prld (modFile, initCtx) where
+
+import Koneko.Data
+import Paths_koneko (getDataFileName)
+
+import qualified Koneko.Prim as Prim
+
+modFile :: IO FilePath
+modFile = getDataFileName "lib/prelude.knk"
+
+initCtx :: Context -> IO Context
+initCtx ctxBltn = do
+  ctxPrld <- forkContext prldModule ctxBltn
+  Prim.preludeDef ctxPrld
+  return ctxPrld
 
 -- ...
 

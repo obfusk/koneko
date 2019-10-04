@@ -39,7 +39,7 @@ module Koneko.Read (read, read') where
 import Control.Exception (throw)
 import Data.Functor
 import Data.Text.Lazy (Text)
-import Prelude hiding (lookup, quot, read)
+import Prelude hiding (quot, read)
 import Text.Megaparsec
 import Text.Megaparsec.Char hiding (space, space1)
 

@@ -10,7 +10,15 @@
 --
 --  --                                                          ; }}}1
 
-module Koneko.Bltn () where
+module Koneko.Bltn (initCtx) where
+
+import Koneko.Data
+
+initCtx :: Context -> IO Context
+initCtx ctxPrim = do
+  ctxBltn <- forkContext bltnModule ctxPrim
+  -- ...
+  return ctxBltn
 
 -- ...
 

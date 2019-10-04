@@ -58,16 +58,17 @@ module Koneko.Data (
   Multi(..), RecordT(..), Record, recType, recValues, record, Scope,
   Context, ctxScope, Pair(..), KPrim(..), KValue(..), KType(..),
   Stack, escapeFrom, escapeTo, emptyStack, Push, push', push, Pop,
-  pop, pop', mainModule, preludeModule, initContext, forkContext,
-  forkScope, defineIn, lookup, typeOf, typeToKwd, typeToStr, isNil,
-  isBool, isInt, isFloat, isStr, isKwd, isPair, isList, isDict,
-  isIdent, isQuot, isBlock, isCallable, isMulti, isRecordT, isRecord,
-  nil, false, true, bool, int, float, str, kwd, pair, list, dict,
-  block, callable, Val, val, truthy
+  pop, pop', primModule, bltnModule, prldModule, mainModule,
+  initMainContext, forkContext, forkScope, defineIn, lookup, typeOf,
+  typeToKwd, typeToStr, isNil, isBool, isInt, isFloat, isStr, isKwd,
+  isPair, isList, isDict, isIdent, isQuot, isBlock, isCallable,
+  isMulti, isRecordT, isRecord, nil, false, true, bool, int, float,
+  str, kwd, pair, list, dict, block, callable, Val, val, truthy
 ) where
 
 import Control.Exception (Exception, throw, throwIO)
 import Data.Char (isPrint, ord)
+import Data.Foldable (asum)
 import Data.List (intercalate)
 import Data.Monoid ((<>))
 import Data.String (IsString)
@@ -434,14 +435,14 @@ instance Pop Block where
 
 -- Module/Scope functions --
 
-mainModule :: Identifier
+primModule, bltnModule, prldModule, mainModule :: Identifier
+primModule = "__prim__"
+bltnModule = "__bltn__"
+prldModule = "__prld__"
 mainModule = "__main__"
 
-preludeModule :: Identifier
-preludeModule = "__prelude__"
-
-initContext :: IO Context
-initContext = do
+initMainContext :: IO Context
+initMainContext = do
   modules <- HT.new; main <- HT.new
   HT.insert modules mainModule main
   return Context { modules, ctxScope = _newScope mainModule }
@@ -470,16 +471,17 @@ scopeModule :: Context -> IO Module
 scopeModule c = let f s = either (getModule c) f $ parent s
                 in f $ ctxScope c
 
+-- | Prim -> Scope* -> Module -> Prel -> Bltn
 lookup :: Context -> Identifier -> IO (Maybe KValue)
-lookup c = lookup' $ ctxScope c
+lookup c k = asum [lookupPrim, lookupScope $ ctxScope c,
+                   lookupPrel, lookupBltn]
   where
-    lookup' s k = case H.lookup k $ table s of
-      Nothing -> up k $ parent s
-      v       -> return v
-    up k = either (modOrPrel k) (flip lookup' k)
-    modOrPrel k modName = lookupModule c k modName >>= maybe
-      (if modName /= preludeModule then lookupModule c k preludeModule
-       else return Nothing) (return . Just)
+    lookupScope s = maybe (f s) (return . Just) $ H.lookup k $ table s
+    f s           = either (lookupModule c k) lookupScope $ parent s
+    look          = lookupModule c k
+    lookupPrim    = look primModule
+    lookupBltn    = look bltnModule
+    lookupPrel    = look prldModule
 
 lookupModule :: Context -> Identifier -> Identifier -> IO (Maybe KValue)
 lookupModule c k modName = getModule c modName >>= flip HT.lookup k
