@@ -12,10 +12,10 @@
 
 ; NB: call, if, etc. are inserted by Koneko.Eval.preludePrims
 
-:swap   [ x y . 'y 'x ] def
-:dup    [ x   . 'x 'x ] def
-:drop   [ x   .       ] def
-:dip    [ x f .  f 'x ] def
+; :swap   [ x y . 'y 'x ] def
+; :dup    [ x   . 'x 'x ] def
+; :drop   [ x   .       ] def
+; :dip    [ x f .  f 'x ] def
 
 ; ... TODO ...
 

@@ -59,17 +59,18 @@ module Koneko.Data (
   Context, ctxScope, Pair(..), KPrim(..), KValue(..), KType(..),
   Stack, escapeFrom, escapeTo, emptyStack, Push, push', push, Pop,
   pop, pop', mainModule, preludeModule, initContext, forkContext,
-  forkScope, defineIn, lookup, typeOf, typeToKwd, isNil, isBool,
-  isInt, isFloat, isStr, isKwd, isPair, isList, isDict, isIdent,
-  isQuot, isBlock, isCallable, isMulti, isRecordT, isRecord, nil,
-  false, true, bool, int, float, str, kwd, pair, list, dict, block,
-  callable, Val, val, truthy
+  forkScope, defineIn, lookup, typeOf, typeToKwd, typeToStr, isNil,
+  isBool, isInt, isFloat, isStr, isKwd, isPair, isList, isDict,
+  isIdent, isQuot, isBlock, isCallable, isMulti, isRecordT, isRecord,
+  nil, false, true, bool, int, float, str, kwd, pair, list, dict,
+  block, callable, Val, val, truthy
 ) where
 
 import Control.Exception (Exception, throw, throwIO)
 import Data.Char (isPrint, ord)
 import Data.List (intercalate)
 import Data.Monoid ((<>))
+import Data.String (IsString)
 import Data.Text.Lazy (Text)
 import Data.Typeable (Typeable)
 import Numeric (showHex)
@@ -111,6 +112,7 @@ data KException
     | StackUnderflow            -- ^ stack was empty
     | StackExpected !String     -- ^ stack did not contain expected value
     | UncomparableType !String  -- ^ uncomparable type
+    | UncallableType !String    -- ^ uncallable type
   deriving Typeable
 
 instance Exception KException
@@ -236,6 +238,7 @@ instance Show KException where
   show (StackUnderflow)         = "stack underflow"
   show (StackExpected what)     = "expected " ++ what ++ " on stack"
   show (UncomparableType what)  = "uncomparable type " ++ what
+  show (UncallableType what)    = "uncallable type " ++ what
 
 instance Show Kwd where
   show (Kwd s) = ":" ++ if M.isIdent s then T.unpack s else show s
@@ -508,22 +511,25 @@ typeOf (KRecordT _)   =   TRecordT
 typeOf (KRecord _)    =   TRecord
 
 typeToKwd :: KType -> Kwd
-typeToKwd TNil        = Kwd "nil"
-typeToKwd TBool       = Kwd "bool"
-typeToKwd TInt        = Kwd "int"
-typeToKwd TFloat      = Kwd "float"
-typeToKwd TStr        = Kwd "str"
-typeToKwd TKwd        = Kwd "kwd"
-typeToKwd TPair       = Kwd "pair"
-typeToKwd TList       = Kwd "list"
-typeToKwd TDict       = Kwd "dict"
-typeToKwd TIdent      = Kwd "ident"
-typeToKwd TQuot       = Kwd "quot"
-typeToKwd TBlock      = Kwd "block"
-typeToKwd TCallable   = Kwd "callable"
-typeToKwd TMulti      = Kwd "multi"
-typeToKwd TRecordT    = Kwd "record-type"
-typeToKwd TRecord     = Kwd "record"
+typeToKwd = Kwd . typeToStr
+
+typeToStr :: IsString a => KType -> a
+typeToStr TNil        = "nil"
+typeToStr TBool       = "bool"
+typeToStr TInt        = "int"
+typeToStr TFloat      = "float"
+typeToStr TStr        = "str"
+typeToStr TKwd        = "kwd"
+typeToStr TPair       = "pair"
+typeToStr TList       = "list"
+typeToStr TDict       = "dict"
+typeToStr TIdent      = "ident"
+typeToStr TQuot       = "quot"
+typeToStr TBlock      = "block"
+typeToStr TCallable   = "callable"
+typeToStr TMulti      = "multi"
+typeToStr TRecordT    = "record-type"
+typeToStr TRecord     = "record"
 
 isNil, isBool, isInt, isFloat, isStr, isKwd, isPair, isList, isDict,
   isIdent, isQuot, isBlock, isCallable, isMulti, isRecordT, isRecord
