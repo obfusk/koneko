@@ -15,8 +15,6 @@ module Koneko.Prld (modFile, initCtx) where
 import Koneko.Data
 import Paths_koneko (getDataFileName)
 
-import qualified Koneko.Prim as Prim
-
 modFile :: IO FilePath
 modFile = getDataFileName "lib/prelude.knk"
 

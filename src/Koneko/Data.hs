@@ -68,7 +68,6 @@ module Koneko.Data (
 
 import Control.Exception (Exception, throw, throwIO)
 import Data.Char (isPrint, ord)
-import Data.Foldable (asum)
 import Data.List (intercalate)
 import Data.Monoid ((<>))
 import Data.String (IsString)

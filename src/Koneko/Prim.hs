@@ -22,7 +22,6 @@ import System.Directory (listDirectory)
 import System.FilePath ((</>))
 import System.Random (getStdRandom, randomR)
 
-import qualified Data.Text.Lazy as T
 import qualified Data.Text.Lazy.IO as T
 
 import Koneko.Data

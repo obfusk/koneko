@@ -48,7 +48,6 @@ module Koneko.Eval (
 
 import Control.Exception (throwIO, try)
 import Control.Monad (when)
-import Data.Foldable (traverse_)
 import Data.List (intercalate)
 import Data.Text.Lazy (Text)
 import Prelude hiding (lookup)
