@@ -55,14 +55,15 @@
 module Koneko.Data (
   Identifier, Module, PopResult, Evaluator, KException(..), Kwd(..),
   Ident, unIdent, ident, List(..), Dict(..), Block(..), Callable(..),
-  Multi(..), RecordT(..), Record(..), Scope, Context, ctxScope,
-  Pair(..), KPrim(..), KValue(..), KType(..), Stack, escapeFrom,
-  escapeTo, emptyStack, Push, push', push, Pop, pop, pop', mainModule,
-  preludeModule, initContext, forkContext, forkScope, defineIn,
-  lookup, typeOf, typeToKwd, isNil, isBool, isInt, isFloat, isStr,
-  isKwd, isPair, isList, isDict, isIdent, isQuot, isBlock, isCallable,
-  isMulti, isRecordT, isRecord, nil, false, true, bool, int, float,
-  str, kwd, pair, list, dict, block, callable, Val, val, truthy
+  Multi(..), RecordT(..), Record, recType, recValues, record, Scope,
+  Context, ctxScope, Pair(..), KPrim(..), KValue(..), KType(..),
+  Stack, escapeFrom, escapeTo, emptyStack, Push, push', push, Pop,
+  pop, pop', mainModule, preludeModule, initContext, forkContext,
+  forkScope, defineIn, lookup, typeOf, typeToKwd, isNil, isBool,
+  isInt, isFloat, isStr, isKwd, isPair, isList, isDict, isIdent,
+  isQuot, isBlock, isCallable, isMulti, isRecordT, isRecord, nil,
+  false, true, bool, int, float, str, kwd, pair, list, dict, block,
+  callable, Val, val, truthy
 ) where
 
 import Control.Exception (Exception, throw, throwIO)
@@ -156,6 +157,11 @@ data Record = Record {
   recType   :: RecordT,
   recValues :: [KValue]
 } deriving (Eq, Ord)
+
+record :: RecordT -> [KValue] -> Maybe Record
+record recType recValues
+  | length (recFields recType) == length recValues  = Just Record{..}
+  | otherwise                                       = Nothing
 
 data Scope = Scope {
   parent  :: Either Identifier Scope,
