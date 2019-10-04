@@ -23,7 +23,7 @@ modFile = getDataFileName "lib/prelude.knk"
 initCtx :: Context -> IO Context
 initCtx ctxBltn = do
   ctxPrld <- forkContext prldModule ctxBltn
-  Prim.preludeDef ctxPrld
+  -- ...
   return ctxPrld
 
 -- ...

@@ -148,26 +148,23 @@ call c s = do
     KList _     -> error "TODO"
     KDict _     -> error "TODO"
     KBlock b    -> callBlock b c s'
-    KCallable f -> callCallable f c s'
+    KCallable f -> cllRun f c s'
     KMulti _    -> error "TODO"
     KRecordT _  -> error "TODO"
     KRecord _   -> error "TODO"
     _           -> throwIO $ UncallableType $ typeToStr $ typeOf x
 
-callBlock :: Block -> Evaluator
+-- TODO
+callBlock :: Block ->  Evaluator
 callBlock Block{..} c s0 = do
-    scope           <- maybe err return blkScope
-    (s1, args)      <- popArgs [] s0 $ reverse blkArgs
+    scope       <- maybe err return blkScope
+    (s1, args)  <- popArgs [] s0 $ reverse blkArgs
     fst <$> evaluate blkCode Top (forkScope args c scope) s1
   where
     popArgs r s []      = return (s, r)
     popArgs r s (k:kt)  = do  (v, s') <- pop' s
                               popArgs ((unIdent k, v):r) s' kt
     err = throwIO EvalScopelessBlock
-
--- TODO
-callCallable :: Callable -> Evaluator
-callCallable = error "TODO"
 
 -- initial context --
 

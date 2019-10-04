@@ -362,6 +362,9 @@ instance (Push a, Push b, Push c) => Push (a, b, c) where
 instance Push Integer where
   push s x = s `push` (KPrim $ KInt x)
 
+instance Push Double where
+  push s x = s `push` (KPrim $ KFloat x)
+
 instance Push Text where
   push s x = s `push` (KPrim $ KStr x)
 
@@ -463,7 +466,7 @@ forkScope [] c s  = c { ctxScope = s }
 forkScope l  c s  = c { ctxScope = Scope { parent = Right s,
                                            table  = H.fromList l } }
 
--- TODO: error if already exists
+-- TODO: error if already exists (or prim, etc.)
 defineIn :: Context -> Identifier -> KValue -> IO ()
 defineIn c k v = do curMod <- scopeModule c; HT.insert curMod k v
 
@@ -471,17 +474,19 @@ scopeModule :: Context -> IO Module
 scopeModule c = let f s = either (getModule c) f $ parent s
                 in f $ ctxScope c
 
--- | Prim -> Scope* -> Module -> Prel -> Bltn
+-- Prim -> Scope* -> Module -> Prel -> Bltn
 lookup :: Context -> Identifier -> IO (Maybe KValue)
-lookup c k = asum [lookupPrim, lookupScope $ ctxScope c,
-                   lookupPrel, lookupBltn]
+lookup c k = first [lookupPrim, lookupScope $ ctxScope c,
+                    lookupPrel, lookupBltn]
   where
     lookupScope s = maybe (f s) (return . Just) $ H.lookup k $ table s
-    f s           = either (lookupModule c k) lookupScope $ parent s
-    look          = lookupModule c k
+    f s           = either look lookupScope $ parent s
     lookupPrim    = look primModule
     lookupBltn    = look bltnModule
     lookupPrel    = look prldModule
+    look          = lookupModule c k
+    first []      = return Nothing
+    first (x:xt)  = x >>= maybe (first xt) (return . Just)
 
 lookupModule :: Context -> Identifier -> Identifier -> IO (Maybe KValue)
 lookupModule c k modName = getModule c modName >>= flip HT.lookup k
