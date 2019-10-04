@@ -54,19 +54,18 @@
                                                               --  }}}1
 
 module Koneko.Data (
-  Identifier, Module, PopResult, Evaluator, TEvaluator, TEval, TCall,
-  Lvl(..), Pos(..), Ret(..), KException(..), Kwd(..), Ident, unIdent,
-  ident, List(..), Dict(..), Block(..), Builtin(..), Multi(..),
-  RecordT(..), Record, recType, recValues, record, Scope, Context,
-  ctxScope, Pair(..), KPrim(..), KValue(..), KType(..), Stack,
-  escapeFrom, escapeTo, emptyStack, Push, push', push, Pop, pop, pop',
-  primModule, bltnModule, prldModule, mainModule, initMainContext,
-  forkContext, forkScope, defineIn, lookup, typeOf, typeToKwd,
-  typeToStr, isNil, isBool, isInt, isFloat, isStr, isKwd, isPair,
-  isList, isDict, isIdent, isQuot, isBlock, isBuiltin, isMulti,
-  isRecordT, isRecord, isCallable, nil, false, true, bool, int, float,
-  str, kwd, pair, list, dict, block, Val, val, truthy, noTC, mkPrim,
-  mkBltn
+  Identifier, Module, PopResult, Evaluator, TEvaluator, Lvl(..),
+  Pos(..), Ret(..), KException(..), Kwd(..), Ident, unIdent, ident,
+  List(..), Dict(..), Block(..), Builtin(..), Multi(..), RecordT(..),
+  Record, recType, recValues, record, Scope, Context, ctxScope,
+  Pair(..), KPrim(..), KValue(..), KType(..), Stack, escapeFrom,
+  escapeTo, emptyStack, Push, push', push, Pop, pop, pop', primModule,
+  bltnModule, prldModule, mainModule, initMainContext, forkContext,
+  forkScope, defineIn, lookup, typeOf, typeToKwd, typeToStr, isNil,
+  isBool, isInt, isFloat, isStr, isKwd, isPair, isList, isDict,
+  isIdent, isQuot, isBlock, isBuiltin, isMulti, isRecordT, isRecord,
+  isCallable, nil, false, true, bool, int, float, str, kwd, pair,
+  list, dict, block, Val, val, truthy, mkPrim, mkBltn
 ) where
 
 import Control.Exception (Exception, throw, throwIO)
@@ -105,8 +104,6 @@ type PopResult a        = Either KException (a, Stack)
 
 type Evaluator          = Context -> Stack -> IO Stack
 type TEvaluator         = Context -> Stack -> IO (Stack, Ret)
-type TEval              = Lvl -> TEvaluator
-type TCall              = Pos -> TEvaluator
 
 data Lvl = TopL    | NestedL deriving (Eq, Show)
 data Pos = NormalP | TailP   deriving (Eq, Show)
@@ -152,7 +149,7 @@ data Block = Block {
 data Builtin = Builtin {
   biPrim  :: Bool,
   biName  :: Identifier,
-  biRun   :: TCall
+  biRun   :: Evaluator
 }
 
 data Multi = Multi {
@@ -640,10 +637,7 @@ truthy (KPrim KNil)           = False
 truthy (KPrim (KBool False))  = False
 truthy _                      = True
 
-noTC :: Evaluator -> TCall
-noTC f _ c s = (, NormalR) <$> f c s
-
-mkPrim, mkBltn :: Identifier -> TCall -> Builtin
+mkPrim, mkBltn :: Identifier -> Evaluator -> Builtin
 mkPrim = Builtin True
 mkBltn = Builtin False
 

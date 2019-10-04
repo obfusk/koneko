@@ -28,7 +28,7 @@ import Koneko.Data
 import Paths_koneko (getDataFileName)
 
 -- TODO
-initCtx :: Context -> TCall -> IO Context
+initCtx :: Context -> Evaluator -> IO Context
 initCtx ctxMain call = do
   ctxPrim <- forkContext primModule ctxMain
   traverse_ (defPrim ctxPrim) [
@@ -47,31 +47,30 @@ defPrim ctx f = defineIn ctx (biName f) $ KBuiltin f
 
 -- TODO: arith, eq, ...
 
-if_ :: TCall -> Builtin
+if_ :: Evaluator -> Builtin
 
--- TODO
-if_ call = mkPrim "if" $ \pos c s -> do
+if_ call = mkPrim "if" $ \c s -> do
   ((cond, t_br, f_br), s') <- pop' s
-  call pos c $ push' s' $ if truthy cond then t_br else f_br
+  call c $ push' s' $ if truthy cond then t_br else f_br
 
 def, mkPair, say :: Builtin
 
-def = mkPrim "def" $ noTC $ \c s -> do
+def = mkPrim "def" $ \c s -> do
   ((Kwd k, v), s') <- pop' s; s' <$ defineIn c k v
 
-mkPair = mkPrim "=>" $ noTC $ \_ s -> do
+mkPair = mkPrim "=>" $ \_ s -> do
   ((k, v), s') <- pop' s; return $ s' `push` pair k v
 
 -- NB: uses stdout
-say = mkPrim "say" $ noTC $ \_ s -> do
+say = mkPrim "say" $ \_ s -> do
   (x, s') <- pop' s; s' <$ T.putStrLn x
 
 intArith :: Identifier -> (Integer -> Integer -> Integer) -> Builtin
-intArith name op = mkPrim name $ noTC $ \_ s -> do
+intArith name op = mkPrim name $ \_ s -> do
   ((x, y), s') <- pop' s; return $ s' `push` (x `op` y)
 
 intToFloat :: Builtin
-intToFloat = mkPrim "int->float" $ noTC $ \_ s -> do
+intToFloat = mkPrim "int->float" $ \_ s -> do
   (x, s') <- pop' s; return $ s' `push` (fromInteger x :: Double)
 
 -- repl --
@@ -86,15 +85,15 @@ replDef ctx = do
 showStack, clearStack :: Builtin
 
 -- TODO
-showStack = mkPrim "__show-stack__" $ noTC $ \_ s ->
+showStack = mkPrim "__show-stack__" $ \_ s ->
   s <$ traverse_ (putStrLn . show) s
 
-clearStack = mkPrim "__clear-stack__" $ noTC $ \_ _ -> return []
+clearStack = mkPrim "__clear-stack__" $ \_ _ -> return []
 
 -- nya --
 
 nya :: Builtin
-nya = mkPrim "__nya__" $ noTC $ \_ s -> s <$ do
+nya = mkPrim "__nya__" $ \_ s -> s <$ do
   nyaD  <- getDataFileName "nya"
   cats  <- filter (isSuffixOf ".cat") <$> listDirectory nyaD
   unless (null cats) $ do

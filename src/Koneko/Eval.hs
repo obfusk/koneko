@@ -70,9 +70,7 @@ tryK = try
 -- interface --
 
 eval :: [KValue] -> Evaluator
-eval xs c s = do
-  (s', ret) <- evaluate xs TopL c s
-  if ret == NormalR then return s' else error "eval: TailR"   --  TODO
+eval xs c s = noTC "eval" (evaluate xs TopL) c s
 
 evalText :: FilePath -> Text -> Evaluator
 evalText name code c s = eval (R.read' name code) c s
@@ -86,21 +84,17 @@ evalFile f c s = do code <- T.readFile f; evalText f code c s
 
 -- implementation --
 
-evaluate :: [KValue] -> TEval
-
+evaluate :: [KValue] -> Lvl -> TEvaluator
 evaluate []     _   _ s = return (s, NormalR)
 evaluate [x]    lvl c s = do
   r@(s', ret) <- eval1 x TailP c s
   if lvl == TopL && ret == TailR
-    then (, NormalR) <$> call c s'  -- TODO
+    then (, NormalR) <$> call c s'
     else return r
-evaluate (x:xt) lvl c s = do
-  (s', ret) <- eval1 x NormalP c s
-  when (ret == TailR) $ error "evaluate: TailR"               --  TODO
-  evaluate xt lvl c s'
+evaluate (x:xt) lvl c s = noTC "evaluate" (eval1 x NormalP) c s
+                          >>= evaluate xt lvl c
 
--- TODO: callable?
-eval1, eval1_ :: KValue -> TCall
+eval1, eval1_ :: KValue -> Pos -> TEvaluator
 
 eval1 x pos c s = do
   debug <- maybe False (== true) <$> lookup c "__debug__"
@@ -113,6 +107,7 @@ eval1 x pos c s = do
     putStrLn $ "<-- " ++ intercalate " " (map show $ reverse s')
   return r
 
+-- TODO: callable?
 eval1_ x pos c s = case x of
   KPrim _         -> (, NormalR) <$> return (s `push` x)
   KList (List l)  -> (, NormalR) <$> evalList l c s
@@ -129,7 +124,7 @@ tailCall TailP    _ s = return (s, TailR)
 -- TODO
 evalList :: [KValue] -> Evaluator
 evalList xs c s = do
-  ys <- fst <$> evaluate xs TopL c []
+  ys <- eval xs c emptyStack
   return $ s `push` (KList $ List $ reverse ys)
 
 -- TODO
@@ -147,15 +142,16 @@ call :: Evaluator
 call c s = do
   (x, s') <- pop' s
   case x of
-    KPair _     -> error "TODO"
-    KList _     -> error "TODO"
-    KDict _     -> error "TODO"
-    KBlock b    -> callBlock b c s'
-    KBuiltin b  -> fst <$> biRun b NormalP c s' -- TODO
-    KMulti _    -> error "TODO"
-    KRecordT _  -> error "TODO"
-    KRecord _   -> error "TODO"
-    _           -> throwIO $ UncallableType $ typeToStr $ typeOf x
+    KPrim (KStr _)  -> error "TODO"
+    KPair _         -> error "TODO"
+    KList _         -> error "TODO"
+    KDict _         -> error "TODO"
+    KBlock b        -> callBlock b c s'
+    KBuiltin b      -> biRun b c s'
+    KMulti _        -> error "TODO"
+    KRecordT _      -> error "TODO"
+    KRecord _       -> error "TODO"
+    _               -> throwIO $ UncallableType $ typeToStr $ typeOf x
 
 -- TODO
 callBlock :: Block -> Evaluator
@@ -174,10 +170,18 @@ callBlock Block{..} c s0 = do
 initContext :: IO Context
 initContext = do
   ctx     <- initMainContext
-  ctxPrim <- Prim.initCtx ctx $ noTC call -- TODO
+  ctxPrim <- Prim.initCtx ctx call
   ctxBltn <- Bltn.initCtx ctxPrim
   ctxPrld <- Prld.initCtx ctxBltn
   pre     <- Prld.modFile
   ctx <$ evalFile pre ctxPrld emptyStack
+
+-- utilities --
+
+noTC :: String -> TEvaluator -> Evaluator
+noTC name f c s = do
+  (s', ret) <- f c s
+  when (ret == TailR) $ error $ name ++ ": TailR"             --  TODO
+  return s'
 
 -- vim: set tw=70 sw=2 sts=2 et fdm=marker :
