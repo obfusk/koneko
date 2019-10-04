@@ -2,7 +2,7 @@
 --
 --  File        : Koneko/Data.hs
 --  Maintainer  : Felix C. Stegerman <flx@obfusk.net>
---  Date        : 2019-10-03
+--  Date        : 2019-10-04
 --
 --  Copyright   : Copyright (C) 2019  Felix C. Stegerman
 --  Version     : v0.0.1
@@ -13,6 +13,7 @@
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE RecordWildCards #-}
+{-# LANGUAGE TupleSections #-}
 
                                                               --  {{{1
 -- |
@@ -53,17 +54,19 @@
                                                               --  }}}1
 
 module Koneko.Data (
-  Identifier, Module, PopResult, Evaluator, KException(..), Kwd(..),
-  Ident, unIdent, ident, List(..), Dict(..), Block(..), Callable(..),
-  Multi(..), RecordT(..), Record, recType, recValues, record, Scope,
-  Context, ctxScope, Pair(..), KPrim(..), KValue(..), KType(..),
-  Stack, escapeFrom, escapeTo, emptyStack, Push, push', push, Pop,
-  pop, pop', primModule, bltnModule, prldModule, mainModule,
-  initMainContext, forkContext, forkScope, defineIn, lookup, typeOf,
-  typeToKwd, typeToStr, isNil, isBool, isInt, isFloat, isStr, isKwd,
-  isPair, isList, isDict, isIdent, isQuot, isBlock, isCallable,
-  isMulti, isRecordT, isRecord, nil, false, true, bool, int, float,
-  str, kwd, pair, list, dict, block, callable, Val, val, truthy
+  Identifier, Module, PopResult, Evaluator, TEvaluator, TEval, TCall,
+  Lvl(..), Pos(..), Ret(..), KException(..), Kwd(..), Ident, unIdent,
+  ident, List(..), Dict(..), Block(..), Builtin(..), Multi(..),
+  RecordT(..), Record, recType, recValues, record, Scope, Context,
+  ctxScope, Pair(..), KPrim(..), KValue(..), KType(..), Stack,
+  escapeFrom, escapeTo, emptyStack, Push, push', push, Pop, pop, pop',
+  primModule, bltnModule, prldModule, mainModule, initMainContext,
+  forkContext, forkScope, defineIn, lookup, typeOf, typeToKwd,
+  typeToStr, isNil, isBool, isInt, isFloat, isStr, isKwd, isPair,
+  isList, isDict, isIdent, isQuot, isBlock, isBuiltin, isMulti,
+  isRecordT, isRecord, isCallable, nil, false, true, bool, int, float,
+  str, kwd, pair, list, dict, block, Val, val, truthy, noTC, mkPrim,
+  mkBltn
 ) where
 
 import Control.Exception (Exception, throw, throwIO)
@@ -101,6 +104,13 @@ type Module             = ModuleLookupTable
 type PopResult a        = Either KException (a, Stack)
 
 type Evaluator          = Context -> Stack -> IO Stack
+type TEvaluator         = Context -> Stack -> IO (Stack, Ret)
+type TEval              = Lvl -> TEvaluator
+type TCall              = Pos -> TEvaluator
+
+data Lvl = TopL    | NestedL deriving (Eq, Show)
+data Pos = NormalP | TailP   deriving (Eq, Show)
+data Ret = NormalR | TailR   deriving (Eq, Show)
 
 -- TODO
 data KException
@@ -139,9 +149,10 @@ data Block = Block {
   blkScope  :: Maybe Scope
 }
 
-data Callable = Callable {
-  cllName :: Identifier,
-  cllRun  :: Evaluator
+data Builtin = Builtin {
+  biPrim  :: Bool,
+  biName  :: Identifier,
+  biRun   :: TCall
 }
 
 data Multi = Multi {
@@ -193,7 +204,7 @@ data KValue
     | KIdent    Ident
     | KQuot     Ident                                         --  TODO
     | KBlock    Block
-    | KCallable Callable
+    | KBuiltin  Builtin
     | KMulti    Multi
     | KRecordT  RecordT
     | KRecord   Record
@@ -201,7 +212,7 @@ data KValue
 
 data KType
     = TNil | TBool | TInt | TFloat | TStr | TKwd | TPair | TList
-    | TDict | TIdent | TQuot | TBlock | TCallable | TMulti | TRecordT
+    | TDict | TIdent | TQuot | TBlock | TBuiltin | TMulti | TRecordT
     | TRecord
   deriving (Eq, Ord)
 
@@ -213,8 +224,8 @@ instance Eq Block where
   _ == _ = throw $ UncomparableType "block"
 
 -- TODO
-instance Eq Callable where
-  _ == _ = throw $ UncomparableType "callable"
+instance Eq Builtin where
+  _ == _ = throw $ UncomparableType "builtin"
 
 instance Eq Multi where
   _ == _ = throw $ UncomparableType "multi"
@@ -223,8 +234,8 @@ instance Ord Block where
   compare _ _ = throw $ UncomparableType "block"
 
 -- TODO
-instance Ord Callable where
-  compare _ _ = throw $ UncomparableType "callable"
+instance Ord Builtin where
+  compare _ _ = throw $ UncomparableType "builtin"
 
 instance Ord Multi where
   compare _ _ = throw $ UncomparableType "multi"
@@ -266,8 +277,10 @@ instance Show Block where
       as = T.unpack $ T.intercalate " " (map unIdent a)
       cs = intercalate " " (map show c)
 
-instance Show Callable where
-  show Callable{..} = "#<callable:" ++ T.unpack cllName ++ ">"
+instance Show Builtin where
+  show Builtin{..} = "#<" ++ t ++ ":" ++ T.unpack biName ++ ">"
+    where
+      t = if biPrim then "primitive" else "builtin"
 
 instance Show Multi where
   show Multi{..}  = "#<multi:" ++ show mltArgs ++ ":" ++
@@ -302,7 +315,7 @@ instance Show KValue where
   show (KIdent i)     = show i
   show (KQuot x)      = "'" ++ show x
   show (KBlock b)     = show b
-  show (KCallable c)  = show c
+  show (KBuiltin b)   = show b
   show (KMulti m)     = show m
   show (KRecordT r)   = show r
   show (KRecord r)    = show r
@@ -320,7 +333,7 @@ instance Show KType where
   show TIdent     = "#<::ident>"
   show TQuot      = "#<::quot>"
   show TBlock     = "#<::block>"
-  show TCallable  = "#<::callable>"
+  show TBuiltin   = "#<::builtin>"
   show TMulti     = "#<::multi>"
   show TRecordT   = "#<::record-type>"
   show TRecord    = "#<::record>"
@@ -511,7 +524,7 @@ typeOf (KDict _)      =   TDict
 typeOf (KIdent _)     =   TIdent
 typeOf (KQuot _)      =   TQuot
 typeOf (KBlock _)     =   TBlock
-typeOf (KCallable _)  =   TCallable
+typeOf (KBuiltin _)   =   TBuiltin
 typeOf (KMulti _)     =   TMulti
 typeOf (KRecordT _)   =   TRecordT
 typeOf (KRecord _)    =   TRecord
@@ -532,13 +545,13 @@ typeToStr TDict       = "dict"
 typeToStr TIdent      = "ident"
 typeToStr TQuot       = "quot"
 typeToStr TBlock      = "block"
-typeToStr TCallable   = "callable"
+typeToStr TBuiltin    = "builtin"
 typeToStr TMulti      = "multi"
 typeToStr TRecordT    = "record-type"
 typeToStr TRecord     = "record"
 
 isNil, isBool, isInt, isFloat, isStr, isKwd, isPair, isList, isDict,
-  isIdent, isQuot, isBlock, isCallable, isMulti, isRecordT, isRecord
+  isIdent, isQuot, isBlock, isBuiltin, isMulti, isRecordT, isRecord
     :: KValue -> Bool
 
 isNil       = (TNil       ==) . typeOf
@@ -553,10 +566,19 @@ isDict      = (TDict      ==) . typeOf
 isIdent     = (TIdent     ==) . typeOf
 isQuot      = (TQuot      ==) . typeOf
 isBlock     = (TBlock     ==) . typeOf
-isCallable  = (TCallable  ==) . typeOf
+isBuiltin   = (TBuiltin   ==) . typeOf
 isMulti     = (TMulti     ==) . typeOf
 isRecordT   = (TRecordT   ==) . typeOf
 isRecord    = (TRecord    ==) . typeOf
+
+isCallable :: KValue -> Bool
+isCallable = (`elem` callableTypes) . typeOf
+
+callableTypes :: [KType]
+callableTypes = [
+    TStr, TPair, TList, TDict, TBlock, TBuiltin, TMulti, TRecordT,
+    TRecord
+  ]
 
 -- "constructors" --
 
@@ -594,9 +616,6 @@ dict = KDict . Dict . H.fromList . map f
 block :: [Ident] -> [KValue] -> Maybe Scope -> KValue
 block blkArgs blkCode blkScope = KBlock Block{..}
 
-callable :: Identifier -> Evaluator -> KValue
-callable cllName cllRun = KCallable Callable{..}
-
 -- ...
 
 class Val a where
@@ -620,5 +639,12 @@ truthy :: KValue -> Bool
 truthy (KPrim KNil)           = False
 truthy (KPrim (KBool False))  = False
 truthy _                      = True
+
+noTC :: Evaluator -> TCall
+noTC f _ c s = (, NormalR) <$> f c s
+
+mkPrim, mkBltn :: Identifier -> TCall -> Builtin
+mkPrim = Builtin True
+mkBltn = Builtin False
 
 -- vim: set tw=70 sw=2 sts=2 et fdm=marker :

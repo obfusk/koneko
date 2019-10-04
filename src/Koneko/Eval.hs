@@ -2,7 +2,7 @@
 --
 --  File        : Koneko/Eval.hs
 --  Maintainer  : Felix C. Stegerman <flx@obfusk.net>
---  Date        : 2019-10-03
+--  Date        : 2019-10-04
 --
 --  Copyright   : Copyright (C) 2019  Felix C. Stegerman
 --  Version     : v0.0.1
@@ -70,7 +70,9 @@ tryK = try
 -- interface --
 
 eval :: [KValue] -> Evaluator
-eval xs c s = fst <$> evaluate xs Top c s
+eval xs c s = do
+  (s', ret) <- evaluate xs TopL c s
+  if ret == NormalR then return s' else error "eval: TailR"   --  TODO
 
 evalText :: FilePath -> Text -> Evaluator
 evalText name code c s = eval (R.read' name code) c s
@@ -84,49 +86,51 @@ evalFile f c s = do code <- T.readFile f; evalText f code c s
 
 -- implementation --
 
-data Level = Top | Nested deriving Show
-data CallT = Done | Tail  deriving Show
+evaluate :: [KValue] -> TEval
 
-type TCEvaluator = Context -> Stack -> IO (Stack, CallT)
-
--- TODO: use __debug__ instead of env!?
-evaluate, evaluate_ :: [KValue] -> Level -> TCEvaluator
-evaluate xs l c s = do
-  debug <- maybe False (== "yes") <$> lookupEnv "KONEKO_DEBUG"
-  when debug $ do
-    putStrLn "==> evaluate"
-    putStrLn $ "  code : " ++ intercalate " " (map show xs)
-    putStrLn $ "  level: " ++ show l
-    putStrLn $ "  stack: " ++ intercalate " " (map show $ reverse s)
-  r@(s', _) <- evaluate_ xs l c s
-  when debug $ do
-    putStrLn "<== evaluate"
-    putStrLn $ "  stack: " ++ intercalate " " (map show $ reverse s')
-  return r
-
-evaluate_ []     _ _ s = return (s, Done)
-evaluate_ [x]    l c s = do
-  r@(s', t) <- eval1 x c s
-  case (l, t) of (Top, Tail) -> (, Done) <$> call c s'; _ -> return r
-evaluate_ (x:xt) l c s = do
-  (s', t) <- eval1 x c s
-  s'' <- case t of Tail -> call c s'; Done -> return s'
-  evaluate xt l c s''
+evaluate []     _   _ s = return (s, NormalR)
+evaluate [x]    lvl c s = do
+  r@(s', ret) <- eval1 x TailP c s
+  if lvl == TopL && ret == TailR
+    then (, NormalR) <$> call c s'  -- TODO
+    else return r
+evaluate (x:xt) lvl c s = do
+  (s', ret) <- eval1 x NormalP c s
+  when (ret == TailR) $ error "evaluate: TailR"               --  TODO
+  evaluate xt lvl c s'
 
 -- TODO: callable?
-eval1 :: KValue -> TCEvaluator
-eval1 x c s = case x of
-  KPrim _         -> (, Done) <$> return (s `push` x)
-  KList (List l)  -> (, Done) <$> evalList l c s
-  KIdent i        -> (, Tail) <$> pushIdent (unIdent i) c s
-  KQuot i         -> (, Done) <$> pushIdent (unIdent i) c s
-  KBlock b        -> (, Done) <$> evalBlock b c s
+eval1, eval1_ :: KValue -> TCall
+
+-- TODO: use __debug__ instead of env!?
+eval1 x pos c s = do
+  debug <- maybe False (== "yes") <$> lookupEnv "KONEKO_DEBUG" -- TODO
+  when debug $ do
+    let p = if pos == NormalP then " " else "T"
+    putStrLn $ "==> eval<" ++ p ++ "> " ++ show x
+    putStrLn $ "--> " ++ intercalate " " (map show $ reverse s)
+  r@(s', _) <- eval1_ x pos c s
+  when debug $ do
+    putStrLn $ "<-- " ++ intercalate " " (map show $ reverse s')
+  return r
+
+eval1_ x pos c s = case x of
+  KPrim _         -> (, NormalR) <$> return (s `push` x)
+  KList (List l)  -> (, NormalR) <$> evalList l c s
+  KIdent i        -> do s' <- pushIdent (unIdent i) c s
+                        tailCall pos c s'
+  KQuot i         -> (, NormalR) <$> pushIdent (unIdent i) c s
+  KBlock b        -> (, NormalR) <$> evalBlock b c s
   _               -> throwIO $ EvalUnexpected $ typeToStr $ typeOf x
+
+tailCall :: Pos -> TEvaluator
+tailCall NormalP  c s = do s' <- call c s; return (s', NormalR)
+tailCall TailP    _ s = return (s, TailR)
 
 -- TODO
 evalList :: [KValue] -> Evaluator
 evalList xs c s = do
-  ys <- fst <$> evaluate xs Top c []
+  ys <- fst <$> evaluate xs TopL c []
   return $ s `push` (KList $ List $ reverse ys)
 
 -- TODO
@@ -148,30 +152,30 @@ call c s = do
     KList _     -> error "TODO"
     KDict _     -> error "TODO"
     KBlock b    -> callBlock b c s'
-    KCallable f -> cllRun f c s'
+    KBuiltin b  -> fst <$> biRun b NormalP c s' -- TODO
     KMulti _    -> error "TODO"
     KRecordT _  -> error "TODO"
     KRecord _   -> error "TODO"
     _           -> throwIO $ UncallableType $ typeToStr $ typeOf x
 
 -- TODO
-callBlock :: Block ->  Evaluator
+callBlock :: Block -> Evaluator
 callBlock Block{..} c s0 = do
     scope       <- maybe err return blkScope
     (s1, args)  <- popArgs [] s0 $ reverse blkArgs
-    fst <$> evaluate blkCode Top (forkScope args c scope) s1
+    eval blkCode (forkScope args c scope) s1
   where
     popArgs r s []      = return (s, r)
-    popArgs r s (k:kt)  = do  (v, s') <- pop' s
-                              popArgs ((unIdent k, v):r) s' kt
-    err = throwIO EvalScopelessBlock
+    popArgs r s (k:kt)  = do
+      (v, s') <- pop' s; popArgs ((unIdent k, v):r) s' kt
+    err                 = throwIO EvalScopelessBlock
 
 -- initial context --
 
 initContext :: IO Context
 initContext = do
   ctx     <- initMainContext
-  ctxPrim <- Prim.initCtx ctx call
+  ctxPrim <- Prim.initCtx ctx $ noTC call -- TODO
   ctxBltn <- Bltn.initCtx ctxPrim
   ctxPrld <- Prld.initCtx ctxBltn
   pre     <- Prld.modFile
