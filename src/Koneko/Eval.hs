@@ -48,7 +48,7 @@ module Koneko.Eval (
 
 import Control.Exception (throwIO, try)
 import Control.Monad (when)
-import Data.List (intercalate)
+import Data.List (genericLength, intercalate)
 import Data.Text.Lazy (Text)
 import Prelude hiding (lookup)
 
@@ -128,7 +128,7 @@ call c s = do
   case x of
     KPrim (KStr _)  -> error "TODO"
     KPair p         -> callPair p c s'
-    KList _         -> error "TODO"
+    KList l         -> callList l c s'
     KDict _         -> error "TODO"
     KBlock b        -> callBlock b c s'
     KBuiltin b      -> biRun b c s'
@@ -144,6 +144,20 @@ callPair Pair{..} _ s = do
     "key"   -> return $ s' `push` key
     "value" -> return $ s' `push` value
     _       -> throwIO $ UnknownField (T.unpack k) "pair"
+
+-- TODO: use throwIO, .cons vs !cons
+callList :: List -> Evaluator
+callList (List l) _ s = do
+  (Kwd k, s') <- pop' s
+  case k of
+    "empty?"  -> return $ s' `push` (null l)
+    "head"    -> return $ s' `push` (head l)
+    "tail"    -> return $ s' `push` List (tail l)
+    "uncons"  -> return $ s' `push` (head l) `push` List (tail l)
+    "cons"    -> do (x, s'') <- pop' s'
+                    return $ s'' `push` List (x:l)
+    "len"     -> return $ s' `push` (int $ genericLength l)
+    _         -> throwIO $ UnknownField (T.unpack k) "list"
 
 -- TODO
 callBlock :: Block -> Evaluator

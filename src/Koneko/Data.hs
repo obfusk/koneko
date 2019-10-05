@@ -109,16 +109,16 @@ type Evaluator          = Context -> Stack -> IO Stack
 
 -- TODO
 data KException
-    = ParseError !String            -- ^ parse error
-    | EvalUnexpected !String        -- ^ unexpected value during eval
-    | EvalScopelessBlock            -- ^ block w/o scope during eval
-    | ModuleNotFound !String        -- ^ module not found
-    | LookupFailed !String          -- ^ ident lookup failed
-    | StackUnderflow                -- ^ stack was empty
-    | StackExpected !String         -- ^ stack did not contain expected value
-    | UncomparableType !String      -- ^ uncomparable type
-    | UncallableType !String        -- ^ uncallable type
-    | UnknownField !String !String  -- ^ unknown field
+    = ParseError !String
+    | EvalUnexpected !String  -- ^ unexpected value during eval
+    | EvalScopelessBlock      -- ^ block w/o scope during eval
+    | ModuleNotFound !String
+    | LookupFailed !String    -- ^ ident lookup failed
+    | StackUnderflow          -- ^ stack was empty
+    | StackExpected !String   -- ^ stack did not contain expected value
+    | UncomparableType !String
+    | UncallableType !String
+    | UnknownField !String !String
   deriving Typeable
 
 instance Exception KException
@@ -394,6 +394,9 @@ instance Push Text where
 
 instance Push Kwd where
   push s x = s `push` (KPrim $ KKwd x)
+
+instance Push List where
+  push s x = s `push` (KList x)
 
 -- ... TODO ...
 
