@@ -2,7 +2,7 @@
 
     File        : README.md
     Maintainer  : Felix C. Stegerman <flx@obfusk.net>
-    Date        : 2019-10-02
+    Date        : 2019-10-04
 
     Copyright   : Copyright (C) 2019  Felix C. Stegerman
     Version     : v0.0.1
@@ -182,22 +182,28 @@ nil
 ```koneko
 >>> :answer 42 =>                 ; key/value pair
 :answer 42 =>
->>> dup .key
+>>> ,dup
+>>> .key
 :answer
+>>> ,drop
 >>> .value
 42
 
 >>> ( 1 2 :foo 4 )                ; linked list
 ( 1 2 :foo 4 )
->>> dup len
+>>> ,dup
+>>> len
 4
+>>> ,drop
 >>> 2 get
 :foo
 
 >>> { x: 42, :y 99 1 + => }       ; key/value map
 { x: 42, y: 100 }
->>> dup len
+>>> ,dup
+>>> len
 2
+>>> ,drop
 >>> :x get
 42
 >>> { 32 5 +, 76 3 - => }
@@ -217,10 +223,13 @@ nil
 >>> , :Point ( :x :y ) defrecord  ; define record type
 >>> Point{ x: 1, y: -1 }          ; create record instance
 Point{ x: 1, y: -1 }
->>> dup .x
+>>> ,dup
+>>> .x
 1
->>> dup .y
+>>> ,drop dup
+>>> .y
 -1
+>>> ,drop
 >>> { x: 99 } update              ; update record (creates a new one)
 Point{ x: 99, y: -1 }
 ```
@@ -285,9 +294,10 @@ Point{ x: 1, y: 2 }
 >>> { :x 1 =>, :y 2 => } 'Point construct   ; completely desugared
 Point{ x: 1, y: 2 }
 
->>> dup .x                                  ; record field access
+>>> ,dup
+>>> .x                                      ; record field access
 1
->>> :x get                                  ; desugared
+>>> :x get                                  ; desugared -- TODO
 1
 
 >>> 1 2

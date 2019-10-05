@@ -2,7 +2,7 @@
 --
 --  File        : Koneko/Read.hs
 --  Maintainer  : Felix C. Stegerman <flx@obfusk.net>
---  Date        : 2019-10-03
+--  Date        : 2019-10-04
 --
 --  Copyright   : Copyright (C) 2019  Felix C. Stegerman
 --  Version     : v0.0.1
@@ -38,6 +38,7 @@ module Koneko.Read (read, read') where
 
 import Control.Exception (throw)
 import Data.Functor
+import Data.Maybe (fromJust) -- careful!
 import Data.Text.Lazy (Text)
 import Prelude hiding (quot, read)
 import Text.Megaparsec
@@ -124,13 +125,31 @@ block = try $ KBlock <$> do
   blkCode <- manyValuesTill $ symbol "]"
   let blkScope = Nothing in return Block{..}
 
+-- parser: sugar --
+
+dot, bang :: Parser [KValue]
+
+dot     = char '.' >> _dot <$> ident_
+bang    = char '!' >> ((++ [_call]) . _dot) <$> ident_
+
+_dot :: Ident -> [KValue]
+_dot i  = [D.kwd $ D.unIdent i, _swap, _call]
+
+_swap, _call :: KValue
+_swap   = KIdent $ fromJust $ D.ident "swap" -- safe!
+_call   = KIdent $ fromJust $ D.ident "call" -- safe!
+
+-- TODO: foo() foo{}
+
+-- parser: [KValue] --
+
 -- | NB: match ident last
 value = choice [prim, list, quot, block, ident]
 
 -- ... TODO ...
 
 value_ :: Parser [KValue]
-value_ = (:[]) <$> value
+value_ = (:[]) <$> value <|> choice [dot, bang]
 
 manyValues :: Parser [KValue]
 manyValues = concat <$> many value_

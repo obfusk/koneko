@@ -95,7 +95,6 @@ eval1 x c s = do
     putStrLn $ "<-- " ++ intercalate " " (map show $ reverse s')
   return r
 
--- TODO: callable?
 eval1_ x c s = case x of
   KPrim _         -> (, False) <$> return (s `push` x)
   KList (List l)  -> (, False) <$> evalList l c s
@@ -128,7 +127,7 @@ call c s = do
   (x, s') <- pop' s
   case x of
     KPrim (KStr _)  -> error "TODO"
-    KPair _         -> error "TODO"
+    KPair p         -> callPair p c s'
     KList _         -> error "TODO"
     KDict _         -> error "TODO"
     KBlock b        -> callBlock b c s'
@@ -137,6 +136,14 @@ call c s = do
     KRecordT _      -> error "TODO"
     KRecord _       -> error "TODO"
     _               -> throwIO $ UncallableType $ typeToStr $ typeOf x
+
+callPair :: Pair -> Evaluator
+callPair Pair{..} _ s = do
+  (Kwd k, s') <- pop' s
+  case k of
+    "key"   -> return $ s' `push` key
+    "value" -> return $ s' `push` value
+    _       -> throwIO $ UnknownField (T.unpack k) "pair"
 
 -- TODO
 callBlock :: Block -> Evaluator

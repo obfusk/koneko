@@ -10,6 +10,7 @@
 --
 --  --                                                          ; }}}1
 
+{-# LANGUAGE DeriveAnyClass, DeriveGeneric #-}
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE RecordWildCards #-}
@@ -68,6 +69,7 @@ module Koneko.Data (
   mkPrim, mkBltn
 ) where
 
+import Control.DeepSeq (deepseq, NFData(..))
 import Control.Exception (Exception, throw, throwIO)
 import Data.Char (isPrint, ord)
 import Data.List (intercalate)
@@ -75,6 +77,7 @@ import Data.Monoid ((<>))
 import Data.String (IsString)
 import Data.Text.Lazy (Text)
 import Data.Typeable (Typeable)
+import GHC.Generics (Generic)
 import Numeric (showHex)
 import Prelude hiding (lookup)
 
@@ -106,40 +109,41 @@ type Evaluator          = Context -> Stack -> IO Stack
 
 -- TODO
 data KException
-    = ParseError !String        -- ^ parse error
-    | EvalUnexpected !String    -- ^ unexpected value during eval
-    | EvalScopelessBlock        -- ^ block w/o scope during eval
-    | ModuleNotFound !String    -- ^ module not found
-    | LookupFailed !String      -- ^ ident lookup failed
-    | StackUnderflow            -- ^ stack was empty
-    | StackExpected !String     -- ^ stack did not contain expected value
-    | UncomparableType !String  -- ^ uncomparable type
-    | UncallableType !String    -- ^ uncallable type
+    = ParseError !String            -- ^ parse error
+    | EvalUnexpected !String        -- ^ unexpected value during eval
+    | EvalScopelessBlock            -- ^ block w/o scope during eval
+    | ModuleNotFound !String        -- ^ module not found
+    | LookupFailed !String          -- ^ ident lookup failed
+    | StackUnderflow                -- ^ stack was empty
+    | StackExpected !String         -- ^ stack did not contain expected value
+    | UncomparableType !String      -- ^ uncomparable type
+    | UncallableType !String        -- ^ uncallable type
+    | UnknownField !String !String  -- ^ unknown field
   deriving Typeable
 
 instance Exception KException
 
 newtype Kwd = Kwd { unKwd :: Identifier }
-  deriving (Eq, Ord)
+  deriving (Eq, Ord, Generic, NFData)
 
 newtype Ident = Ident_ { unIdent :: Identifier }
-  deriving (Eq, Ord)
+  deriving (Eq, Ord, Generic, NFData)
 
 ident :: Identifier -> Maybe Ident
 ident s = if M.isIdent s then Just $ Ident_ s else Nothing
 
 newtype List = List { unList :: [KValue] }
-  deriving (Eq, Ord)
+  deriving (Eq, Ord, Generic, NFData)
 
 -- TODO
 newtype Dict = Dict { unDict :: DictTable }
-  deriving (Eq, Ord)
+  deriving (Eq, Ord, Generic, NFData)
 
 data Block = Block {
   blkArgs   :: [Ident],
   blkCode   :: [KValue],
   blkScope  :: Maybe Scope
-}
+} deriving (Generic, NFData)
 
 data Builtin = Builtin {
   biPrim  :: Bool,
@@ -147,21 +151,29 @@ data Builtin = Builtin {
   biRun   :: Evaluator
 }
 
+-- TODO
+instance NFData Builtin where
+  rnf Builtin{..} = (biPrim, biName) `deepseq` ()
+
 data Multi = Multi {
   mltArgs   :: Int,
   mltName   :: Identifier,
   mltTable  :: MultiTable
 }
 
+-- TODO
+instance NFData Multi where
+  rnf Multi{..} = (mltArgs, mltName) `deepseq` ()
+
 data RecordT = RecordT {
   recName   :: Identifier,
   recFields :: [Identifier]
-} deriving (Eq, Ord)
+} deriving (Eq, Ord, Generic, NFData)
 
 data Record = Record {
   recType   :: RecordT,
   recValues :: [KValue]
-} deriving (Eq, Ord)
+} deriving (Eq, Ord, Generic, NFData)
 
 record :: RecordT -> [KValue] -> Maybe Record
 record recType recValues
@@ -173,19 +185,23 @@ data Scope = Scope {
   table   :: ScopeLookupTable
 }
 
+-- TODO
+instance NFData Scope where
+  rnf Scope{..} = parent `deepseq` ()
+
 data Context = Context {
   modules   :: HashTable Identifier Module,
   ctxScope  :: Scope
 }
 
 data Pair = Pair { key :: Kwd, value :: KValue }
-  deriving (Eq, Ord)
+  deriving (Eq, Ord, Generic, NFData)
 
 -- TODO: + Rx
 data KPrim
     = KNil | KBool Bool | KInt Integer | KFloat Double
     | KStr Text | KKwd Kwd
-  deriving (Eq, Ord)
+  deriving (Eq, Ord, Generic, NFData)
 
 -- TODO
 data KValue
@@ -200,13 +216,13 @@ data KValue
     | KMulti    Multi
     | KRecordT  RecordT
     | KRecord   Record
-  deriving (Eq, Ord)
+  deriving (Eq, Ord, Generic, NFData)
 
 data KType
     = TNil | TBool | TInt | TFloat | TStr | TKwd | TPair | TList
     | TDict | TIdent | TQuot | TBlock | TBuiltin | TMulti | TRecordT
     | TRecord
-  deriving (Eq, Ord)
+  deriving (Eq, Ord, Generic, NFData)
 
 type Stack = [KValue]
 
@@ -242,6 +258,7 @@ instance Show KException where
   show (StackExpected what)     = "expected " ++ what ++ " on stack"
   show (UncomparableType what)  = "uncomparable type " ++ what
   show (UncallableType what)    = "uncallable type " ++ what
+  show (UnknownField f t)       = "unknown field " ++ f ++ " for " ++ t
 
 instance Show Kwd where
   show (Kwd s) = ":" ++ if M.isIdent s then T.unpack s else show s
@@ -363,6 +380,9 @@ instance (Push a, Push b) => Push (a, b) where
 instance (Push a, Push b, Push c) => Push (a, b, c) where
   push s (x, y, z) = s `push` x `push` y `push` z
 
+instance Push Bool where
+  push s x = s `push` (KPrim $ KBool x)
+
 instance Push Integer where
   push s x = s `push` (KPrim $ KInt x)
 
@@ -433,6 +453,10 @@ instance Pop Text where
 instance Pop Kwd where
   pop_ (KPrim (KKwd x):s) = Right (x, s)
   pop_ _                  = Left $ StackExpected "kwd"
+
+instance Pop List where
+  pop_ (KList x:s)        = Right (x, s)
+  pop_ _                  = Left $ StackExpected "list"
 
 instance Pop Block where
   pop_ (KBlock x:s)       = Right (x, s)

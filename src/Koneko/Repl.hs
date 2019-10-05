@@ -2,7 +2,7 @@
 --
 --  File        : Koneko/Repl.hs
 --  Maintainer  : Felix C. Stegerman <flx@obfusk.net>
---  Date        : 2019-10-03
+--  Date        : 2019-10-04
 --
 --  Copyright   : Copyright (C) 2019  Felix C. Stegerman
 --  Version     : v0.0.1
@@ -16,6 +16,7 @@ module Koneko.Repl (
   repl, repl', promptText, errorText, stdinTTY
 ) where
 
+import Control.DeepSeq ((<$!!>))
 import Control.Monad (unless)
 import Data.String (IsString)
 import Data.Text.Lazy (Text)
@@ -49,7 +50,7 @@ repl' breakOnError pr ctx st = Prim.replDef ctx >> loop ctx st
     loop c s = prompt' pr >>= maybe (s <$ T.putStrLn "") process
       where
         process line = if T.null line then loop c s else do
-          r <- E.tryK $ E.evalText "(repl)" line c s
+          r <- E.tryK $ id <$!!> E.evalText "(repl)" line c s
           case r of
             Left e    -> do hPutStrLn stderr $ errorText ++ show e
                             if breakOnError then return s else loop c s

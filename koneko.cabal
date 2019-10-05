@@ -52,7 +52,7 @@ common deps
     -- included w/ ghc:
     base >=4.9, directory, filepath, text, unix,
     -- included w/ haskell-platform:
-    random, unordered-containers,
+    deepseq, random, unordered-containers,
     -- separate packages:
     cmdargs, hashtables, megaparsec, silently
 
