@@ -50,9 +50,9 @@ common deps
   -- Other library packages from which modules are imported.
   build-depends:
     -- included w/ ghc:
-    base >=4.9, directory, filepath, text, unix,
+    base >=4.9, deepseq, directory, filepath, text, unix,
     -- included w/ haskell-platform:
-    deepseq, random, unordered-containers,
+    random, unordered-containers,
     -- separate packages:
     cmdargs, hashtables, megaparsec, silently
 
