@@ -2,7 +2,7 @@
 --
 --  File        : Koneko/Prim.hs
 --  Maintainer  : Felix C. Stegerman <flx@obfusk.net>
---  Date        : 2019-10-04
+--  Date        : 2019-10-05
 --
 --  Copyright   : Copyright (C) 2019  Felix C. Stegerman
 --  Version     : v0.0.1
@@ -34,10 +34,15 @@ initCtx ctxMain call = do
   traverse_ (defPrim ctxPrim) [
       mkPrim "call" call, apply call, if_ call,
       def, mkPair, swap, show_, say,
-      showStack, clearStack, nya,
-      intArith "+" (+), intArith "-" (-), intArith "*" (*),   --  TODO
+      arithI "__int+__" (+), arithI "__int-__" (-),
+      arithI "__int*__" (*),
+      arithI "__div__" div, arithI "__mod__" mod,
+      arithF "__float+__" (+), arithF "__float-__" (-),
+      arithF "__float*__" (*), arithF "__float/__" (/),
       intToFloat,
-      eq, neq, lt, lte, gt, gte
+      not_, comp "=" (==), comp "/=" (/=), comp "<" (<),
+      comp "<=" (<=), comp ">" (>), comp ">=" (>=),
+      showStack, clearStack, nya
       -- ...
     ]
   return ctxPrim
@@ -51,9 +56,9 @@ apply, if_ :: Evaluator -> Builtin
 
 -- TODO
 apply call = mkPrim "apply" $ \c s -> do
-  ((List l, f), s') <- pop' s
-  s'' <- call c (f:reverse l)
-  return $ s'' ++ s'
+  ((List l, f), s1) <- pop' s
+  s2 <- call c (f:reverse l)
+  return $ s2 ++ s1
 
 if_ call = mkPrim "if" $ \c s -> do
   ((cond, t_br, f_br), s') <- pop' s
@@ -64,39 +69,37 @@ def, mkPair, swap, show_, say :: Builtin
 def = mkPrim "def" $ \c s -> do
   ((Kwd k, v), s') <- pop' s; s' <$ defineIn c k v
 
-mkPair = mkPrim "=>" $ \_ s -> do
-  ((k, v), s') <- pop' s; return $ s' `push` pair k v
+mkPair = mkPrim "=>" $ pop2push $ \k v -> [pair k v]
 
 -- needed as primitive by read for .foo
-swap = mkPrim "swap" $ pop2and $ \x y s' -> s' `push` y `push` x
+swap = mkPrim "swap" $ pop2push $ \x y -> [y, x] :: [KValue]
 
-show_ = mkPrim "show" $ \_ s -> do
-  (x, s') <- pop' s; return $ s' `push` (T.pack $ show (x :: KValue))
+show_ = mkPrim "show" $ pop1push $ \x -> [T.pack $ show (x :: KValue)]
 
 -- NB: uses stdout
-say = mkPrim "say" $ \_ s -> do
-  (x, s') <- pop' s; s' <$ T.putStrLn x
+say = mkPrim "say" $ \_ s -> do (x, s') <- pop' s; s' <$ T.putStrLn x
 
--- primitives: arith --
+-- primitives: arithmetic, comparison --
 
-intArith :: Identifier -> (Integer -> Integer -> Integer) -> Builtin
-intArith name op = mkPrim name $ \_ s -> do
-  ((x, y), s') <- pop' s; return $ s' `push` (x `op` y)
+arith :: (Pop a, Push a) => Identifier -> (a -> a -> a) -> Builtin
+arith name op = mkPrim name $ pop2push $ \x y -> [x `op` y]
+
+arithI :: Identifier -> (Integer -> Integer -> Integer) -> Builtin
+arithF :: Identifier -> (Double  -> Double  -> Double ) -> Builtin
+arithI = arith
+arithF = arith
 
 intToFloat :: Builtin
-intToFloat = mkPrim "int->float" $ \_ s -> do
-  (x, s') <- pop' s; return $ s' `push` (fromInteger x :: Double)
+intToFloat
+  = mkPrim "int->float" $ pop1push $ \x -> [fromInteger x :: Double]
 
 -- primitives: Eq, Ord --
 
-eq, neq, lt, lte, gt, gte :: Builtin
+not_ :: Builtin
+not_ = mkPrim "not" $ pop1push $ \x -> [not x]
 
-eq  = mkPrim "="  $ pop2and $ \x y s' -> s' `push` (x == y)
-neq = mkPrim "/=" $ pop2and $ \x y s' -> s' `push` (x /= y)
-lt  = mkPrim "<"  $ pop2and $ \x y s' -> s' `push` (x <  y)
-lte = mkPrim "<=" $ pop2and $ \x y s' -> s' `push` (x <= y)
-gt  = mkPrim ">"  $ pop2and $ \x y s' -> s' `push` (x >  y)
-gte = mkPrim ">=" $ pop2and $ \x y s' -> s' `push` (x >= y)
+comp :: Identifier -> (KValue -> KValue -> Bool) -> Builtin
+comp name op = mkPrim name $ pop2push $ \x y -> [x `op` y]
 
 -- repl --
 
@@ -113,7 +116,7 @@ showStack, clearStack :: Builtin
 showStack = mkPrim "__show-stack__" $ \_ s ->
   s <$ traverse_ (putStrLn . show) s
 
-clearStack = mkPrim "__clear-stack__" $ \_ _ -> return []
+clearStack = mkPrim "__clear-stack__" $ \_ _ -> return emptyStack
 
 -- nya --
 
@@ -124,10 +127,5 @@ nya = mkPrim "__nya__" $ \_ s -> s <$ do
   unless (null cats) $ do
     i   <- getStdRandom $ randomR (0, length cats -1)
     (T.readFile $ nyaD </> (cats !! i)) >>= T.putStr
-
--- utilities --
-
-pop2and :: (KValue -> KValue -> Stack -> Stack) -> Evaluator
-pop2and f _ s = do ((x, y), s') <- pop' s; return $ f x y s'
 
 -- vim: set tw=70 sw=2 sts=2 et fdm=marker :

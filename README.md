@@ -2,7 +2,7 @@
 
     File        : README.md
     Maintainer  : Felix C. Stegerman <flx@obfusk.net>
-    Date        : 2019-10-04
+    Date        : 2019-10-05
 
     Copyright   : Copyright (C) 2019  Felix C. Stegerman
     Version     : v0.0.1
@@ -457,6 +457,7 @@ NB: WIP
 * libghc-doctest-dev
 * libghc-hashtables-dev
 * libghc-megaparsec-dev
+* libghc-safe-dev
 * libghc-silently-dev
 
 -->

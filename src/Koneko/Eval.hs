@@ -2,7 +2,7 @@
 --
 --  File        : Koneko/Eval.hs
 --  Maintainer  : Felix C. Stegerman <flx@obfusk.net>
---  Date        : 2019-10-04
+--  Date        : 2019-10-05
 --
 --  Copyright   : Copyright (C) 2019  Felix C. Stegerman
 --  Version     : v0.0.1
@@ -51,6 +51,7 @@ import Control.Monad (when)
 import Data.List (genericLength, intercalate)
 import Data.Text.Lazy (Text)
 import Prelude hiding (lookup)
+import Safe (atMay)
 
 import qualified Data.Text.Lazy as T
 import qualified Data.Text.Lazy.IO as T
@@ -69,9 +70,9 @@ tryK = try
 eval :: [KValue] -> Evaluator
 eval []     _ s = return s
 eval (x:xt) c s = do
-  (s', deferredCall) <- eval1 x c s
-  s'' <- if deferredCall then call c s' else return s'
-  eval xt c s''
+  (s1, deferredCall) <- eval1 x c s
+  s2 <- if deferredCall then call c s1 else return s1
+  eval xt c s2
 
 evalText :: FilePath -> Text -> Evaluator
 evalText name code c s = eval (R.read' name code) c s
@@ -96,7 +97,7 @@ eval1 x c s = do
   return r
 
 eval1_ x c s = case x of
-  KPrim _         -> (, False) <$> return (s `push` x)
+  KPrim _         -> (, False) <$> rpush s [x]
   KList (List l)  -> (, False) <$> evalList l c s
   KIdent i        -> (, True ) <$> pushIdent (unIdent i) c s
   KQuot i         -> (, False) <$> pushIdent (unIdent i) c s
@@ -107,7 +108,7 @@ eval1_ x c s = case x of
 evalList :: [KValue] -> Evaluator
 evalList xs c s = do
   ys <- eval xs c emptyStack
-  return $ s `push` (KList $ List $ reverse ys)
+  rpush s [List $ reverse ys]
 
 -- TODO
 pushIdent :: Text -> Evaluator
@@ -116,8 +117,7 @@ pushIdent i c s = lookup c i >>= maybe err (return . push s)
     err = throwIO $ LookupFailed $ T.unpack i
 
 evalBlock :: Block -> Evaluator
-evalBlock b c s
-  = return $ s `push` KBlock b { blkScope = Just $ ctxScope c }
+evalBlock b c s = rpush s [b { blkScope = Just $ ctxScope c }]
 
 -- TODO
 call :: Evaluator
@@ -141,23 +141,29 @@ callPair :: Pair -> Evaluator
 callPair Pair{..} _ s = do
   (Kwd k, s') <- pop' s
   case k of
-    "key"   -> return $ s' `push` key
-    "value" -> return $ s' `push` value
-    _       -> throwIO $ UnknownField (T.unpack k) "pair"
+    "key"   ->  rpush s' [key]
+    "value" ->  rpush s' [value]
+    _       ->  throwIO $ UnknownField (T.unpack k) "pair"
 
--- TODO: use throwIO, .cons vs !cons
 callList :: List -> Evaluator
 callList (List l) _ s = do
   (Kwd k, s') <- pop' s
+  let o = "list." <> k
+      g = when (null l) $ throwIO $ EmptyList $ T.unpack o
   case k of
-    "empty?"  -> return $ s' `push` (null l)
-    "head"    -> return $ s' `push` (head l)
-    "tail"    -> return $ s' `push` List (tail l)
-    "uncons"  -> return $ s' `push` (head l) `push` List (tail l)
-    "cons"    -> do (x, s'') <- pop' s'
-                    return $ s'' `push` List (x:l)
-    "len"     -> return $ s' `push` (int $ genericLength l)
-    _         -> throwIO $ UnknownField (T.unpack k) "list"
+    "empty?"  ->  rpush s' [null l]
+    "head"    ->  g >> rpush s' [head l]                        --safe!
+    "tail"    ->  g >> rpush s' [List $ tail l]                 --safe!
+    "uncons"  ->  g >> rpush s' [head l, KList $ List $ tail l] --safe!
+    "cons"    ->  rpush s' $ (:[]) $ mkPrim o $ \_ s1 -> do
+                    (x, s2) <- pop' s1; rpush s2 [List (x:l)]
+    "len"     ->  rpush s' [genericLength l :: Integer]
+    "get"     ->  rpush s' $ (:[]) $ mkPrim o $ \_ s1 -> do
+                    (n, s2) <- pop' s1
+                    case atMay l $ fromInteger n of
+                      Nothing -> throwIO $ IndexError $ T.unpack o
+                      Just x  -> rpush s2 [x]
+    _         ->  throwIO $ UnknownField (T.unpack k) "list"
 
 -- TODO
 callBlock :: Block -> Evaluator

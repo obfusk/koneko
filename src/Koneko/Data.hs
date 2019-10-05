@@ -2,7 +2,7 @@
 --
 --  File        : Koneko/Data.hs
 --  Maintainer  : Felix C. Stegerman <flx@obfusk.net>
---  Date        : 2019-10-04
+--  Date        : 2019-10-05
 --
 --  Copyright   : Copyright (C) 2019  Felix C. Stegerman
 --  Version     : v0.0.1
@@ -59,14 +59,14 @@ module Koneko.Data (
   Ident, unIdent, ident, List(..), Dict(..), Block(..), Builtin(..),
   Multi(..), RecordT(..), Record, recType, recValues, record, Scope,
   Context, ctxScope, Pair(..), KPrim(..), KValue(..), KType(..),
-  Stack, escapeFrom, escapeTo, emptyStack, Push, push', push, Pop,
-  pop, pop', primModule, bltnModule, prldModule, mainModule,
-  initMainContext, forkContext, forkScope, defineIn, lookup, typeOf,
-  typeToKwd, typeToStr, isNil, isBool, isInt, isFloat, isStr, isKwd,
-  isPair, isList, isDict, isIdent, isQuot, isBlock, isBuiltin,
-  isMulti, isRecordT, isRecord, isCallable, nil, false, true, bool,
-  int, float, str, kwd, pair, list, dict, block, Val, val, truthy,
-  mkPrim, mkBltn
+  Stack, escapeFrom, escapeTo, emptyStack, push', rpush, Push, push,
+  pop, pop', Pop, pop1push, pop2push, primModule, bltnModule,
+  prldModule, mainModule, initMainContext, forkContext, forkScope,
+  defineIn, lookup, typeOf, typeToKwd, typeToStr, isNil, isBool,
+  isInt, isFloat, isStr, isKwd, isPair, isList, isDict, isIdent,
+  isQuot, isBlock, isBuiltin, isMulti, isRecordT, isRecord,
+  isCallable, nil, false, true, bool, int, float, str, kwd, pair,
+  list, dict, block, Val, val, truthy, mkPrim, mkBltn
 ) where
 
 import Control.DeepSeq (deepseq, NFData(..))
@@ -119,6 +119,8 @@ data KException
     | UncomparableType !String
     | UncallableType !String
     | UnknownField !String !String
+    | EmptyList !String
+    | IndexError !String
   deriving Typeable
 
 instance Exception KException
@@ -259,6 +261,8 @@ instance Show KException where
   show (UncomparableType what)  = "uncomparable type " ++ what
   show (UncallableType what)    = "uncallable type " ++ what
   show (UnknownField f t)       = "unknown field " ++ f ++ " for " ++ t
+  show (EmptyList op)           = op ++ ": empty list"
+  show (IndexError op)          = op ++ ": index error"
 
 instance Show Kwd where
   show (Kwd s) = ":" ++ if M.isIdent s then T.unpack s else show s
@@ -368,6 +372,9 @@ emptyStack = []
 push' :: Stack -> KValue -> Stack
 push' = flip (:)
 
+rpush :: Push a => Stack -> [a] -> IO Stack
+rpush s = return . foldl push s
+
 class Push a where
   push :: Stack -> a -> Stack
 
@@ -397,6 +404,12 @@ instance Push Kwd where
 
 instance Push List where
   push s x = s `push` (KList x)
+
+instance Push Block where
+  push s x = s `push` (KBlock x)
+
+instance Push Builtin where
+  push s x = s `push` (KBuiltin x)
 
 -- ... TODO ...
 
@@ -445,27 +458,41 @@ instance (Pop a, Pop b, Pop c) => Pop (a, b, c) where
     (z, s3) <- pop s2
     return ((z, y, x), s3)
 
+instance Pop Bool where
+  pop_ (KPrim (KBool x):s)  = Right (x, s)
+  pop_ _                    = Left $ StackExpected "bool"
+
 instance Pop Integer where
-  pop_ (KPrim (KInt x):s) = Right (x, s)
-  pop_ _                  = Left $ StackExpected "int"
+  pop_ (KPrim (KInt x):s)   = Right (x, s)
+  pop_ _                    = Left $ StackExpected "int"
+
+instance Pop Double where
+  pop_ (KPrim (KFloat x):s) = Right (x, s)
+  pop_ _                    = Left $ StackExpected "float"
 
 instance Pop Text where
-  pop_ (KPrim (KStr x):s) = Right (x, s)
-  pop_ _                  = Left $ StackExpected "str"
+  pop_ (KPrim (KStr x):s)   = Right (x, s)
+  pop_ _                    = Left $ StackExpected "str"
 
 instance Pop Kwd where
-  pop_ (KPrim (KKwd x):s) = Right (x, s)
-  pop_ _                  = Left $ StackExpected "kwd"
+  pop_ (KPrim (KKwd x):s)   = Right (x, s)
+  pop_ _                    = Left $ StackExpected "kwd"
 
 instance Pop List where
-  pop_ (KList x:s)        = Right (x, s)
-  pop_ _                  = Left $ StackExpected "list"
+  pop_ (KList x:s)          = Right (x, s)
+  pop_ _                    = Left $ StackExpected "list"
 
 instance Pop Block where
-  pop_ (KBlock x:s)       = Right (x, s)
-  pop_ _                  = Left $ StackExpected "block"
+  pop_ (KBlock x:s)         = Right (x, s)
+  pop_ _                    = Left $ StackExpected "block"
 
 -- ... TODO ...
+
+pop1push :: (Pop a, Push b) => (a -> [b]) -> Evaluator
+pop1push f _ s = do (x, s') <- pop' s; rpush s' $ f x
+
+pop2push :: (Pop a, Pop b, Push c) => (a -> b -> [c]) -> Evaluator
+pop2push f _ s = do ((x, y), s') <- pop' s; rpush s' $ f x y
 
 -- Module/Scope functions --
 

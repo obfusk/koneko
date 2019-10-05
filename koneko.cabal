@@ -54,7 +54,7 @@ common deps
     -- included w/ haskell-platform:
     random, unordered-containers,
     -- separate packages:
-    cmdargs, hashtables, megaparsec, silently
+    cmdargs, hashtables, megaparsec, safe, silently
 
   -- Directories containing source files.
   hs-source-dirs:      src

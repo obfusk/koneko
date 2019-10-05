@@ -2,7 +2,7 @@
 --
 --  File        : Koneko/Repl.hs
 --  Maintainer  : Felix C. Stegerman <flx@obfusk.net>
---  Date        : 2019-10-04
+--  Date        : 2019-10-05
 --
 --  Copyright   : Copyright (C) 2019  Felix C. Stegerman
 --  Version     : v0.0.1
@@ -54,12 +54,12 @@ repl' breakOnError pr ctx st = Prim.replDef ctx >> loop ctx st
           case r of
             Left e    -> do hPutStrLn stderr $ errorText ++ show e
                             if breakOnError then return s else loop c s
-            Right s'  -> do unless (shouldSkip s' line) $
-                              putStrLn $ show $ head s'       --  TODO
+            Right s'  -> do unless (shouldSkip s' line) $     --  TODO
+                              putStrLn $ show $ head s'       -- safe!
                             loop c s'
 
 shouldSkip :: D.Stack -> Text -> Bool
-shouldSkip s line = null s || T.head line `elem` [',',';']
+shouldSkip s line = null s || T.head line `elem` [',',';']    -- safe!
 
 promptText, errorText :: IsString s => s
 promptText  = ">>> "
