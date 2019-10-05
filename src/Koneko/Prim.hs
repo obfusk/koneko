@@ -17,7 +17,6 @@ module Koneko.Prim (initCtx, replDef) where
 import Control.Monad (unless)
 import Data.Foldable (traverse_)
 import Data.List (isSuffixOf)
-import Data.Monoid ((<>))
 import System.Directory (listDirectory)
 import System.FilePath ((</>))
 import System.Random (getStdRandom, randomR)

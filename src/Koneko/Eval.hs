@@ -51,7 +51,6 @@ import Control.Monad (when)
 import Data.List (intercalate)
 import Data.Text.Lazy (Text)
 import Prelude hiding (lookup)
-import System.Environment (lookupEnv)
 
 import qualified Data.Text.Lazy as T
 import qualified Data.Text.Lazy.IO as T
