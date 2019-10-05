@@ -16,7 +16,7 @@ module Koneko.Repl (
   repl, repl', promptText, errorText, stdinTTY
 ) where
 
-import Control.DeepSeq ((<$!!>))
+import Control.DeepSeq (($!!))
 import Control.Monad (unless)
 import Data.String (IsString)
 import Data.Text.Lazy (Text)
@@ -50,7 +50,7 @@ repl' breakOnError pr ctx st = Prim.replDef ctx >> loop ctx st
     loop c s = prompt' pr >>= maybe (s <$ T.putStrLn "") process
       where
         process line = if T.null line then loop c s else do
-          r <- E.tryK $ id <$!!> E.evalText "(repl)" line c s
+          r <- E.tryK $ (return $!!) =<< E.evalText "(repl)" line c s
           case r of
             Left e    -> do hPutStrLn stderr $ errorText ++ show e
                             if breakOnError then return s else loop c s
