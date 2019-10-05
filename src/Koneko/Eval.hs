@@ -67,10 +67,12 @@ import qualified Koneko.Prld as Prld
 tryK :: IO a -> IO (Either KException a)
 tryK = try
 
--- interface --
-
 eval :: [KValue] -> Evaluator
-eval xs c s = noTC "eval" (evaluate xs TopL) c s
+eval []     _ s = return s
+eval (x:xt) c s = do
+  (s', deferredCall) <- eval1 x c s
+  s'' <- if deferredCall then call c s' else return s'
+  eval xt c s''
 
 evalText :: FilePath -> Text -> Evaluator
 evalText name code c s = eval (R.read' name code) c s
@@ -82,44 +84,26 @@ evalStdin c s = () <$ do
 evalFile :: FilePath -> Evaluator
 evalFile f c s = do code <- T.readFile f; evalText f code c s
 
--- implementation --
+eval1, eval1_ :: KValue -> Context -> Stack -> IO (Stack, Bool)
 
-evaluate :: [KValue] -> Lvl -> TEvaluator
-evaluate []     _   _ s = return (s, NormalR)
-evaluate [x]    lvl c s = do
-  r@(s', ret) <- eval1 x TailP c s
-  if lvl == TopL && ret == TailR
-    then (, NormalR) <$> call c s'
-    else return r
-evaluate (x:xt) lvl c s = noTC "evaluate" (eval1 x NormalP) c s
-                          >>= evaluate xt lvl c
-
-eval1, eval1_ :: KValue -> Pos -> TEvaluator
-
-eval1 x pos c s = do
-  debug <- maybe False (== true) <$> lookup c "__debug__"
+eval1 x c s = do
+  debug <- getDebug c
   when debug $ do
-    let p = if pos == NormalP then " " else "T"
-    putStrLn $ "==> eval<" ++ p ++ "> " ++ show x
+    putStrLn $ "==> eval " ++ show x
     putStrLn $ "--> " ++ intercalate " " (map show $ reverse s)
-  r@(s', _) <- eval1_ x pos c s
-  when debug $ do
+  r@(s', _) <- eval1_ x c s
+  when debug $
     putStrLn $ "<-- " ++ intercalate " " (map show $ reverse s')
   return r
 
 -- TODO: callable?
-eval1_ x pos c s = case x of
-  KPrim _         -> (, NormalR) <$> return (s `push` x)
-  KList (List l)  -> (, NormalR) <$> evalList l c s
-  KIdent i        -> do s' <- pushIdent (unIdent i) c s
-                        tailCall pos c s'
-  KQuot i         -> (, NormalR) <$> pushIdent (unIdent i) c s
-  KBlock b        -> (, NormalR) <$> evalBlock b c s
+eval1_ x c s = case x of
+  KPrim _         -> (, False) <$> return (s `push` x)
+  KList (List l)  -> (, False) <$> evalList l c s
+  KIdent i        -> (, True ) <$> pushIdent (unIdent i) c s
+  KQuot i         -> (, False) <$> pushIdent (unIdent i) c s
+  KBlock b        -> (, False) <$> evalBlock b c s
   _               -> throwIO $ EvalUnexpected $ typeToStr $ typeOf x
-
-tailCall :: Pos -> TEvaluator
-tailCall NormalP  c s = do s' <- call c s; return (s', NormalR)
-tailCall TailP    _ s = return (s, TailR)
 
 -- TODO
 evalList :: [KValue] -> Evaluator
@@ -140,6 +124,8 @@ evalBlock b c s
 -- TODO
 call :: Evaluator
 call c s = do
+  debug <- getDebug c
+  when debug $ putStrLn "*** call ***"
   (x, s') <- pop' s
   case x of
     KPrim (KStr _)  -> error "TODO"
@@ -178,10 +164,7 @@ initContext = do
 
 -- utilities --
 
-noTC :: String -> TEvaluator -> Evaluator
-noTC name f c s = do
-  (s', ret) <- f c s
-  when (ret == TailR) $ error $ name ++ ": TailR"             --  TODO
-  return s'
+getDebug :: Context -> IO Bool
+getDebug c = maybe False (== true) <$> lookup c "__debug__"
 
 -- vim: set tw=70 sw=2 sts=2 et fdm=marker :
