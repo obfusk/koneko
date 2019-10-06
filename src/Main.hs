@@ -11,6 +11,7 @@
 --  --                                                          ; }}}1
 
 {-# LANGUAGE DeriveDataTypeable #-}
+{-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE RecordWildCards #-}
 
 module Main (main) where
@@ -19,11 +20,12 @@ import Control.Monad (when)
 import Data.Monoid ((<>))
 import Data.Version (showVersion)
 import System.Console.CmdArgs hiding (args)
+import System.Console.CmdArgs.Verbosity (isLoud)
 
 import qualified Data.Text.Lazy as T
 import qualified System.Console.CmdArgs as CA
 
-import Koneko.Data (emptyStack)
+import Koneko.Data (defineIn, emptyStack, true)
 import Koneko.Eval (initContext, evalFile, evalStdin, evalText)
 import Koneko.Repl (repl, stdinTTY)
 import Koneko.Test (doctest')
@@ -48,6 +50,7 @@ main = do
     else do
       isatty <- stdinTTY; ctx <- initContext
       let st = emptyStack; int = when interactive . repl ctx
+      isLoud >>= flip when (defineIn ctx "__debug__" true)
       case (eval, args) of
         (Nothing, [])       -> (if isatty || interactive then repl
                                 else evalStdin) ctx st

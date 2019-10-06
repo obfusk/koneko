@@ -17,10 +17,9 @@ module Koneko.Repl (
 ) where
 
 import Control.DeepSeq (($!!))
-import Control.Monad (unless, when)
+import Control.Monad (unless)
 import Data.String (IsString)
 import Data.Text.Lazy (Text)
-import System.Console.CmdArgs.Verbosity (isLoud)
 import System.IO (hFlush, hPutStrLn, stdout, stderr)
 import System.IO.Error (catchIOError, isEOFError)
 import System.Posix.IO (stdInput)
@@ -29,7 +28,7 @@ import System.Posix.Terminal (queryTerminal)
 import qualified Data.Text.Lazy as T
 import qualified Data.Text.Lazy.IO as T
 
-import Koneko.Data (Context, Stack, defineIn, true)
+import Koneko.Data (Context, Stack)
 import Koneko.Eval (evalText, tryK)
 import Koneko.Prim (replDef)
 
@@ -44,7 +43,7 @@ repl c s = () <$ repl' False promptText c s
 -- added to a module before the exception occurred will have taken
 -- effect.
 repl' :: Bool -> Text -> Context -> Stack -> IO Stack
-repl' breakOnError pr ctx st = prep >> loop ctx st
+repl' breakOnError pr ctx st = replDef ctx >> loop ctx st
   where
     loop :: Context -> Stack -> IO Stack
     loop c s = prompt' pr >>= maybe (s <$ T.putStrLn "") process
@@ -57,8 +56,6 @@ repl' breakOnError pr ctx st = prep >> loop ctx st
             Right s'  -> do unless (shouldSkip s' line) $     --  TODO
                               putStrLn $ show $ head s'       -- safe!
                             loop c s'
-    prep  = replDef ctx >> isLoud >>=
-            flip when (defineIn ctx "__debug__" true)
 
 shouldSkip :: Stack -> Text -> Bool
 shouldSkip s line = null s || T.head line `elem` [',',';']    -- safe!
