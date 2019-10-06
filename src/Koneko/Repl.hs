@@ -2,7 +2,7 @@
 --
 --  File        : Koneko/Repl.hs
 --  Maintainer  : Felix C. Stegerman <flx@obfusk.net>
---  Date        : 2019-10-05
+--  Date        : 2019-10-06
 --
 --  Copyright   : Copyright (C) 2019  Felix C. Stegerman
 --  Version     : v0.0.1
@@ -17,9 +17,10 @@ module Koneko.Repl (
 ) where
 
 import Control.DeepSeq (($!!))
-import Control.Monad (unless)
+import Control.Monad (unless, when)
 import Data.String (IsString)
 import Data.Text.Lazy (Text)
+import System.Console.CmdArgs.Verbosity (isLoud)
 import System.IO (hFlush, hPutStrLn, stdout, stderr)
 import System.IO.Error (catchIOError, isEOFError)
 import System.Posix.IO (stdInput)
@@ -28,14 +29,13 @@ import System.Posix.Terminal (queryTerminal)
 import qualified Data.Text.Lazy as T
 import qualified Data.Text.Lazy.IO as T
 
-import qualified Koneko.Data as D
-import qualified Koneko.Eval as E
-
-import qualified Koneko.Prim as Prim
+import Koneko.Data (Context, Stack, defineIn, true)
+import Koneko.Eval (evalText, tryK)
+import Koneko.Prim (replDef)
 
 -- TODO: readline? or just rlwrap?
 
-repl :: D.Context -> D.Stack -> IO ()
+repl :: Context -> Stack -> IO ()
 repl c s = () <$ repl' False promptText c s
 
 -- | NB: when an exception is caught during the evaluation of a line,
@@ -43,22 +43,24 @@ repl c s = () <$ repl' False promptText c s
 -- to what it was before that line; however, any definitions that were
 -- added to a module before the exception occurred will have taken
 -- effect.
-repl' :: Bool -> Text -> D.Context -> D.Stack -> IO D.Stack
-repl' breakOnError pr ctx st = Prim.replDef ctx >> loop ctx st
+repl' :: Bool -> Text -> Context -> Stack -> IO Stack
+repl' breakOnError pr ctx st = prep >> loop ctx st
   where
-    loop :: D.Context -> D.Stack -> IO D.Stack
+    loop :: Context -> Stack -> IO Stack
     loop c s = prompt' pr >>= maybe (s <$ T.putStrLn "") process
       where
         process line = if T.null line then loop c s else do
-          r <- E.tryK $ (return $!!) =<< E.evalText "(repl)" line c s
+          r <- tryK $ (return $!!) =<< evalText "(repl)" line c s
           case r of
             Left e    -> do hPutStrLn stderr $ errorText ++ show e
                             if breakOnError then return s else loop c s
             Right s'  -> do unless (shouldSkip s' line) $     --  TODO
                               putStrLn $ show $ head s'       -- safe!
                             loop c s'
+    prep  = replDef ctx >> isLoud >>=
+            flip when (defineIn ctx "__debug__" true)
 
-shouldSkip :: D.Stack -> Text -> Bool
+shouldSkip :: Stack -> Text -> Bool
 shouldSkip s line = null s || T.head line `elem` [',',';']    -- safe!
 
 promptText, errorText :: IsString s => s

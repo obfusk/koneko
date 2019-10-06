@@ -2,7 +2,7 @@
 --
 --  File        : Main.hs
 --  Maintainer  : Felix C. Stegerman <flx@obfusk.net>
---  Date        : 2019-10-03
+--  Date        : 2019-10-06
 --
 --  Copyright   : Copyright (C) 2019  Felix C. Stegerman
 --  Version     : v0.0.1
@@ -23,11 +23,11 @@ import System.Console.CmdArgs hiding (args)
 import qualified Data.Text.Lazy as T
 import qualified System.Console.CmdArgs as CA
 
+import Koneko.Data (emptyStack)
+import Koneko.Eval (initContext, evalFile, evalStdin, evalText)
 import Koneko.Repl (repl, stdinTTY)
+import Koneko.Test (doctest')
 
-import qualified Koneko.Data as D
-import qualified Koneko.Eval as E
-import qualified Koneko.Test as TE
 import qualified Paths_koneko as P
 
 version :: String
@@ -44,17 +44,17 @@ data KonekoCmd = KonekoCmd {
 main :: IO ()
 main = do
     KonekoCmd{..} <- cmdArgs cmd
-    if doctest then TE.doctest' args
+    if doctest then doctest' args
     else do
-      isatty <- stdinTTY; ctx <- E.initContext
-      let st = D.emptyStack; int = when interactive . repl ctx
+      isatty <- stdinTTY; ctx <- initContext
+      let st = emptyStack; int = when interactive . repl ctx
       case (eval, args) of
         (Nothing, [])       -> (if isatty || interactive then repl
-                                else E.evalStdin) ctx st
-        (Nothing, script:_) -> E.evalFile script ctx st >>= int
+                                else evalStdin) ctx st
+        (Nothing, script:_) -> evalFile script ctx st >>= int
         (Just code, _)      -> evalString code ctx st >>= int
   where
-    evalString = E.evalText "(code)" . T.pack
+    evalString = evalText "(code)" . T.pack
     cmd = KonekoCmd {
       args        = def &= CA.args &= typ argSpec,
       eval        = def &= typ "CODE"

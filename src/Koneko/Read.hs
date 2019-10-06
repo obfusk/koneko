@@ -2,7 +2,7 @@
 --
 --  File        : Koneko/Read.hs
 --  Maintainer  : Felix C. Stegerman <flx@obfusk.net>
---  Date        : 2019-10-04
+--  Date        : 2019-10-06
 --
 --  Copyright   : Copyright (C) 2019  Felix C. Stegerman
 --  Version     : v0.0.1
@@ -69,18 +69,18 @@ read' :: FilePath -> Text -> [KValue]
 read' f code  = either (throw . D.ParseError . errorBundlePretty) id
               $ parse program f code
 
--- parser: KPrim --
+-- parser: primitives --
 
-nil, bool, int, float, str, kwd :: Parser KPrim
+nil, bool, int, float, str, kwd :: Parser KValue
 
-bool = (KBool False <$ string "#f") <|>
-       (KBool True  <$ string "#t")
+bool = (D.false <$ string "#f") <|>
+       (D.true  <$ string "#t")
 
-nil   = KNil        <$ string "nil"
-int   = KInt        <$> pInt
-float = KFloat      <$> pFloat
-str   = KStr        <$> _str
-kwd   = KKwd . Kwd  <$> (char ':' *> (_str <|> pIdent))
+nil   = D.nil   <$ string "nil"
+int   = D.int   <$> pInt
+float = D.float <$> pFloat
+str   = D.str   <$> _str
+kwd   = D.kwd   <$> (char ':' *> (_str <|> pIdent))
 
 _str :: Parser Text
 _str = char '"' >> T.concat <$> manyTill (esc <|> chr) (char '"')
@@ -91,23 +91,21 @@ _str = char '"' >> T.concat <$> manyTill (esc <|> chr) (char '"')
 
 -- TODO: rx
 
--- parser: KValue --
+-- parser: values --
 
-prim, list, ident, quot, block, value :: Parser KValue
+prim, list, ident, quot, block :: Parser KValue
 
-prim = KPrim <$> choice prims
-  where
-    prims = map (try . lexeme) [nil, int, float] ++
-            map        lexeme  [bool, str, kwd]
+prim = choice $ map (try . lexeme) [nil, int, float] ++
+                map        lexeme  [bool, str, kwd]
 
-list = try $ KList . List <$> (a <|> b)
+list = try $ D.list <$> (a <|> b)
   where
     a = [] <$ symbol "()"
     b = symbol "(" *> manyValuesTill (symbol ")")
 
 -- TODO: dict
 
--- | NB: also matches float and int but they match earlier
+-- | NB: also matches float and int (but they match earlier)
 ident = KIdent <$> ident_
 
 ident_ :: Parser Ident
@@ -130,7 +128,7 @@ block = try $ KBlock <$> do
 dot, bang :: Parser [KValue]
 
 dot     = char '.' >> _dot <$> ident_
-bang    = char '!' >> ((++ [_call]) . _dot) <$> ident_
+bang    = char '!' >> (++ [_call]) . _dot <$> ident_
 
 _dot :: Ident -> [KValue]
 _dot i  = [D.kwd $ D.unIdent i, _swap, _call]
@@ -139,25 +137,23 @@ _swap, _call :: KValue
 _swap   = KIdent $ fromJust $ D.ident "swap" -- safe!
 _call   = KIdent $ fromJust $ D.ident "call" -- safe!
 
--- TODO: foo() foo{}
+-- TODO: foo() foo{} etc.
 
--- parser: [KValue] --
+-- parser: multiple values & program --
 
 -- | NB: match ident last
-value = choice [prim, list, quot, block, ident]
+oneValue :: Parser KValue
+oneValue = choice [prim, list, quot, block, ident]
 
--- ... TODO ...
+value_, manyValues, program :: Parser [KValue]
 
-value_ :: Parser [KValue]
-value_ = (:[]) <$> value <|> choice [dot, bang]
+value_ = (:[]) <$> oneValue <|> choice [dot, bang]
 
-manyValues :: Parser [KValue]
 manyValues = concat <$> many value_
 
 manyValuesTill :: Parser a -> Parser [KValue]
 manyValuesTill end = concat <$> manyTill value_ end
 
-program :: Parser [KValue]
 program = optional shebang *> sp *> manyValues <* eof
 
 shebang :: Parser ()
