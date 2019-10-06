@@ -10,20 +10,21 @@ endif
 syn match   knkIdent      '[^':.! \t]\S*'
 
 syn keyword knkLit        nil
-syn match   knkBool       '#[tf]'
-syn match   knkInt        '\d\+'
+syn match   knkBool       '#[tf]\(\s\|$\)\@='
+syn match   knkInt        '\d\+\(\s\|$\)\@='
 syn match   knkKwd        ':\S\+'
-syn match   knkStr        '"\(\\.\|[^\\"]\)*"'
+syn match   knkStr        '"\(\\.\|[^\\"]\)*"\(\s\|$\)\@='
 
-syn keyword knkPrim       call if def show say
-syn match   knkPrimMore   '=>\|__\S\+__'
+syn keyword knkPrim       call apply if def show say not and or
+syn match   knkPrimMore
+  \ '\(/\?=\|[<>]=\?\|=>\|int->float\|__\S\+__\)\(\s\|$\)\@='
 
 syn match   knkParen      '[(){}\[\]]\(\s\|$\)\@='
 syn match   knkSpecial    '[\'.!]'
 
 syn match   knkQuot       '\'\@<=\S*'
 
-syn match   knkFloat      '\d\+\(\.\d\+e\d\+\|\.\d\+\|e\d\+\)'
+syn match   knkFloat      '\d\+\(\.\d\+e\d\+\|\.\d\+\|e\d\+\)\(\s\|$\)\@='
 
 syn match   knkComment    ';.*'
 
