@@ -47,8 +47,7 @@ import Text.Megaparsec.Char hiding (space, space1)
 import qualified Data.Text.Lazy as T
 import qualified Text.Megaparsec.Char.Lexer as L
 
-import Koneko.Data (Kwd(..), Ident, List(..), Block(..), KPrim(..),
-                    KValue(..))
+import Koneko.Data (Ident, Block(..), KValue(..))
 import Koneko.Misc (Parser, pIdent, brackets, pInt, pFloat,
                     isSpaceOrComma)
 
