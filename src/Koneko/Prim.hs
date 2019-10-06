@@ -40,7 +40,8 @@ initCtx ctxMain call = do
       arithF "__float+__" (+), arithF "__float-__" (-),
       arithF "__float*__" (*), arithF "__float/__" (/),
       intToFloat,
-      not_, comp "=" (==), comp "/=" (/=), comp "<" (<),
+      not_, and_, or_,
+      comp "=" (==), comp "/=" (/=), comp "<" (<),
       comp "<=" (<=), comp ">" (>), comp ">=" (>=),
       showStack, clearStack, nya
       -- ...
@@ -95,8 +96,10 @@ intToFloat
 
 -- primitives: Eq, Ord --
 
-not_ :: Builtin
-not_ = mkPrim "not" $ pop1push $ \x -> [not x]
+not_, and_, or_ :: Builtin
+not_  = mkPrim "not"  $ pop1push $ \x   -> [not $ truthy x]
+and_  = mkPrim "and"  $ pop2push $ \x y -> [truthy x && truthy y]
+or_   = mkPrim "or"   $ pop2push $ \x y -> [truthy x || truthy y]
 
 comp :: Identifier -> (KValue -> KValue -> Bool) -> Builtin
 comp name op = mkPrim name $ pop2push $ \x y -> [x `op` y]

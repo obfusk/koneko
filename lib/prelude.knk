@@ -49,15 +49,23 @@
 
 :empty? [ .empty?   ] def
 :len    [ .len      ] def
-:get    [ swap !get ] def
+:get    [ swap !get ] def ; TODO: safe version
 
 ; -- lists --
 
 :head   [ .head   ] def
 :tail   [ .tail   ] def
 
+:head^  [ 'head 'empty? ornil ] def
+:tail^  [ 'tail 'empty? ornil ] def
+
 :cons   [ !cons   ] def
 :uncons [ .uncons ] def
+
+; -- miscellaneous --
+
+:ornil  [ nil ordef ] def
+:ordef  [ f p? d . dup p? [ drop 'd ] 'f if ] def
 
 ; -- TODO --
 
