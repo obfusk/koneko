@@ -1,5 +1,5 @@
 " Vim syntax file
-" Language:   kokeko
+" Language:   koneko
 " Maintainer: Felix C. Stegerman <flx@obfusk.net>
 " URL:        https://github.com/obfusk/koneko
 
@@ -48,4 +48,4 @@ hi def link knkFloat      Constant
 
 hi def link knkComment    Comment
 
-let b:current_syntax = "kokeko"
+let b:current_syntax = "koneko"
