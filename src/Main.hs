@@ -20,7 +20,6 @@ import Control.Monad (when)
 import Data.Monoid ((<>))
 import Data.Version (showVersion)
 import System.Console.CmdArgs hiding (args)
-import System.Console.CmdArgs.Verbosity (isLoud)
 
 import qualified Data.Text.Lazy as T
 import qualified System.Console.CmdArgs as CA
