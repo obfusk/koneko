@@ -270,7 +270,9 @@ instance Show List where
   show (List l)   = "( " ++ intercalate " " (map show l) ++ " )"
 
 instance Show Dict where
-  show (Dict d) = "{ " ++ intercalate " " (map f $ H.toList d) ++ " }"
+  show (Dict d)
+      | H.null d  = "{ }"
+      | otherwise = "{ " ++ intercalate ", " (map f $ H.toList d) ++ " }"
     where
       f (k, v) = show $ Pair (Kwd k) v
 
@@ -728,11 +730,11 @@ str = toVal
 kwd :: Text -> KValue
 kwd = toVal . Kwd
 
-pair :: Kwd -> KValue -> KValue
-pair k v = toVal $ Pair k v
+pair :: ToVal a => Kwd -> a -> KValue
+pair k v = toVal $ Pair k $ toVal v
 
-list :: [KValue] -> KValue
-list = toVal
+list :: ToVal a => [a] -> KValue
+list = toVal . map toVal
 
 dict :: [Pair] -> KValue
 dict = toVal

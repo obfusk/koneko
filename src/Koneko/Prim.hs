@@ -69,7 +69,7 @@ if_ call = mkPrim "if" $ \c s -> do
 def = mkPrim "def" $ \c s -> do
   ((Kwd k, v), s') <- pop2' s; s' <$ defineIn c k v
 
-mkPair = mkPrim "=>" $ pop2push1 pair
+mkPair = mkPrim "=>" $ pop2push1 Pair
 
 -- needed as primitive by read for .foo
 swap = mkPrim "swap" $ pop2push $ \x y -> [y, x] :: [KValue]
