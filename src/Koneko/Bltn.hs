@@ -2,7 +2,7 @@
 --
 --  File        : Koneko/Bltn.hs
 --  Maintainer  : Felix C. Stegerman <flx@obfusk.net>
---  Date        : 2019-10-06
+--  Date        : 2019-10-07
 --
 --  Copyright   : Copyright (C) 2019  Felix C. Stegerman
 --  Version     : v0.0.1
@@ -22,7 +22,7 @@ import Koneko.Data
 initCtx :: Context -> IO Context
 initCtx ctxPrim = do
   ctxBltn <- forkContext bltnModule ctxPrim
-  traverse_ (defPrim ctxPrim) typePreds
+  traverse_ (defPrim ctxBltn) typePreds
   -- ...
   return ctxBltn
 

@@ -2,7 +2,7 @@
 --
 --  File        : Koneko/Data.hs
 --  Maintainer  : Felix C. Stegerman <flx@obfusk.net>
---  Date        : 2019-10-06
+--  Date        : 2019-10-07
 --
 --  Copyright   : Copyright (C) 2019  Felix C. Stegerman
 --  Version     : v0.0.1
@@ -59,15 +59,17 @@ module Koneko.Data (
   unIdent, ident, List(..), Dict(..), Block(..), Builtin(..),
   Multi(..), RecordT(..), Record, recType, recValues, record, Scope,
   Context, ctxScope, Pair(..), KPrim(..), KValue(..), KType(..),
-  Stack, escapeFrom, escapeTo, ToVal, toVal, FromVal, fromVal,
+  Stack, escapeFrom, escapeTo, ToVal, toVal, FromVal, fromVal, toVals,
+  fromVals, maybeToVal, maybeToNil, eitherToVal, eitherToNil,
   emptyStack, push', push, rpush, rpush1, pop, pop2, pop3, pop',
   pop2', pop3', pop1push, pop2push, pop1push1, pop2push1, primModule,
   bltnModule, prldModule, mainModule, initMainContext, forkContext,
-  forkScope, defineIn, lookup, typeOf, typeToKwd, typeToStr, isNil,
-  isBool, isInt, isFloat, isStr, isKwd, isPair, isList, isDict,
-  isIdent, isQuot, isBlock, isBuiltin, isMulti, isRecordT, isRecord,
-  isCallable, nil, false, true, bool, int, float, str, kwd, pair,
-  list, dict, block, mkPrim, mkBltn, defPrim, truthy
+  forkScope, defineIn, scopeModuleName, lookup, lookupModule',
+  moduleKeys, typeOf, typeToKwd, typeToStr, isNil, isBool, isInt,
+  isFloat, isStr, isKwd, isPair, isList, isDict, isIdent, isQuot,
+  isBlock, isBuiltin, isMulti, isRecordT, isRecord, isCallable, nil,
+  false, true, bool, int, float, str, kwd, pair, list, dict, block,
+  mkPrim, mkBltn, defPrim, truthy
 ) where
 
 import Control.DeepSeq (deepseq, NFData(..))
@@ -456,6 +458,24 @@ instance FromVal KValue where
 -- * ident, quot (both Ident)
 -- * builtin, multi, record(-type) (no need?)
 
+toVals :: ToVal a => [a] -> [KValue]
+toVals = map toVal
+
+fromVals :: FromVal a => [KValue] -> Either KException [a]
+fromVals = traverse fromVal
+
+maybeToVal :: ToVal a => KValue -> Maybe a -> KValue
+maybeToVal = flip maybe toVal
+
+maybeToNil :: ToVal a => Maybe a -> KValue
+maybeToNil = maybeToVal nil
+
+eitherToVal :: ToVal a => KValue -> Either e a -> KValue
+eitherToVal = flip either toVal . const
+
+eitherToNil :: ToVal a => Either e a -> KValue
+eitherToNil = eitherToVal nil
+
 -- Stack functions --
 
 emptyStack :: Stack
@@ -568,14 +588,19 @@ forkScope l  c s  = c { ctxScope = Scope { parent = Right s,
                                            table  = H.fromList l } }
 
 -- TODO: error if already exists (or prim, etc.)
+-- throws ModuleNotFound
 defineIn :: Context -> Identifier -> KValue -> IO ()
 defineIn c k v = do curMod <- scopeModule c; HT.insert curMod k v
 
+-- throws ModuleNotFound
 scopeModule :: Context -> IO Module
-scopeModule c = let f s = either (getModule c) f $ parent s
-                in f $ ctxScope c
+scopeModule c = getModule c $ scopeModuleName c
+
+scopeModuleName :: Context -> Identifier
+scopeModuleName = let f s = either id f $ parent s in f . ctxScope
 
 -- Prim -> Scope* -> Module -> Prel -> Bltn
+-- throws ModuleNotFound
 lookup :: Context -> Identifier -> IO (Maybe KValue)
 lookup c k = first [lookupPrim, lookupScope $ ctxScope c,
                     lookupPrel, lookupBltn]
@@ -589,9 +614,21 @@ lookup c k = first [lookupPrim, lookupScope $ ctxScope c,
     first []      = return Nothing
     first (x:xt)  = x >>= maybe (first xt) (return . Just)
 
+-- throws ModuleNotFound
 lookupModule :: Context -> Identifier -> Identifier -> IO (Maybe KValue)
 lookupModule c k modName = getModule c modName >>= flip HT.lookup k
 
+-- throws ModuleNotFound or LookupFailed
+lookupModule' :: Context -> Identifier -> Identifier -> IO KValue
+lookupModule' c k m = maybe err return =<< lookupModule c k m
+  where
+    err = throwIO $ LookupFailed $ T.unpack k
+
+-- throws ModuleNotFound
+moduleKeys :: Context -> Identifier -> IO [Identifier]
+moduleKeys c m = getModule c m >>= (map fst <$>) <$> HT.toList
+
+-- throws ModuleNotFound
 getModule :: Context -> Identifier -> IO Module
 getModule c modName = HT.lookup (modules c) modName >>= maybe err return
   where

@@ -2,7 +2,7 @@
 --
 --  File        : Koneko/Eval.hs
 --  Maintainer  : Felix C. Stegerman <flx@obfusk.net>
---  Date        : 2019-10-06
+--  Date        : 2019-10-07
 --
 --  Copyright   : Copyright (C) 2019  Felix C. Stegerman
 --  Version     : v0.0.1
@@ -53,6 +53,7 @@ import Data.Monoid((<>))
 import Data.Text.Lazy (Text)
 import Prelude hiding (lookup)
 import Safe (atMay)
+import System.IO (hPutStrLn, stderr)
 
 import qualified Data.Text.Lazy as T
 import qualified Data.Text.Lazy.IO as T
@@ -90,11 +91,11 @@ eval1, eval1_ :: KValue -> Context -> Stack -> IO (Stack, Bool)
 eval1 x c s = do
   debug <- getDebug c
   when debug $ do
-    putStrLn $ "==> eval " ++ show x
-    putStrLn $ "--> " ++ intercalate " " (map show $ reverse s)
+    hPutStrLn stderr $ "==> eval " ++ show x
+    hPutStrLn stderr $ "--> " ++ intercalate " " (map show $ reverse s)
   r@(s', _) <- eval1_ x c s
   when debug $
-    putStrLn $ "<-- " ++ intercalate " " (map show $ reverse s')
+    hPutStrLn stderr $ "<-- " ++ intercalate " " (map show $ reverse s')
   return r
 
 eval1_ x c s = case x of
@@ -121,7 +122,7 @@ evalBlock b c s = rpush1 s b { blkScope = Just $ ctxScope c }
 -- TODO
 call :: Evaluator
 call c s = do
-  getDebug c >>= flip when (putStrLn "*** call ***")
+  getDebug c >>= flip when (hPutStrLn stderr "*** call ***")
   (x, s') <- pop' s
   case x of
     KPrim (KStr _)  -> error "TODO"

@@ -15,8 +15,8 @@ syn match   knkInt        '\d\+\(\s\|$\)\@='
 syn match   knkKwd        ':\S\+'
 syn match   knkStr        '"\(\\.\|[^\\"]\)*"\(\s\|$\)\@='
 
-syn keyword knkPrim       call apply if def show say type not and or
-syn match   knkPrimMore   '\(callable?\|/\?=\|[<>]=\?\|=>\|int->float\|__\S\+__\)\(\s\|$\)\@='
+syn keyword knkPrim       call apply if def show say ask type not and or
+syn match   knkPrimMore   '\(=>\|callable?\|/\?=\|[<>]=\?\|int->float\|__\S\+__\)\(\s\|$\)\@='
 
 syn match   knkParen      '[(){}\[\]]\(\s\|$\)\@='
 syn match   knkSpecial    '[\'.!]'

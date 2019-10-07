@@ -2,7 +2,7 @@
 --
 --  File        : Koneko/Misc.hs
 --  Maintainer  : Felix C. Stegerman <flx@obfusk.net>
---  Date        : 2019-09-30
+--  Date        : 2019-10-07
 --
 --  Copyright   : Copyright (C) 2019  Felix C. Stegerman
 --  Version     : v0.0.1
@@ -13,17 +13,21 @@
 {-# LANGUAGE OverloadedStrings #-}
 
 module Koneko.Misc (
-  Parser, isIdent, pIdent, brackets, pInt, pFloat, isSpaceOrComma
+  Parser, isIdent, pIdent, brackets, pInt, pFloat, isSpaceOrComma,
+  prompt', prompt
 ) where
 
 import Data.Char (isSpace)
 import Data.Maybe (isJust)
 import Data.Text.Lazy (Text)
 import Data.Void (Void)
+import System.IO (hFlush, stdout)
+import System.IO.Error (catchIOError, isEOFError)
 import Text.Megaparsec
 import Text.Megaparsec.Char
 
 import qualified Data.Text.Lazy as T
+import qualified Data.Text.Lazy.IO as T
 import qualified Text.Megaparsec.Char.Lexer as L
 
 type Parser = Parsec Void Text
@@ -56,7 +60,7 @@ isIdent s = parses pIdent s && not (parses pInt s || parses pFloat s)
 
 -- | NB: also matches float and int
 pIdent :: Parser Text
-pIdent = fmap T.pack $ (:) <$> hdChar <*> many tlChar
+pIdent = T.pack <$> ((:) <$> hdChar <*> many tlChar)
   where
     hdChar  = letterChar <|> numberChar <|>
               oneOf identSpecial <|> oneOf brackets
@@ -86,5 +90,14 @@ parses p = isJust . parseMaybe p
 
 isSpaceOrComma :: Char -> Bool
 isSpaceOrComma c = isSpace c || c == ','
+
+-- utilities --
+
+prompt' :: Text -> IO (Maybe Text)
+prompt' x = (Just <$> prompt x) `catchIOError` \e ->
+            if isEOFError e then return Nothing else ioError e
+
+prompt :: Text -> IO Text
+prompt x = do T.putStr x; hFlush stdout; T.getLine
 
 -- vim: set tw=70 sw=2 sts=2 et fdm=marker :

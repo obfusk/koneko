@@ -2,7 +2,7 @@
 --
 --  File        : Koneko/Repl.hs
 --  Maintainer  : Felix C. Stegerman <flx@obfusk.net>
---  Date        : 2019-10-06
+--  Date        : 2019-10-07
 --
 --  Copyright   : Copyright (C) 2019  Felix C. Stegerman
 --  Version     : v0.0.1
@@ -20,8 +20,7 @@ import Control.DeepSeq (($!!))
 import Control.Monad (unless)
 import Data.String (IsString)
 import Data.Text.Lazy (Text)
-import System.IO (hFlush, hPutStrLn, stdout, stderr)
-import System.IO.Error (catchIOError, isEOFError)
+import System.IO (hPutStrLn, stderr)
 import System.Posix.IO (stdInput)
 import System.Posix.Terminal (queryTerminal)
 
@@ -30,6 +29,7 @@ import qualified Data.Text.Lazy.IO as T
 
 import Koneko.Data (Context, Stack)
 import Koneko.Eval (evalText, tryK)
+import Koneko.Misc (prompt')
 import Koneko.Prim (replDef)
 
 -- TODO: readline? or just rlwrap?
@@ -66,14 +66,5 @@ errorText   = "*** ERROR: "
 
 stdinTTY :: IO Bool
 stdinTTY = queryTerminal stdInput
-
--- utilities --
-
-prompt' :: Text -> IO (Maybe Text)
-prompt' x = (Just <$> prompt x) `catchIOError` \e ->
-            if isEOFError e then return Nothing else ioError e
-
-prompt :: Text -> IO Text
-prompt x = do T.putStr x; hFlush stdout; T.getLine
 
 -- vim: set tw=70 sw=2 sts=2 et fdm=marker :
