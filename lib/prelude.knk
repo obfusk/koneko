@@ -14,7 +14,6 @@
 ;
 ; * add more functions!
 ; * use multi for arithmetic
-; * test errors
 ;
 ; --
 
@@ -40,6 +39,8 @@
 ; >>> nil
 ; nil
 ; >>> drop
+; >>> drop
+; *** ERROR: stack underflow
 ;
 ; >>> , 1 2 'dup dip swap show-stack
 ; 1
@@ -114,8 +115,11 @@
 ; #f
 ; >>> ( :x :y :z ) len
 ; 3
+;
 ; >>> ( :one :two :three ) 1 get
 ; :two
+; >>> () 0 get
+; *** ERROR: list.get: index error
 ;
 ; --                                                            ; }}}1
 
@@ -139,6 +143,11 @@
 ; 1
 ; >>> cons
 ; ( 1 2 3 )
+;
+; >>> () head
+; *** ERROR: list.head: empty list
+; >>> () tail
+; *** ERROR: list.tail: empty list
 ;
 ; >>> () head^
 ; nil

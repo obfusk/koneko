@@ -38,8 +38,9 @@ import qualified Data.Text.Lazy.IO as T
 import qualified System.IO as IO
 import qualified System.IO.Silently as S
 
-import qualified Koneko.Data as D
-import qualified Koneko.Eval as E
+import Koneko.Data (Context, Stack, emptyStack)
+import Koneko.Eval (initContext)
+
 import qualified Koneko.Repl as RE
 
 data Example = Example {
@@ -174,14 +175,14 @@ testExamples verb ex = do
 -- TODO
 testExampleGroup :: Verbosity -> ExampleGroup -> IO (Int, Int, Int)
 testExampleGroup verb g = do
-    ctx <- E.initContext
-    let st = D.emptyStack; total = length g
+    ctx <- initContext
+    let st = emptyStack; total = length g
     (ok, fail, _) <- loop 0 0 g ctx st
     when (verb == Loud) $ do printTTPF total ok fail; putStrLn ""
     return (total, ok, fail)
   where
     loop :: Int -> Int -> ExampleGroup
-         -> D.Context -> D.Stack -> IO (Int, Int, D.Stack)
+         -> Context -> Stack -> IO (Int, Int, Stack)
     loop ok fail [] _ s = return (ok, fail, s)
     loop ok fail (e@Example{..}:et) c s = do
       (out, err, s') <- provide (T.unpack inputLine)
@@ -197,9 +198,11 @@ testExampleGroup verb g = do
     asLines x = let l = T.lines $ T.pack x in
                 if not (null l) && last l == "" then init l else l
 
--- TODO: stderr, "...", ...
+-- TODO: "...", ...
 compareOutput :: [Text] -> [Text] -> [Text] -> Bool
-compareOutput exp got err = exp' == got && null err
+compareOutput exp got err
+    = if null err then exp' == got else null got &&
+      T.isPrefixOf RE.errorText (head err) && exp' == err
   where
     exp' = [ if l == "<BLANKLINE>" then "" else l | l <- exp ]
 
