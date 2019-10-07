@@ -2,7 +2,7 @@
 --
 --  File        : Koneko/Prim.hs
 --  Maintainer  : Felix C. Stegerman <flx@obfusk.net>
---  Date        : 2019-10-05
+--  Date        : 2019-10-06
 --
 --  Copyright   : Copyright (C) 2019  Felix C. Stegerman
 --  Version     : v0.0.1
@@ -33,7 +33,7 @@ initCtx ctxMain call = do
   ctxPrim <- forkContext primModule ctxMain
   traverse_ (defPrim ctxPrim) [
       mkPrim "call" call, apply call, if_ call,
-      def, mkPair, swap, show_, say,
+      def, mkPair, swap, show_, say, type_, callable,
       arithI "__int+__" (+), arithI "__int-__" (-),
       arithI "__int*__" (*),
       arithI "__div__" div, arithI "__mod__" mod,
@@ -48,42 +48,44 @@ initCtx ctxMain call = do
     ]
   return ctxPrim
 
-defPrim :: Context -> Builtin -> IO ()
-defPrim ctx f = defineIn ctx (biName f) $ KBuiltin f
-
 -- primitives: miscellaneous --
 
 apply, if_ :: Evaluator -> Builtin
 
 -- TODO
-apply call = mkPrim "apply" $ \c s -> do
-  ((List l, f), s1) <- pop' s
+apply call = mkPrim "apply" $ \c s0 -> do
+  ((l, f), s1) <- pop2' s0
   s2 <- call c (f:reverse l)
   return $ s2 ++ s1
 
 if_ call = mkPrim "if" $ \c s -> do
-  ((cond, t_br, f_br), s') <- pop' s
+  ((cond, t_br, f_br), s') <- pop3' s
   call c $ push' s' $ if truthy cond then t_br else f_br
 
-def, mkPair, swap, show_, say :: Builtin
+def, mkPair, swap, show_, say, type_, callable :: Builtin
 
 def = mkPrim "def" $ \c s -> do
-  ((Kwd k, v), s') <- pop' s; s' <$ defineIn c k v
+  ((Kwd k, v), s') <- pop2' s; s' <$ defineIn c k v
 
-mkPair = mkPrim "=>" $ pop2push $ \k v -> [pair k v]
+mkPair = mkPrim "=>" $ pop2push1 pair
 
 -- needed as primitive by read for .foo
 swap = mkPrim "swap" $ pop2push $ \x y -> [y, x] :: [KValue]
 
-show_ = mkPrim "show" $ pop1push $ \x -> [T.pack $ show (x :: KValue)]
+show_ = mkPrim "show" $ pop1push1 $ T.pack . (show :: KValue -> String)
 
 -- NB: uses stdout
 say = mkPrim "say" $ \_ s -> do (x, s') <- pop' s; s' <$ T.putStrLn x
 
+type_ = mkPrim "type" $ pop1push1 $ typeToKwd . typeOf
+
+callable = mkPrim "callable?" $ pop1push1 isCallable
+
 -- primitives: arithmetic, comparison --
 
-arith :: (Pop a, Push a) => Identifier -> (a -> a -> a) -> Builtin
-arith name op = mkPrim name $ pop2push $ \x y -> [x `op` y]
+arith :: (FromVal a, ToVal a)
+      => Identifier -> (a -> a -> a) -> Builtin
+arith name op = mkPrim name $ pop2push1 op
 
 arithI :: Identifier -> (Integer -> Integer -> Integer) -> Builtin
 arithF :: Identifier -> (Double  -> Double  -> Double ) -> Builtin
@@ -91,18 +93,18 @@ arithI = arith
 arithF = arith
 
 intToFloat :: Builtin
-intToFloat
-  = mkPrim "int->float" $ pop1push $ \x -> [fromInteger x :: Double]
+intToFloat  = mkPrim "int->float"
+            $ pop1push1 (fromInteger :: Integer -> Double)
 
 -- primitives: Eq, Ord --
 
 not_, and_, or_ :: Builtin
-not_  = mkPrim "not"  $ pop1push $ \x   -> [not $ truthy x]
-and_  = mkPrim "and"  $ pop2push $ \x y -> [truthy x && truthy y]
-or_   = mkPrim "or"   $ pop2push $ \x y -> [truthy x || truthy y]
+not_  = mkPrim "not"  $ pop1push1 $ not . truthy
+and_  = mkPrim "and"  $ pop2push1 $ \x y -> truthy x && truthy y
+or_   = mkPrim "or"   $ pop2push1 $ \x y -> truthy x || truthy y
 
 comp :: Identifier -> (KValue -> KValue -> Bool) -> Builtin
-comp name op = mkPrim name $ pop2push $ \x y -> [x `op` y]
+comp name op = mkPrim name $ pop2push1 op
 
 -- repl --
 

@@ -2,7 +2,7 @@
 --
 --  File        : Koneko/Eval.hs
 --  Maintainer  : Felix C. Stegerman <flx@obfusk.net>
---  Date        : 2019-10-05
+--  Date        : 2019-10-06
 --
 --  Copyright   : Copyright (C) 2019  Felix C. Stegerman
 --  Version     : v0.0.1
@@ -26,7 +26,7 @@
 -- >>> ev [str "Hello, World!", KIdent $ id "say"]
 -- Hello, World!
 -- []
--- >>> ev [val 1, val 2, KIdent $ id "-"]
+-- >>> ev [int 1, int 2, KIdent $ id "-"]
 -- [-1]
 --
 -- >>> ev x = evalText "" x ctx []
@@ -69,14 +69,14 @@ tryK :: IO a -> IO (Either KException a)
 tryK = try
 
 eval :: [KValue] -> Evaluator
-eval []     _ s = return s
-eval (x:xt) c s = do
-  (s1, deferredCall) <- eval1 x c s
+eval []     _ s   = return s
+eval (x:xt) c s0  = do
+  (s1, deferredCall) <- eval1 x c s0
   s2 <- if deferredCall then call c s1 else return s1
   eval xt c s2
 
 evalText :: FilePath -> Text -> Evaluator
-evalText name code c s = eval (R.read' name code) c s
+evalText name code = eval $ R.read' name code
 
 evalStdin :: Context -> Stack -> IO ()
 evalStdin c s = () <$ do
@@ -98,7 +98,7 @@ eval1 x c s = do
   return r
 
 eval1_ x c s = case x of
-  KPrim _         -> (, False) <$> rpush s [x]
+  KPrim _         -> (, False) <$> rpush1 s x
   KList (List l)  -> (, False) <$> evalList l c s
   KIdent i        -> (, True ) <$> pushIdent (unIdent i) c s
   KQuot i         -> (, False) <$> pushIdent (unIdent i) c s
@@ -107,9 +107,7 @@ eval1_ x c s = case x of
 
 -- TODO
 evalList :: [KValue] -> Evaluator
-evalList xs c s = do
-  ys <- eval xs c emptyStack
-  rpush s [List $ reverse ys]
+evalList xs c s = do ys <- eval xs c emptyStack; rpush1 s $ reverse ys
 
 -- TODO
 pushIdent :: Text -> Evaluator
@@ -118,13 +116,12 @@ pushIdent i c s = lookup c i >>= maybe err (return . push s)
     err = throwIO $ LookupFailed $ T.unpack i
 
 evalBlock :: Block -> Evaluator
-evalBlock b c s = rpush s [b { blkScope = Just $ ctxScope c }]
+evalBlock b c s = rpush1 s b { blkScope = Just $ ctxScope c }
 
 -- TODO
 call :: Evaluator
 call c s = do
-  debug <- getDebug c
-  when debug $ putStrLn "*** call ***"
+  getDebug c >>= flip when (putStrLn "*** call ***")
   (x, s') <- pop' s
   case x of
     KPrim (KStr _)  -> error "TODO"
@@ -142,9 +139,9 @@ callPair :: Pair -> Evaluator
 callPair Pair{..} _ s = do
   (Kwd k, s') <- pop' s
   case k of
-    "key"   ->  rpush s' [key]
-    "value" ->  rpush s' [value]
-    _       ->  throwIO $ UnknownField (T.unpack k) "pair"
+    "key"   -> rpush1 s' key
+    "value" -> rpush1 s' value
+    _       -> throwIO $ UnknownField (T.unpack k) "pair"
 
 callList :: List -> Evaluator
 callList (List l) _ s = do
@@ -152,18 +149,18 @@ callList (List l) _ s = do
   let o = "list." <> k
       g = when (null l) $ throwIO $ EmptyList $ T.unpack o
   case k of
-    "empty?"  ->  rpush s' [null l]
-    "head"    ->  g >> rpush s' [head l]                        --safe!
-    "tail"    ->  g >> rpush s' [List $ tail l]                 --safe!
-    "uncons"  ->  g >> rpush s' [head l, KList $ List $ tail l] --safe!
-    "cons"    ->  rpush s' $ (:[]) $ mkPrim o $ \_ s1 -> do
-                    (x, s2) <- pop' s1; rpush s2 [List (x:l)]
-    "len"     ->  rpush s' [genericLength l :: Integer]
-    "get"     ->  rpush s' $ (:[]) $ mkPrim o $ \_ s1 -> do
+    "empty?"  ->       rpush1 s' (null l)
+    "head"    ->  g >> rpush1 s' (head l)                       --safe!
+    "tail"    ->  g >> rpush1 s' (tail l)                       --safe!
+    "uncons"  ->  g >> rpush s' [head l, list $ tail l]         --safe!
+    "cons"    ->  rpush1 s' $ mkPrim o $ \_ s1 -> do
+                    (x, s2) <- pop' s1; rpush1 s2 (x:l)
+    "len"     ->  rpush1 s' (genericLength l :: Integer)
+    "get"     ->  rpush1 s' $ mkPrim o $ \_ s1 -> do
                     (n, s2) <- pop' s1
                     case atMay l $ fromInteger n of
                       Nothing -> throwIO $ IndexError $ T.unpack o
-                      Just x  -> rpush s2 [x]
+                      Just x  -> rpush1 s2 x
     _         ->  throwIO $ UnknownField (T.unpack k) "list"
 
 -- TODO

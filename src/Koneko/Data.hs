@@ -11,6 +11,7 @@
 --  --                                                          ; }}}1
 
 {-# LANGUAGE DeriveAnyClass, DeriveGeneric #-}
+{-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE RecordWildCards #-}
@@ -33,6 +34,8 @@
 -- 42
 -- >>> float (-1.23)
 -- -1.23
+-- >>> str "I like 猫s"
+-- "I like 猫s"
 -- >>> kwd "foo"
 -- :foo
 -- >>> pair (Kwd "answer") $ int 42
@@ -46,27 +49,25 @@
 -- >>> block [id "x", id "y"] [q "y", q "x"] undefined
 -- [ x y . 'y 'x ]
 --
--- >>> str "I like 猫s"
--- "I like 猫s"
---
 -- ... TODO ...
 --
 
                                                               --  }}}1
 
 module Koneko.Data (
-  Identifier, Module, PopResult, Evaluator, KException(..), Kwd(..),
-  Ident, unIdent, ident, List(..), Dict(..), Block(..), Builtin(..),
+  Identifier, Module, Evaluator, KException(..), Kwd(..), Ident,
+  unIdent, ident, List(..), Dict(..), Block(..), Builtin(..),
   Multi(..), RecordT(..), Record, recType, recValues, record, Scope,
   Context, ctxScope, Pair(..), KPrim(..), KValue(..), KType(..),
-  Stack, escapeFrom, escapeTo, emptyStack, push', rpush, Push, push,
-  pop, pop', Pop, pop1push, pop2push, primModule, bltnModule,
-  prldModule, mainModule, initMainContext, forkContext, forkScope,
-  defineIn, lookup, typeOf, typeToKwd, typeToStr, isNil, isBool,
-  isInt, isFloat, isStr, isKwd, isPair, isList, isDict, isIdent,
-  isQuot, isBlock, isBuiltin, isMulti, isRecordT, isRecord,
+  Stack, escapeFrom, escapeTo, ToVal, toVal, FromVal, fromVal,
+  emptyStack, push', push, rpush, rpush1, pop, pop2, pop3, pop',
+  pop2', pop3', pop1push, pop2push, pop1push1, pop2push1, primModule,
+  bltnModule, prldModule, mainModule, initMainContext, forkContext,
+  forkScope, defineIn, lookup, typeOf, typeToKwd, typeToStr, isNil,
+  isBool, isInt, isFloat, isStr, isKwd, isPair, isList, isDict,
+  isIdent, isQuot, isBlock, isBuiltin, isMulti, isRecordT, isRecord,
   isCallable, nil, false, true, bool, int, float, str, kwd, pair,
-  list, dict, block, Val, val, truthy, mkPrim, mkBltn
+  list, dict, block, mkPrim, mkBltn, defPrim, truthy
 ) where
 
 import Control.DeepSeq (deepseq, NFData(..))
@@ -103,8 +104,6 @@ type MultiTable         = HashTable [Identifier] Block
 
 type Identifier         = Text
 type Module             = ModuleLookupTable
-type PopResult a        = Either KException (a, Stack)
-
 type Evaluator          = Context -> Stack -> IO Stack
 
 -- TODO
@@ -207,17 +206,9 @@ data KPrim
 
 -- TODO
 data KValue
-    = KPrim     KPrim
-    | KPair     Pair
-    | KList     List
-    | KDict     Dict
-    | KIdent    Ident
-    | KQuot     Ident                                         --  TODO
-    | KBlock    Block
-    | KBuiltin  Builtin
-    | KMulti    Multi
-    | KRecordT  RecordT
-    | KRecord   Record
+    = KPrim KPrim | KPair Pair | KList List | KDict Dict
+    | KIdent Ident | KQuot Ident | KBlock Block | KBuiltin Builtin
+    | KMulti Multi | KRecordT RecordT | KRecord Record
   deriving (Eq, Ord, Generic, NFData)
 
 data KType
@@ -229,6 +220,8 @@ data KType
 type Stack = [KValue]
 
 -- instances --
+
+-- TODO: find some way of comparing these?
 
 instance Eq Block where
   _ == _ = throw $ UncomparableType "block"
@@ -281,14 +274,14 @@ instance Show Dict where
 
 -- TODO
 instance Show Block where
-  show (Block a c _) = case (a,c) of
+  show (Block a c _) = case (a, c) of
       ([], [])  -> "[ ]"
-      ([], _ )  -> "[ " ++ cs ++ " ]"
-      (_ , [])  -> "[ " ++ as ++ " . ]"
-      (_ , _ )  -> "[ " ++ as ++ " . " ++ cs ++ " ]"
+      ([], _ )  -> "[ " ++ f c ++ " ]"
+      (_ , [])  -> "[ " ++ f a ++ " . ]"
+      (_ , _ )  -> "[ " ++ f a ++ " . " ++ f c ++ " ]"
     where
-      as = T.unpack $ T.intercalate " " (map unIdent a)
-      cs = intercalate " " (map show c)
+      f :: Show a => [a] -> String
+      f = intercalate " " . map show
 
 instance Show Builtin where
   show Builtin{..} = "#<" ++ t ++ ":" ++ T.unpack biName ++ ">"
@@ -312,6 +305,7 @@ instance Show Record where
 instance Show Pair where
   show (Pair k v) = show k ++ " " ++ show v ++ " =>"
 
+-- TODO
 instance Show KPrim where
   show KNil       = "nil"
   show (KBool b)  = if b then "#t" else "#f"
@@ -326,7 +320,7 @@ instance Show KValue where
   show (KList l)      = show l
   show (KDict d)      = show d
   show (KIdent i)     = show i
-  show (KQuot x)      = "'" ++ show x
+  show (KQuot i)      = "'" ++ show i
   show (KBlock b)     = show b
   show (KBuiltin b)   = show b
   show (KMulti m)     = show m
@@ -364,6 +358,104 @@ escapeFrom, escapeTo :: [Text]
 escapeFrom  = ["\\r","\\n","\\t","\\\"","\\\\"]
 escapeTo    = [ "\r", "\n", "\t",  "\"",  "\\"]
 
+-- ToVal & FromVal --
+
+class ToVal a where
+  toVal :: a -> KValue
+
+instance ToVal () where
+  toVal () = KPrim KNil
+
+instance ToVal Bool where
+  toVal = KPrim . KBool
+
+instance ToVal Integer where
+  toVal = KPrim . KInt
+
+instance ToVal Double where
+  toVal = KPrim . KFloat
+
+instance ToVal Text where
+  toVal = KPrim . KStr
+
+instance ToVal Kwd where
+  toVal = KPrim . KKwd
+
+instance ToVal Pair where
+  toVal = KPair
+
+instance ToVal [KValue] where
+  toVal = KList . List
+
+instance ToVal [Pair] where
+  toVal = KDict . Dict . H.fromList . map f
+    where
+      f (Pair (Kwd k) v) = (k, v)
+
+instance ToVal Block where
+  toVal = KBlock
+
+instance ToVal Builtin where
+  toVal = KBuiltin
+
+instance ToVal KValue where
+  toVal = id
+
+-- NB: no ToVal for
+-- * ident, quot (both Ident)
+-- * multi, record(-type) (no point)
+
+class FromVal a where
+  fromVal :: KValue -> Either KException a
+
+instance FromVal () where
+  fromVal (KPrim KNil)        = Right ()
+  fromVal _                   = Left $ StackExpected "nil"
+
+instance FromVal Bool where
+  fromVal (KPrim (KBool x))   = Right x
+  fromVal _                   = Left $ StackExpected "bool"
+
+instance FromVal Integer where
+  fromVal (KPrim (KInt x))    = Right x
+  fromVal _                   = Left $ StackExpected "int"
+
+instance FromVal Double where
+  fromVal (KPrim (KFloat x))  = Right x
+  fromVal _                   = Left $ StackExpected "float"
+
+instance FromVal Text where
+  fromVal (KPrim (KStr x))    = Right x
+  fromVal _                   = Left $ StackExpected "str"
+
+instance FromVal Kwd where
+  fromVal (KPrim (KKwd x))    = Right x
+  fromVal _                   = Left $ StackExpected "kwd"
+
+instance FromVal Pair where
+  fromVal (KPair x)           = Right x
+  fromVal _                   = Left $ StackExpected "pair"
+
+instance FromVal [KValue] where
+  fromVal (KList (List x))    = Right x
+  fromVal _                   = Left $ StackExpected "list"
+
+-- NB: ToVal is for [Pair]
+instance FromVal Dict where
+  fromVal (KDict x)           = Right x
+  fromVal _                   = Left $ StackExpected "dict"
+
+instance FromVal Block where
+  fromVal (KBlock x)          = Right x
+  fromVal _                   = Left $ StackExpected "block"
+
+instance FromVal KValue where
+  fromVal x                   = Right x
+
+-- NB: no FromVal for
+-- * ident, quot (both Ident)
+-- * builtin, multi, record(-type) (no need?)
+
 -- Stack functions --
 
 emptyStack :: Stack
@@ -372,127 +464,78 @@ emptyStack = []
 push' :: Stack -> KValue -> Stack
 push' = flip (:)
 
-rpush :: Push a => Stack -> [a] -> IO Stack
+push :: ToVal a => Stack -> a -> Stack
+push s = push' s . toVal
+
+rpush :: ToVal a => Stack -> [a] -> IO Stack
 rpush s = return . foldl push s
 
-class Push a where
-  push :: Stack -> a -> Stack
+rpush1 :: ToVal a => Stack -> a -> IO Stack
+rpush1 s = return . push s
 
-instance Push KValue where
-  push = push'
-
-instance (Push a, Push b) => Push (a, b) where
-  push s (x, y) = s `push` x `push` y
-
-instance (Push a, Push b, Push c) => Push (a, b, c) where
-  push s (x, y, z) = s `push` x `push` y `push` z
-
-instance Push Bool where
-  push s x = s `push` (KPrim $ KBool x)
-
-instance Push Integer where
-  push s x = s `push` (KPrim $ KInt x)
-
-instance Push Double where
-  push s x = s `push` (KPrim $ KFloat x)
-
-instance Push Text where
-  push s x = s `push` (KPrim $ KStr x)
-
-instance Push Kwd where
-  push s x = s `push` (KPrim $ KKwd x)
-
-instance Push List where
-  push s x = s `push` (KList x)
-
-instance Push Block where
-  push s x = s `push` (KBlock x)
-
-instance Push Builtin where
-  push s x = s `push` (KBuiltin x)
-
--- ... TODO ...
-
-pop :: Pop a => Stack -> PopResult a
-pop []  = Left StackUnderflow
-pop s   = pop_ s
-
-pop' :: Pop a => Stack -> IO (a, Stack)
-pop' s = either throwIO return $ pop s
-
-class Pop a where
-  pop_ :: Stack -> PopResult a
-
-instance Pop KValue where
-  pop_ (x:s)  = Right (x, s)
-  pop_ _      = Left StackUnderflow
+pop :: FromVal a => Stack -> Either KException (a, Stack)
+pop []    = Left StackUnderflow
+pop (x:s) = do y <- fromVal x; Right (y, s)
 
 -- | NB: returns popped items in "reverse" order
 --
 -- >>> s = emptyStack `push` 1 `push` 2
 -- >>> fst <$> pop' s :: IO Integer
 -- 2
--- >>> fst <$> pop' s :: IO (Integer, Integer)
+-- >>> fst <$> pop2' s :: IO (Integer, Integer)
 -- (1,2)
 --
 -- stack: ... 1 2 <- top
 --
-instance (Pop a, Pop b) => Pop (a, b) where
-  pop_ s = do
-    (x, s1) <- pop s
-    (y, s2) <- pop s1
-    return ((y, x), s2)
+pop2 :: (FromVal a, FromVal b)
+     => Stack -> Either KException ((a, b), Stack)
+pop2 s0 = do
+  (y, s1) <- pop s0
+  (x, s2) <- pop s1
+  return ((x, y), s2)
 
 -- | NB: returns popped items in "reverse" order
 --
--- >>> s = emptyStack `push` (1, 2, 3)
--- >>> fst <$> pop' s :: IO (Integer, Integer, Integer)
+-- >>> s = emptyStack `push` 1 `push` 2 `push` 3
+-- >>> fst <$> pop3' s :: IO (Integer, Integer, Integer)
 -- (1,2,3)
 --
 -- stack: ... 1 2 3 <- top
 --
-instance (Pop a, Pop b, Pop c) => Pop (a, b, c) where
-  pop_ s = do
-    (x, s1) <- pop s
-    (y, s2) <- pop s1
-    (z, s3) <- pop s2
-    return ((z, y, x), s3)
+pop3 :: (FromVal a, FromVal b, FromVal c)
+     => Stack -> Either KException ((a, b, c), Stack)
+pop3 s0 = do
+  (z, s1) <- pop s0
+  (y, s2) <- pop s1
+  (x, s3) <- pop s2
+  return ((x, y, z), s3)
 
-instance Pop Bool where
-  pop_ (KPrim (KBool x):s)  = Right (x, s)
-  pop_ _                    = Left $ StackExpected "bool"
+pop' :: FromVal a => Stack -> IO (a, Stack)
+pop' = retOrThrow . pop
 
-instance Pop Integer where
-  pop_ (KPrim (KInt x):s)   = Right (x, s)
-  pop_ _                    = Left $ StackExpected "int"
+pop2' :: (FromVal a, FromVal b) => Stack -> IO ((a, b), Stack)
+pop2' = retOrThrow . pop2
 
-instance Pop Double where
-  pop_ (KPrim (KFloat x):s) = Right (x, s)
-  pop_ _                    = Left $ StackExpected "float"
+pop3' :: (FromVal a, FromVal b, FromVal c)
+      => Stack -> IO ((a, b, c), Stack)
+pop3' = retOrThrow . pop3
 
-instance Pop Text where
-  pop_ (KPrim (KStr x):s)   = Right (x, s)
-  pop_ _                    = Left $ StackExpected "str"
+retOrThrow :: Either KException a -> IO a
+retOrThrow = either throwIO return
 
-instance Pop Kwd where
-  pop_ (KPrim (KKwd x):s)   = Right (x, s)
-  pop_ _                    = Left $ StackExpected "kwd"
-
-instance Pop List where
-  pop_ (KList x:s)          = Right (x, s)
-  pop_ _                    = Left $ StackExpected "list"
-
-instance Pop Block where
-  pop_ (KBlock x:s)         = Right (x, s)
-  pop_ _                    = Left $ StackExpected "block"
-
--- ... TODO ...
-
-pop1push :: (Pop a, Push b) => (a -> [b]) -> Evaluator
+pop1push :: (FromVal a, ToVal b) => (a -> [b]) -> Evaluator
 pop1push f _ s = do (x, s') <- pop' s; rpush s' $ f x
 
-pop2push :: (Pop a, Pop b, Push c) => (a -> b -> [c]) -> Evaluator
-pop2push f _ s = do ((x, y), s') <- pop' s; rpush s' $ f x y
+pop2push :: (FromVal a, FromVal b, ToVal c)
+         => (a -> b -> [c]) -> Evaluator
+pop2push f _ s = do ((x, y), s') <- pop2' s; rpush s' $ f x y
+
+pop1push1 :: (FromVal a, ToVal b) => (a -> b) -> Evaluator
+pop1push1 f = pop1push $ \x -> [f x]
+
+pop2push1 :: (FromVal a, FromVal b, ToVal c)
+          => (a -> b -> c) -> Evaluator
+pop2push1 f = pop2push $ \x y -> [f x y]
 
 -- Module/Scope functions --
 
@@ -629,65 +672,53 @@ callableTypes = [
 -- "constructors" --
 
 nil, false, true :: KValue
-nil   = KPrim KNil
-false = bool False
-true  = bool True
+nil   = toVal ()
+false = toVal False
+true  = toVal True
 
 bool :: Bool -> KValue
-bool = KPrim . KBool
+bool = toVal
 
 int :: Integer -> KValue
-int = KPrim . KInt
+int = toVal
 
 float :: Double -> KValue
-float = KPrim . KFloat
+float = toVal
 
 str :: Text -> KValue
-str = KPrim . KStr
+str = toVal
 
 kwd :: Text -> KValue
-kwd = KPrim . KKwd . Kwd
+kwd = toVal . Kwd
 
 pair :: Kwd -> KValue -> KValue
-pair k v = KPair $ Pair k v
+pair k v = toVal $ Pair k v
 
 list :: [KValue] -> KValue
-list = KList . List
+list = toVal
 
 dict :: [Pair] -> KValue
-dict = KDict . Dict . H.fromList . map f
-  where
-    f (Pair (Kwd k) v) = (k, v)
+dict = toVal
+
+-- NB: no ToVal for ident, quot
 
 block :: [Ident] -> [KValue] -> Maybe Scope -> KValue
 block blkArgs blkCode blkScope = KBlock Block{..}
 
--- ...
-
-class Val a where
-  val :: a -> KValue
-
-instance Val Bool where
-  val = bool
-
-instance Val Integer where
-  val = int
-
-instance Val Double where
-  val = float
-
-instance Val Text where
-  val = str
+-- TODO: multi, record(-type)?
 
 -- utilities --
+
+mkPrim, mkBltn :: Identifier -> Evaluator -> Builtin
+mkPrim = Builtin True
+mkBltn = Builtin False
+
+defPrim :: Context -> Builtin -> IO ()
+defPrim ctx f = defineIn ctx (biName f) $ KBuiltin f
 
 truthy :: KValue -> Bool
 truthy (KPrim KNil)           = False
 truthy (KPrim (KBool False))  = False
 truthy _                      = True
-
-mkPrim, mkBltn :: Identifier -> Evaluator -> Builtin
-mkPrim = Builtin True
-mkBltn = Builtin False
 
 -- vim: set tw=70 sw=2 sts=2 et fdm=marker :
