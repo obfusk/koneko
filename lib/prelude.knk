@@ -57,7 +57,7 @@
 
 :swap   [ x y . 'y 'x     ] def ; primitive
 :dup    [ x   . 'x 'x     ] def
-:drop   [ x   .           ] def
+:drop   [ _   .           ] def
 :dip    [ x f .  f 'x     ] def
 :over   [ x y . 'x 'y 'x  ] def ; [ 'dup dip swap ]
 
