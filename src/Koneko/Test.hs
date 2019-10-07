@@ -32,6 +32,7 @@ import System.Console.CmdArgs.Verbosity (Verbosity(..), getVerbosity)
 import System.Directory (getTemporaryDirectory, removeFile)
 import System.Exit (exitFailure)
 import System.FilePath (takeExtension)
+import System.IO (Handle)
 
 import qualified Data.Text.Lazy as T
 import qualified Data.Text.Lazy.IO as T
@@ -239,7 +240,7 @@ printFail Example{..} out err = do
     p = T.hPutStrLn IO.stderr
 
 indent :: Text -> Text
-indent = ("    " <>)
+indent = ("  " <>)
 
 -- stdio --
 
@@ -251,7 +252,7 @@ capture act = do
 provide :: String -> IO a -> IO a
 provide = hProvide IO.stdin
 
-hProvide :: IO.Handle -> String -> IO a -> IO a
+hProvide :: Handle -> String -> IO a -> IO a
 hProvide h str act = withTempFile "provide" f
   where
     f hTmp = do
@@ -259,7 +260,7 @@ hProvide h str act = withTempFile "provide" f
       IO.hSeek hTmp IO.AbsoluteSeek 0
       withRedirect h hTmp act
 
-withRedirect :: IO.Handle -> IO.Handle -> IO a -> IO a
+withRedirect :: Handle -> Handle -> IO a -> IO a
 withRedirect hOrig hRepl act = do
     buf <- IO.hGetBuffering hOrig
     bracket redirect (restore buf) $ const act
@@ -273,7 +274,7 @@ withRedirect hOrig hRepl act = do
       IO.hSetBuffering hOrig buf
       IO.hClose hDup
 
-withTempFile :: String -> (IO.Handle -> IO a) -> IO a
+withTempFile :: String -> (Handle -> IO a) -> IO a
 withTempFile template f = do
     tmpDir <- getTemporaryDirectory
     bracket (IO.openTempFile tmpDir template) cleanup (f . snd)
