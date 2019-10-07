@@ -2,7 +2,7 @@
 ;
 ; File        : prelude.knk
 ; Maintainer  : Felix C. Stegerman <flx@obfusk.net>
-; Date        : 2019-10-05
+; Date        : 2019-10-06
 ;
 ; Copyright   : Copyright (C) 2019  Felix C. Stegerman
 ; Version     : v0.0.1
@@ -10,17 +10,76 @@
 ;
 ; --                                                            ; }}}1
 
+; -- TODO --
+;
+; * add more functions!
+; * use multi for arithmetic
+; * test errors
+;
+; --
+
 ; -- stack shuffling --
+
+; --                                                            ; {{{1
+;
+; >>> , 1 2 show-stack
+; 2
+; 1
+; >>> , swap show-stack
+; 1
+; 2
+;
+; >>> clear-stack
+; >>> 42
+; 42
+; >>> , dup show-stack
+; 42
+; 42
+;
+; >>> clear-stack
+; >>> nil
+; nil
+; >>> drop
+;
+; >>> , 1 2 'dup dip swap show-stack
+; 1
+; 2
+; 1
+;
+; >>> clear-stack
+; >>> , 1 2 over show-stack
+; 1
+; 2
+; 1
+;
+; --                                                            ; }}}1
 
 :swap   [ x y . 'y 'x     ] def ; primitive
 :dup    [ x   . 'x 'x     ] def
 :drop   [ x   .           ] def
 :dip    [ x f .  f 'x     ] def
-:over   [ x y . 'x 'y 'x  ] def
+:over   [ x y . 'x 'y 'x  ] def ; [ 'dup dip swap ]
 
 ; ... TODO ...
 
-; -- arithmetic -- TODO --
+; -- arithmetic --
+
+; --                                                            ; {{{1
+;
+; >>> 1 2 +
+; 3
+; >>> 4 3 -
+; 1
+; >>> 6 7 *
+; 42
+; >>> 1.0 2.0 /
+; 0.5
+; >>> 8 3 div
+; 2
+; >>> 8 3 mod
+; 2
+;
+; --                                                            ; }}}1
 
 ; :+ ( :int   :int    ) [ __int+__          ] defmulti
 ; :+ ( :float :float  ) [ __float+__        ] defmulti
@@ -47,11 +106,46 @@
 
 ; -- sequences --
 
+; --                                                            ; {{{1
+;
+; >>> () empty?
+; #t
+; >>> ( 1 2 ) empty?
+; #f
+; >>> ( :x :y :z ) len
+; 3
+; >>> ( :one :two :three ) 1 get
+; :two
+;
+; --                                                            ; }}}1
+
 :empty? [ .empty?   ] def
 :len    [ .len      ] def
 :get    [ swap !get ] def ; TODO: safe version
 
 ; -- lists --
+
+; --                                                            ; {{{1
+;
+; >>> ( 1 2 3 )
+; ( 1 2 3 )
+; >>> dup head
+; 1
+; >>> drop dup tail
+; ( 2 3 )
+;
+; >>> , drop uncons show-stack
+; ( 2 3 )
+; 1
+; >>> cons
+; ( 1 2 3 )
+;
+; >>> () head^
+; nil
+; >>> () tail^
+; nil
+;
+; --                                                            ; }}}1
 
 :head   [ .head   ] def
 :tail   [ .tail   ] def
@@ -62,11 +156,15 @@
 :cons   [ !cons   ] def
 :uncons [ .uncons ] def
 
+; ... TODO ...
+
 ; -- miscellaneous --
 
 :ornil  [ nil ordef ] def
 :ordef  [ f p? d . dup p? [ drop 'd ] 'f if ] def
 
 ; -- TODO --
+
+; ...
 
 ; vim: set tw=70 sw=2 sts=2 et fdm=marker :

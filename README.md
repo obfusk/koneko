@@ -2,7 +2,7 @@
 
     File        : README.md
     Maintainer  : Felix C. Stegerman <flx@obfusk.net>
-    Date        : 2019-10-05
+    Date        : 2019-10-06
 
     Copyright   : Copyright (C) 2019  Felix C. Stegerman
     Version     : v0.0.1
@@ -396,7 +396,6 @@ NB: WIP
 ### Prelude
 
 ```koneko
->>> clear-stack
 >>> , 1 2 show-stack
 2
 1

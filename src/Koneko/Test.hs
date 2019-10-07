@@ -2,7 +2,7 @@
 --
 --  File        : Koneko/Test.hs
 --  Maintainer  : Felix C. Stegerman <flx@obfusk.net>
---  Date        : 2019-10-03
+--  Date        : 2019-10-06
 --
 --  Copyright   : Copyright (C) 2019  Felix C. Stegerman
 --  Version     : v0.0.1
@@ -23,6 +23,7 @@ import GHC.IO.Handle (hDuplicate, hDuplicateTo)
 
 import Control.Exception (bracket)
 import Control.Monad (unless, when)
+import Data.Char (isSpace)
 import Data.Foldable (foldl', traverse_)
 import Data.Monoid((<>))
 import Data.Text.Lazy (Text)
@@ -39,7 +40,6 @@ import qualified System.IO.Silently as S
 
 import qualified Koneko.Data as D
 import qualified Koneko.Eval as E
-import qualified Koneko.Misc as M
 import qualified Koneko.Repl as RE
 
 data Example = Example {
@@ -123,11 +123,11 @@ exampleGroup es ls
     (e, ls'')       = span isSameExample $ tail ls'           -- safe!
     inputLine       = T.drop (T.length prefix + T.length RE.promptText)
                     $ head ls'                                -- safe!
-    outputLines     = e
+    outputLines     = map (T.drop $ T.length prefix) e
     isSameExample s = maybe False (\x -> not $ isPrompt x || T.null x)
                     $ T.stripPrefix prefix s
-    prefix          = T.takeWhile _isSp $ head ls'            -- safe!
-    isPrompt'       = isPrompt . T.dropWhile _isSp
+    prefix          = T.takeWhile isSpace $ head ls'          -- safe!
+    isPrompt'       = isPrompt . T.dropWhile isSpace
     isPrompt        = T.isPrefixOf RE.promptText
 
 -- TODO
@@ -139,9 +139,9 @@ knkCommentBlocks bs ls
     ls'             = dropWhile (not . isComment) ls
     (b, ls'')       = span isSameComment ls'
     b'              = map (T.drop $ T.length prefix) b
-    isComment       = T.isPrefixOf ";" . T.dropWhile _isSp
+    isComment       = T.isPrefixOf ";" . T.dropWhile isSpace
     isSameComment   = T.isPrefixOf prefix
-    prefix          = T.takeWhile _isSp (head ls') <> ";"     -- safe!
+    prefix          = T.takeWhile isSpace (head ls') <> ";"   -- safe!
 
 -- TODO
 mdCodeBlocks :: [[Text]] -> [Text] -> [[Text]]
@@ -154,9 +154,6 @@ mdCodeBlocks bs ls = mdCodeBlocks (b:bs) $ drop 1 ls''
 mdCodeStart, mdCodeEnd :: Text
 mdCodeStart = "```koneko"
 mdCodeEnd   = "```"
-
-_isSp :: Char -> Bool
-_isSp = M.isSpaceOrComma
 
 -- internal --
 
@@ -227,7 +224,7 @@ printSucc Example{..} = do
   where
     p = T.putStrLn
 
--- TODO
+-- TODO: line#, ...
 printFail :: Example -> [Text] -> [Text] -> IO ()
 printFail Example{..} out err = do
     p "Failed example:" ; p $ indent inputLine
