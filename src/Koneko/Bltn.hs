@@ -16,7 +16,6 @@ module Koneko.Bltn (initCtx) where
 
 import Data.Foldable (traverse_)
 import Data.Monoid ((<>))
-import Data.Text.Lazy (Text)
 
 import Koneko.Data
 
