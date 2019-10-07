@@ -69,11 +69,11 @@ identPre      = "'!:"
 identSpecial  = "~@$%^&*-_=+|<>/?"
 
 pInt :: Parser Integer
-pInt = dec <|> hex <|> bin
+pInt = hex <|> bin <|> dec
   where
-    dec = signed L.decimal
     hex = string "0x" *> L.hexadecimal
     bin = string "0b" *> L.binary
+    dec = signed L.decimal
 
 pFloat :: Parser Double
 pFloat = signed L.float
