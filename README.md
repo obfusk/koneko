@@ -10,10 +10,11 @@
 
 <!-- }}}1 -->
 
-<!-- TODO: travis etc. badges -->
+<!-- TODO: badges -->
 
 [![Build Status](https://travis-ci.org/obfusk/koneko.svg?branch=master)](https://travis-ci.org/obfusk/koneko)
 [![GPLv3+](https://img.shields.io/badge/license-GPLv3+-blue.svg)](https://www.gnu.org/licenses/gpl-3.0.html)
+[![LGPLv3+](https://img.shields.io/badge/license-LGPLv3+-blue.svg)](https://www.gnu.org/licenses/lgpl-3.0.html)
 
 ## Description
 
@@ -484,12 +485,18 @@ NB: WIP
 
 ### Interpreter
 
-[GPLv3+](https://www.gnu.org/licenses/gpl-3.0.html).
+[![GPLv3+](https://www.gnu.org/graphics/gplv3-127x51.png)](https://www.gnu.org/licenses/gpl-3.0.html)
 
 ### Standard Library
 
 (i.e. `lib/*.knk`)
 
-[LGPLv3+](https://www.gnu.org/licenses/lgpl-3.0.html).
+[![LGPLv3+](https://www.gnu.org/graphics/lgplv3-147x51.png)](https://www.gnu.org/licenses/lgpl-3.0.html)
+
+### Thesis
+
+(i.e. `thesis/*`)
+
+[![CC-BY-SA](https://licensebuttons.net/l/by-sa/4.0/88x31.png)](https://creativecommons.org/licenses/by-sa/4.0/)
 
 <!-- vim: set tw=70 sw=2 sts=2 et fdm=marker : -->
