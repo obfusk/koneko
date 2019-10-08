@@ -302,7 +302,7 @@ instance Show RecordT where
 instance Show Record where
   show Record{..} = T.unpack (recName recType) ++ "{ " ++ flds ++ " }"
     where
-      flds      = intercalate " " $ map f
+      flds      = intercalate ", " $ map f
                 $ zip (recFields recType) recValues
       f (k, v)  = show $ Pair (Kwd k) v
 

@@ -7,23 +7,23 @@ if exists("b:current_syntax")
   finish
 endif
 
-syn match   knkIdent      '[^':.! \t]\S*'
+syn match   knkIdent      '[^':.! \t][^, \t]*'
 
 syn keyword knkLit        nil
-syn match   knkBool       '#[tf]\(\s\|$\)\@='
-syn match   knkInt        '\d\+\(\s\|$\)\@='
-syn match   knkKwd        ':\S\+'
-syn match   knkStr        '"\(\\.\|[^\\"]\)*"\(\s\|$\)\@='
+syn match   knkBool       '#[tf]\([, \t]\|$\)\@='
+syn match   knkInt        '\d\+\([, \t]\|$\)\@='
+syn match   knkKwd        ':[^, \t]\+'
+syn match   knkStr        '"\(\\.\|[^\\"]\)*"\([, \t]\|$\)\@='
 
 syn keyword knkPrim       call apply if def show say ask type not and or
-syn match   knkPrimMore   '\(=>\|callable?\|/\?=\|[<>]=\?\|int->float\|__\S\+__\)\(\s\|$\)\@='
+syn match   knkPrimMore   '\(=>\|callable?\|/\?=\|[<>]=\?\|int->float\|__[^, \t]\+__\)\([, \t]\|$\)\@='
 
-syn match   knkParen      '[(){}\[\]]\(\s\|$\)\@='
-syn match   knkSpecial    '[\'.!]'
+syn match   knkParen      '[(){}\[\]]\([, \t]\|$\)\@='
+syn match   knkSpecial    '[\'.!,]'
 
-syn match   knkQuot       '\'\@<=\S*'
+syn match   knkQuot       '\'\@<=[^, \t]*'
 
-syn match   knkFloat      '\d\+\(\.\d\+e\d\+\|\.\d\+\|e\d\+\)\(\s\|$\)\@='
+syn match   knkFloat      '\d\+\(\.\d\+e\d\+\|\.\d\+\|e\d\+\)\([, \t]\|$\)\@='
 
 syn match   knkComment    ';.*'
 
