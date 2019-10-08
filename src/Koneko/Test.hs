@@ -2,7 +2,7 @@
 --
 --  File        : Koneko/Test.hs
 --  Maintainer  : Felix C. Stegerman <flx@obfusk.net>
---  Date        : 2019-10-06
+--  Date        : 2019-10-07
 --
 --  Copyright   : Copyright (C) 2019  Felix C. Stegerman
 --  Version     : v0.0.1
@@ -45,6 +45,8 @@ import Koneko.Eval (initContext)
 import qualified Koneko.Repl as RE
 
 data Example = Example {
+  fileName    :: FilePath,
+  lineNo      :: Int,
   inputLine   :: Text,
   outputLines :: [Text]
 } deriving Show
@@ -68,27 +70,30 @@ testFiles verb files = do
       printSummary t o f
     return r
   where
-    process fname = do
-      let (what, func)  = typAndFunc fname
-          info          = fname ++ " (" ++ what ++ ")"
+    process fp = do
+      let (what, func)  = typAndFunc fp
+          info          = fp ++ " (" ++ what ++ ")"
       when (verb /= Quiet) $
         putStrLn $ "=== Testing " ++ info ++ " ==="
-      func verb fname <* when (verb /= Quiet) (putStrLn "")
-    typAndFunc fname  = if takeExtension fname == ".md"
-                        then ("markdown", testMarkdownFile)
-                        else ("koneko", testKonekoFile)
+      func verb fp <* when (verb /= Quiet) (putStrLn "")
+    typAndFunc fp = if takeExtension fp == ".md"
+                    then ("markdown", testMarkdownFile)
+                    else ("koneko"  , testKonekoFile  )
     s = foldl' (\(t,o,f) (t',o',f') -> (t+t',o+o',f+f')) (0,0,0)
 
-testKoneko, testMarkdown :: Verbosity -> [Text] -> IO (Int, Int, Int)
-testKoneko    v = testExamples v . parseKoneko
-testMarkdown  v = testExamples v . parseMarkdown
+testKoneko, testMarkdown
+  :: Verbosity -> FilePath -> [Text] -> IO (Int, Int, Int)
+testKoneko    v fp = testExamples v . parseKoneko   fp
+testMarkdown  v fp = testExamples v . parseMarkdown fp
 
-testKoneko_, testMarkdown_ :: Verbosity -> [Text] -> IO Bool
+testKoneko_, testMarkdown_
+  :: Verbosity -> FilePath -> [Text] -> IO Bool
 testKoneko_   = _test parseKoneko
 testMarkdown_ = _test parseMarkdown
 
-_test :: ([Text] -> Examples) -> Verbosity -> [Text] -> IO Bool
-_test f v ls = _testFail <$> testExamples v (f ls)
+_test :: (FilePath -> [Text] -> Examples)
+      -> Verbosity -> FilePath -> [Text] -> IO Bool
+_test f v fp ls = _testFail <$> testExamples v (f fp ls)
 
 _testFail :: (Int, Int, Int) -> Bool
 _testFail (_, _, fail) = fail == 0
@@ -102,56 +107,57 @@ testKonekoFile_, testMarkdownFile_ :: Verbosity -> FilePath -> IO Bool
 testKonekoFile_   = _testFile testKoneko_
 testMarkdownFile_ = _testFile testMarkdown_
 
-_testFile :: (Verbosity -> [Text] -> IO a)
+_testFile :: (Verbosity -> FilePath -> [Text] -> IO a)
           -> Verbosity -> FilePath -> IO a
-_testFile f v fname = T.readFile fname >>= f v . T.lines
+_testFile f v fp = T.readFile fp >>= f v fp . T.lines
 
 -- parsing --
 
-parseKoneko, parseMarkdown :: [Text] -> Examples
-parseKoneko   = examples . knkCommentBlocks []
-parseMarkdown = examples . mdCodeBlocks []
+parseKoneko, parseMarkdown :: FilePath -> [Text] -> Examples
+parseKoneko   fp = examples fp . knkCommentBlocks [] . zip [1..]
+parseMarkdown fp = examples fp . mdCodeBlocks     [] . zip [1..]
 
-examples :: [[Text]] -> Examples
-examples = filter (not . null) . map (exampleGroup [])
+examples :: FilePath -> [[(Int, Text)]] -> Examples
+examples fp = filter (not . null) . map (exampleGroup fp [])
 
 -- TODO
-exampleGroup :: ExampleGroup -> [Text] -> ExampleGroup
-exampleGroup es ls
+exampleGroup :: FilePath -> ExampleGroup -> [(Int, Text)] -> ExampleGroup
+exampleGroup fileName es ls
     = if null ls || null ls' then reverse es
-      else exampleGroup (Example{..}:es) ls''
+      else exampleGroup fileName (Example{..}:es) ls''
   where
-    ls'             = dropWhile (not . isPrompt') ls
-    (e, ls'')       = span isSameExample $ tail ls'           -- safe!
+    ls'             = dropWhile (not . isPrompt' . snd) ls
+    (e, ls'')       = span (isSameExample . snd) $ tail ls'   -- safe!
+    lineNo          = fst $ head ls'                          -- safe!
     inputLine       = T.drop (T.length prefix + T.length RE.promptText)
-                    $ head ls'                                -- safe!
-    outputLines     = map (T.drop $ T.length prefix) e
+                    $ snd $ head ls'                          -- safe!
+    outputLines     = map ((T.drop $ T.length prefix) . snd) e
     isSameExample s = maybe False (\x -> not $ isPrompt x || T.null x)
                     $ T.stripPrefix prefix s
-    prefix          = T.takeWhile isSpace $ head ls'          -- safe!
+    prefix          = T.takeWhile isSpace $ snd $ head ls'    -- safe!
     isPrompt'       = isPrompt . T.dropWhile isSpace
     isPrompt        = T.isPrefixOf RE.promptText
 
 -- TODO
-knkCommentBlocks :: [[Text]] -> [Text] -> [[Text]]
+knkCommentBlocks :: [[(Int, Text)]] -> [(Int, Text)] -> [[(Int, Text)]]
 knkCommentBlocks bs ls
     = if null ls || null ls' then reverse bs
       else knkCommentBlocks (b':bs) ls''
   where
     ls'             = dropWhile (not . isComment) ls
     (b, ls'')       = span isSameComment ls'
-    b'              = map (T.drop $ T.length prefix) b
-    isComment       = T.isPrefixOf ";" . T.dropWhile isSpace
-    isSameComment   = T.isPrefixOf prefix
-    prefix          = T.takeWhile isSpace (head ls') <> ";"   -- safe!
+    b'              = [ (n,T.drop (T.length prefix) x) | (n,x) <- b ]
+    isComment       = T.isPrefixOf ";" . T.dropWhile isSpace . snd
+    isSameComment   = T.isPrefixOf prefix . snd
+    prefix          = T.takeWhile isSpace (snd $ head ls') <> ";" -- safe!
 
 -- TODO
-mdCodeBlocks :: [[Text]] -> [Text] -> [[Text]]
+mdCodeBlocks :: [[(Int, Text)]] -> [(Int, Text)] -> [[(Int, Text)]]
 mdCodeBlocks bs [] = reverse bs
 mdCodeBlocks bs ls = mdCodeBlocks (b:bs) $ drop 1 ls''
   where
-    ls'             = dropWhile (/= mdCodeStart) ls
-    (b, ls'')       = break (== mdCodeEnd) $ drop 1 ls'
+    ls'             = dropWhile ((/= mdCodeStart) . snd) ls
+    (b, ls'')       = break ((== mdCodeEnd) . snd) $ drop 1 ls'
 
 mdCodeStart, mdCodeEnd :: Text
 mdCodeStart = "```koneko"
@@ -203,7 +209,7 @@ testExampleGroup verb g = do
 compareOutput :: [Text] -> [Text] -> [Text] -> Bool
 compareOutput exp got err
     = if null err then exp' == got else null got &&
-      T.isPrefixOf RE.errorText (head err) && exp' == err
+      T.isPrefixOf RE.errorText (head err) && exp' == err     -- safe!
   where
     exp' = [ if l == "<BLANKLINE>" then "" else l | l <- exp ]
 
@@ -231,6 +237,7 @@ printSucc Example{..} = do
 -- TODO: line#, ...
 printFail :: Example -> [Text] -> [Text] -> IO ()
 printFail Example{..} out err = do
+    p $ T.pack $ "File " ++ fileName ++ ", line " ++ show lineNo
     p "Failed example:" ; p $ indent inputLine
     p "Expected:"       ; traverse_ (p . indent) outputLines
     p "Got:"            ; traverse_ (p . indent) out

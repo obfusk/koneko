@@ -154,6 +154,15 @@
 ; >>> () tail^
 ; nil
 ;
+; >>> ( 2 3 4 ) [ dup * ] map
+; ( 4 9 16 )
+; >>> ( 2 3 4 ) 10 '- foldl
+; 1
+;
+; >>> , ( "Hello" "World" ) 'say each
+; Hello
+; World
+;
 ; --                                                            ; }}}1
 
 :head   [ .head   ] def
@@ -162,15 +171,34 @@
 :head^  [ 'head 'empty? ornil ] def
 :tail^  [ 'tail 'empty? ornil ] def
 
-:cons   [ !cons   ] def
 :uncons [ .uncons ] def
+:cons   [ !cons   ] def
+
+:map    [ f . dup empty? [ ] [ uncons 'f dip 'f map cons ] if ] def
+:foldl  [ z f . dup empty? [ drop 'z ]
+                [ uncons swap 'z swap f 'f foldl ] if ] def
+
+:each   [ f . dup empty? [ drop ] [ uncons 'f dip 'f each ] if ] def
 
 ; ... TODO ...
 
 ; -- miscellaneous --
 
+; --                                                            ; {{{1
+;
+; >>> , [ "Hi!" say ] 5 times
+; Hi!
+; Hi!
+; Hi!
+; Hi!
+; Hi!
+;
+; --                                                            ; }}}1
+
 :ornil  [ nil ordef ] def
 :ordef  [ f p? d . dup p? [ drop 'd ] 'f if ] def
+
+:times  [ f n . 'n 0 <= [ ] [ f 'f 'n 1 - times ] if ] def
 
 ; -- predicates --
 

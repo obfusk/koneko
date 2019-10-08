@@ -97,7 +97,7 @@ arity checking may be added in the future.
 ```
 ; comments start with a semicolon and end at the end of the line
 
-1 2 +         ; tokens are delimited by whitespace
+1 2 +         ; tokens are separated by whitespace
 1 2 +, 2 3 +  ; commas are whitespace
 ```
 
@@ -224,7 +224,7 @@ NB: list literals have the head on the left.
 >>> .value
 42
 
->>> ( 1 2 :foo 4 )                ; linked list
+>>> ( 1 2 :foo 4 )                ; linked list (parentheses)
 ( 1 2 :foo 4 )
 >>> ,dup
 >>> len
@@ -233,7 +233,7 @@ NB: list literals have the head on the left.
 >>> 2 get
 :foo
 
->>> { x: 42, :y 99 1 + => }       ; key/value map
+>>> { x: 42, :y 99 1 + => }       ; dict: key/value map (curly brackets)
 { :x 42 =>, :y 100 => }
 >>> ,dup
 >>> len
@@ -258,7 +258,8 @@ A block consists of:
 * optional arguments (which are popped from the stack, right to left);
 * code (i.e. a sequence of tokens) that is executed when the block is called.
 
-Arguments (if any) are separated from the code by a `.`.
+A block is delimited by square brackets; arguments (if any) are
+separated from the code by a `.`.
 
 ```koneko
 >>> , :myblock [ 42 ] def         ; a block that pushes 42 onto the stack
@@ -287,6 +288,69 @@ Arguments (if any) are separated from the code by a `.`.
 * show-stack + reverse order
 
 -->
+
+### Calling vs Applying
+
+Applying a normal block isn't much different from calling it.  Except
+that it takes its arguments from the list it is applied to (in reverse
+order) instead of from the stack.  The number of elements of the list
+must equal the number of arguments of the block.  The block cannot
+(indirectly) access the part of the stack before the list it is
+applied to.  It can push any number of return values on to the stack
+as usual.
+
+```koneko
+>>> , :foo [ x y . ( 'x 'y ) show say ] def   ; normal block
+>>> :x :y foo                                 ; normal call
+( :x :y )
+>>> ( :x :y ) 'foo apply                      ; apply
+( :x :y )
+>>> foo( :x :y )                              ; sugar
+( :x :y )
+```
+
+A block with an argument named `&` will ignore that argument when
+called normally (setting it to `nil`).  It can be applied to a list
+with a number of elements equal to or greater than the number of
+normal arguments of the block.  The argument `&` is set to a (possibly
+empty) list of the remaining elements.
+
+```koneko
+>>> , :foo [ x & . ( 'x '& ) show say ] def   ; block with &
+>>> :x foo                                    ; normal call
+( :x nil )
+>>> ( :x :y :z ) 'foo apply                   ; apply
+( :x ( :y :z ) )
+>>> foo( :x :y :z )                           ; sugar
+( :x ( :y :z ) )
+```
+
+A block with an argument named `&&` will ignore that argument when
+called normally (setting it to `nil`).  It can be applied to a dict,
+which needs to provide values for each normal argument (by name).  The
+argument `&&` is set to a (possibly empty) dict of the remaining
+key/value pairs (the ones not used to provide values for the normal
+arguments).
+
+```koneko
+>>> , :foo [ x && . ( 'x '&& ) show say ] def ; block with &&
+>>> :x foo                                    ; normal call
+( :x nil )
+>>> { :x 1 =>, :y 2 => } 'foo apply-dict      ; apply-dict
+( 1 { :y 2 => } )
+>>> foo{ x: 1, y: 2 }                         ; sugar
+( 1 { :y 2 => } )
+```
+
+Some more examples:
+
+```koneko
+>>> , :&+ [ x & . '& 'x '+ foldl ] def
+>>> &+( 1 2 3 4 )
+10
+```
+
+... TODO ...
 
 ### Multi(method)s
 
@@ -517,7 +581,7 @@ examples.
 >>> ( :a :b :c ) 1 get
 :b
 
->>> ( 1 2 ) head
+>>> ( 1 2 ) head                  ; lists
 1
 >>> ( 1 2 3 ) tail
 ( 2 3 )
@@ -526,14 +590,26 @@ nil
 ```
 
 ```koneko
->>> , ( 1 2 3 ) uncons show-stack
+>>> , ( 1 2 3 ) uncons show-stack ; lists
 ( 2 3 )
 1
 >>> cons
 ( 1 2 3 )
 >>> ( 3 4 ) 2 swap cons
 ( 2 3 4 )
+
+>>> ( 2 3 4 ) [ dup * ] map
+( 4 9 16 )
 ```
+
+```koneko
+>>> , [ "Hi!" say ] 3 times       ; miscellaneous
+Hi!
+Hi!
+Hi!
+```
+
+... TODO ...
 
 ### Standard Library
 
