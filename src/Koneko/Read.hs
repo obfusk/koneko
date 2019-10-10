@@ -2,7 +2,7 @@
 --
 --  File        : Koneko/Read.hs
 --  Maintainer  : Felix C. Stegerman <flx@obfusk.net>
---  Date        : 2019-10-06
+--  Date        : 2019-10-09
 --
 --  Copyright   : Copyright (C) 2019  Felix C. Stegerman
 --  Version     : v0.0.1
@@ -42,19 +42,17 @@ import Data.Maybe (fromJust) -- careful!
 import Data.Text.Lazy (Text)
 import Prelude hiding (quot, read)
 import Text.Megaparsec
-import Text.Megaparsec.Char hiding (space, space1)
+import Text.Megaparsec.Char
 
 import qualified Data.Text.Lazy as T
-import qualified Text.Megaparsec.Char.Lexer as L
 
 import Koneko.Data (Ident, Block(..), KValue(..))
-import Koneko.Misc (Parser, pIdent, brackets, pInt, pFloat,
-                    isSpaceOrComma)
+import Koneko.Misc (Parser, pIdent, pIdent_, pInt, pFloat, lexeme,
+                    symbol, sp)
 
 import qualified Koneko.Data as D
 
 -- TODO:
---  * Dict
 --  * Record
 --  * RawBlock vs Quoted Block
 --  * ~sugar~
@@ -102,16 +100,8 @@ list = try $ D.list <$> (a <|> b)
     a = [] <$ symbol "()"
     b = symbol "(" *> manyValuesTill (symbol ")")
 
--- TODO: dict
-
 -- | NB: also matches float and int (but they match earlier)
 ident = KIdent <$> ident_
-
-ident_ :: Parser Ident
-ident_ = notFollowedBy (lexeme $ oneOf brackets) *> idt
-  where
-    idt = lexeme $ D.ident <$> pIdent >>=
-          maybe (fail "invalid ident") return
 
 quot = char '\'' >> KQuot <$> ident_
 
@@ -124,17 +114,20 @@ block = try $ KBlock <$> do
 
 -- parser: sugar --
 
-dot, bang :: Parser [KValue]
+dict, dot, bang, key :: Parser [KValue]
 
-dot     = char '.' >> _dot <$> ident_
-bang    = char '!' >> (++ [_call]) . _dot <$> ident_
+dict  = try $ fmap ((:[_dict]) . D.list)
+      $ symbol "{" *> manyValuesTill (symbol "}")
+
+dot   = char '.' >> _dot <$> ident_
+bang  = char '!' >> (++ [_call]) . _dot <$> ident_
+
+key = try $ do
+  k <- sugarIdent ':'; v <- value_
+  return $ [D.kwd k] ++ v ++ [_pair]
 
 _dot :: Ident -> [KValue]
-_dot i  = [D.kwd $ D.unIdent i, _swap, _call]
-
-_swap, _call :: KValue
-_swap   = KIdent $ fromJust $ D.ident "swap" -- safe!
-_call   = KIdent $ fromJust $ D.ident "call" -- safe!
+_dot i = [D.kwd $ D.unIdent i, _swap, _call]
 
 -- TODO: foo() foo{} etc.
 
@@ -146,7 +139,7 @@ oneValue = choice [prim, list, quot, block, ident]
 
 value_, manyValues, program :: Parser [KValue]
 
-value_ = (:[]) <$> oneValue <|> choice [dot, bang]
+value_ = choice [dict, dot, bang, key] <|> (:[]) <$> oneValue
 
 manyValues = concat <$> many value_
 
@@ -158,21 +151,21 @@ program = optional shebang *> sp *> manyValues <* eof
 shebang :: Parser ()
 shebang = void $ string "#!" >> many (satisfy (/= '\n')) >> newline
 
--- parser: utilities --
+-- parser: miscellaneous --
 
-lexeme :: Parser a -> Parser a
-lexeme p = p <* (sp1 <|> eof)
+ident_ :: Parser Ident
+ident_  = lexeme $ D.ident <$> pIdent >>=
+          maybe (fail "invalid ident") return
 
-symbol :: Text -> Parser Text
-symbol = lexeme . string
+-- TODO
+sugarIdent :: Char -> Parser Text
+sugarIdent c = try $ do
+  i <- lexeme $ pIdent_ $ Just c
+  if T.last i /= c then fail "TODO" else return $ T.init i    -- safe!
 
-sp, sp1, spaceOrComment, space1 :: Parser ()
-
-sp  = skipMany spaceOrComment
-sp1 = skipSome spaceOrComment
-
-spaceOrComment = space1 <|> (L.skipLineComment ";")
-
-space1 = void $ takeWhile1P (Just "white space") isSpaceOrComma
+_dict, _swap, _call, _pair :: KValue
+(_dict, _swap, _call, _pair) =
+  let idt = KIdent . fromJust . D.ident  -- safe!
+  in (idt "dict", idt "swap", idt "call", idt "=>")
 
 -- vim: set tw=70 sw=2 sts=2 et fdm=marker :

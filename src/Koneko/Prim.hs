@@ -2,7 +2,7 @@
 --
 --  File        : Koneko/Prim.hs
 --  Maintainer  : Felix C. Stegerman <flx@obfusk.net>
---  Date        : 2019-10-07
+--  Date        : 2019-10-09
 --
 --  Copyright   : Copyright (C) 2019  Felix C. Stegerman
 --  Version     : v0.0.1
@@ -34,7 +34,7 @@ initCtx ctxMain call = do
   ctxPrim <- forkContext primModule ctxMain
   traverse_ (defPrim ctxPrim) [
       mkPrim "call" call, apply call, if_ call,
-      def, mkPair, swap,
+      def, mkPair, mkDict, swap,
       show_, say, ask, type_, callable,
       moduleGet, moduleDefs, moduleName,
       not_, and_, or_,
@@ -54,7 +54,7 @@ initCtx ctxMain call = do
 -- primitives: important --
 
 apply, if_ :: Evaluator -> Builtin
-def, mkPair, swap :: Builtin
+def, mkPair, mkDict, swap :: Builtin
 
 -- TODO
 apply call = mkPrim "apply" $ \c s0 -> do
@@ -70,6 +70,10 @@ def = mkPrim "def" $ \c s -> do
   ((Kwd k, v), s') <- pop2' s; s' <$ defineIn c k v
 
 mkPair = mkPrim "=>" $ pop2push1 Pair
+
+mkDict = mkPrim "dict" $ \_ s -> do
+  (l, s') <- pop' s
+  rpush1 s' =<< dict <$> (retOrThrow $ fromVals l)
 
 -- needed as primitive by read for .foo
 swap = mkPrim "swap" $ pop2push $ \x y -> [y, x] :: [KValue]

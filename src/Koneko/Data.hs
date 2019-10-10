@@ -2,7 +2,7 @@
 --
 --  File        : Koneko/Data.hs
 --  Maintainer  : Felix C. Stegerman <flx@obfusk.net>
---  Date        : 2019-10-07
+--  Date        : 2019-10-09
 --
 --  Copyright   : Copyright (C) 2019  Felix C. Stegerman
 --  Version     : v0.0.1
@@ -69,7 +69,7 @@ module Koneko.Data (
   isFloat, isStr, isKwd, isPair, isList, isDict, isIdent, isQuot,
   isBlock, isBuiltin, isMulti, isRecordT, isRecord, isCallable, nil,
   false, true, bool, int, float, str, kwd, pair, list, dict, block,
-  mkPrim, mkBltn, defPrim, truthy
+  mkPrim, mkBltn, defPrim, truthy, retOrThrow
 ) where
 
 import Control.DeepSeq (deepseq, NFData(..))
@@ -92,7 +92,6 @@ import qualified Prelude as P
 import qualified Koneko.Misc as M
 
 -- TODO:
---  * Dict
 --  * Record
 --  * RawBlock vs Quoted Block
 
@@ -121,11 +120,13 @@ data KException
     | UncallableType !String
     | UnknownField !String !String
     | EmptyList !String
-    | IndexError !String
+    | IndexError !String !Integer
+    | KeyError !String !String
   deriving Typeable
 
 instance Exception KException
 
+-- TODO: intern?!
 newtype Kwd = Kwd { unKwd :: Identifier }
   deriving (Eq, Ord, Generic, NFData)
 
@@ -138,7 +139,6 @@ ident s = if M.isIdent s then Just $ Ident_ s else Nothing
 newtype List = List { unList :: [KValue] }
   deriving (Eq, Ord, Generic, NFData)
 
--- TODO
 newtype Dict = Dict { unDict :: DictTable }
   deriving (Eq, Ord, Generic, NFData)
 
@@ -253,11 +253,13 @@ instance Show KException where
   show (LookupFailed name)      = "name " ++ name ++ " is not defined"
   show (StackUnderflow)         = "stack underflow"
   show (StackExpected what)     = "expected " ++ what ++ " on stack"
-  show (UncomparableType what)  = "uncomparable type " ++ what
-  show (UncallableType what)    = "uncallable type " ++ what
-  show (UnknownField f t)       = "unknown field " ++ f ++ " for " ++ t
+  show (UncomparableType what)  = "type " ++ what ++ " is not comparable"
+  show (UncallableType what)    = "type " ++ what ++ " is not callable"
+  show (UnknownField f t)       = t ++ " has no field named " ++ f
   show (EmptyList op)           = op ++ ": empty list"
-  show (IndexError op)          = op ++ ": index error"
+  show (IndexError op i)        = op ++ ": index " ++ show i ++
+                                  " is out of range"
+  show (KeyError op k)          = op ++ ": key " ++ k ++ " not found"
 
 instance Show Kwd where
   show (Kwd s) = ":" ++ if M.isIdent s then T.unpack s else show s
@@ -542,9 +544,6 @@ pop3' :: (FromVal a, FromVal b, FromVal c)
       => Stack -> IO ((a, b, c), Stack)
 pop3' = retOrThrow . pop3
 
-retOrThrow :: Either KException a -> IO a
-retOrThrow = either throwIO return
-
 pop1push :: (FromVal a, ToVal b) => (a -> [b]) -> Evaluator
 pop1push f _ s = do (x, s') <- pop' s; rpush s' $ f x
 
@@ -759,5 +758,8 @@ truthy :: KValue -> Bool
 truthy (KPrim KNil)           = False
 truthy (KPrim (KBool False))  = False
 truthy _                      = True
+
+retOrThrow :: Either KException a -> IO a
+retOrThrow = either throwIO return
 
 -- vim: set tw=70 sw=2 sts=2 et fdm=marker :

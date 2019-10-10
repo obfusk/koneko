@@ -55,6 +55,7 @@ import Prelude hiding (lookup)
 import Safe (atMay)
 import System.IO (hPutStrLn, stderr)
 
+import qualified Data.HashMap.Lazy as H
 import qualified Data.Text.Lazy as T
 import qualified Data.Text.Lazy.IO as T
 
@@ -128,7 +129,7 @@ call c s = do
     KPrim (KStr _)  -> error "TODO"
     KPair p         -> callPair p c s'
     KList l         -> callList l c s'
-    KDict _         -> error "TODO"
+    KDict d         -> callDict d c s'
     KBlock b        -> callBlock b c s'
     KBuiltin b      -> biRun b c s'
     KMulti _        -> error "TODO"
@@ -138,31 +139,55 @@ call c s = do
 
 callPair :: Pair -> Evaluator
 callPair Pair{..} _ s = do
-  (Kwd k, s') <- pop' s
-  case k of
+  (Kwd op, s') <- pop' s
+  case op of
     "key"   -> rpush1 s' key
     "value" -> rpush1 s' value
-    _       -> throwIO $ UnknownField (T.unpack k) "pair"
+    _       -> throwIO $ UnknownField (T.unpack op) "pair"
 
+-- TODO
 callList :: List -> Evaluator
 callList (List l) _ s = do
-  (Kwd k, s') <- pop' s
-  let o = "list." <> k
+  (Kwd op, s') <- pop' s
+  let o = "list." <> op
       g = when (null l) $ throwIO $ EmptyList $ T.unpack o
-  case k of
-    "empty?"  ->       rpush1 s' (null l)
-    "head"    ->  g >> rpush1 s' (head l)                       --safe!
-    "tail"    ->  g >> rpush1 s' (tail l)                       --safe!
-    "uncons"  ->  g >> rpush s' [head l, list $ tail l]         --safe!
+  case op of
+    "head"    ->  g >> rpush1 s' (head l)                     -- safe!
+    "tail"    ->  g >> rpush1 s' (tail l)                     -- safe!
+    "uncons"  ->  g >> rpush s' [head l, list $ tail l]       -- safe!
     "cons"    ->  rpush1 s' $ mkPrim o $ \_ s1 -> do
                     (x, s2) <- pop' s1; rpush1 s2 (x:l)
-    "len"     ->  rpush1 s' (genericLength l :: Integer)
+    "empty?"  ->  rpush1 s' $ null l
+    "len"     ->  rpush1 s' $ len l
     "get"     ->  rpush1 s' $ mkPrim o $ \_ s1 -> do
-                    (n, s2) <- pop' s1
-                    case atMay l $ fromInteger n of
-                      Nothing -> throwIO $ IndexError $ T.unpack o
+                    (i, s2) <- pop' s1
+                    case atMay l $ fromInteger i of
+                      Nothing -> throwIO $ IndexError (T.unpack o) i
                       Just x  -> rpush1 s2 x
-    _         ->  throwIO $ UnknownField (T.unpack k) "list"
+    "member?" ->  rpush1 s' $ mkPrim o $ \_ s1 -> do
+                    (i, s2) <- pop' s1
+                    rpush1 s2 $ 0 <= i && i < len l
+    "elem?"   ->  rpush1 s' $ mkPrim o $ \_ s1 -> do
+                    (x, s2) <- pop' s1; rpush1 s2 $ x `elem` l
+    _         ->  throwIO $ UnknownField (T.unpack op) "list"
+
+-- TODO
+callDict :: Dict -> Evaluator
+callDict (Dict h) _ s = do
+  (Kwd op, s') <- pop' s
+  let o = "dict." <> op
+  case op of
+    "empty?"  ->  rpush1 s' $ H.null h
+    "len"     ->  rpush1 s' $ toInteger $ H.size h
+    "get"     ->  rpush1 s' $ mkPrim o $ \_ s1 -> do
+                    (Kwd k, s2) <- pop' s1
+                    case H.lookup k h of
+                      Nothing -> throwIO $ KeyError (T.unpack o)
+                                                    (T.unpack k)
+                      Just x  -> rpush1 s2 x
+    "member?" ->  rpush1 s' $ mkPrim o $ \_ s1 -> do
+                    (Kwd k, s2) <- pop' s1; rpush1 s2 $ H.member k h
+    _         ->  throwIO $ UnknownField (T.unpack op) "dict"
 
 -- TODO
 callBlock :: Block -> Evaluator
@@ -188,6 +213,9 @@ initContext = do
   ctx <$ evalFile pre ctxPrld emptyStack
 
 -- utilities --
+
+len :: [a] -> Integer
+len = genericLength
 
 getDebug :: Context -> IO Bool
 getDebug c = maybe False (== true) <$> lookup c "__debug__"

@@ -2,7 +2,7 @@
 ;
 ; File        : prelude.knk
 ; Maintainer  : Felix C. Stegerman <flx@obfusk.net>
-; Date        : 2019-10-07
+; Date        : 2019-10-09
 ;
 ; Copyright   : Copyright (C) 2019  Felix C. Stegerman
 ; Version     : v0.0.1
@@ -53,13 +53,23 @@
 ; 2
 ; 1
 ;
+; ... TODO ...
+;
 ; --                                                            ; }}}1
 
-:swap   [ x y . 'y 'x     ] def ; primitive
-:dup    [ x   . 'x 'x     ] def
-:drop   [ _   .           ] def
-:dip    [ x f .  f 'x     ] def
-:over   [ x y . 'x 'y 'x  ] def ; [ 'dup dip swap ]
+:swap   [ x y . 'y 'x ] def ; primitive
+
+ :dup   [ x   . 'x 'x       ] def
+:2dup   [ x y . 'x 'y 'x 'y ] def
+
+ :drop  [ _   . ] def
+:2drop  [ _ _ . ] def
+
+ :dip   [ x f   .  f 'x     ] def
+:2dip   [ x y f .  f 'x 'y  ] def
+
+ :over  [ x y   . 'x 'y 'x        ] def ; [ 'dup dip swap ]
+:2over  [ x y z . 'x 'y 'z 'x 'y  ] def
 
 ; ... TODO ...
 
@@ -119,13 +129,27 @@
 ; >>> ( :one :two :three ) 1 get
 ; :two
 ; >>> () 0 get
-; *** ERROR: list.get: index error
+; *** ERROR: list.get: index 0 is out of range
+; >>> () 0 get^
+; nil
+;
+; >>> ( :one :two :three ) 1 member?
+; #t
+; >>> ( :one :two :three ) :two elem?
+; #t
 ;
 ; --                                                            ; }}}1
 
-:empty? [ .empty?   ] def
-:len    [ .len      ] def
-:get    [ swap !get ] def ; TODO: safe version
+:empty?   [ .empty? ] def
+:len      [ .len    ] def
+
+:get      [ swap !get     ] def
+:member?  [ swap !member? ] def
+:elem?    [ swap !elem?   ] def
+
+:get^     [ 'get 'member? 2ornil ] def
+
+; ... TODO ...
 
 ; -- lists --
 
@@ -165,11 +189,11 @@
 ;
 ; --                                                            ; }}}1
 
-:head   [ .head   ] def
-:tail   [ .tail   ] def
+:head   [ .head ] def
+:tail   [ .tail ] def
 
-:head^  [ 'head 'empty? ornil ] def
-:tail^  [ 'tail 'empty? ornil ] def
+:head^  [ 'head [ empty? not ] ornil ] def
+:tail^  [ 'tail [ empty? not ] ornil ] def
 
 :uncons [ .uncons ] def
 :cons   [ !cons   ] def
@@ -195,10 +219,15 @@
 ;
 ; --                                                            ; }}}1
 
-:ornil  [ nil ordef ] def
-:ordef  [ f p? d . dup p? [ drop 'd ] 'f if ] def
+ :ornil [ nil  ordef  ] def
+:2ornil [ nil 2ordef  ] def
+
+ :ordef [ f p? d .  dup p? 'f [  drop 'd ] if ] def
+:2ordef [ f p? d . 2dup p? 'f [ 2drop 'd ] if ] def
 
 :times  [ f n . 'n 0 <= [ ] [ f 'f 'n 1 - times ] if ] def
+
+; -- TODO --
 
 ; -- predicates --
 
