@@ -2,7 +2,7 @@
 --
 --  File        : Koneko/Eval.hs
 --  Maintainer  : Felix C. Stegerman <flx@obfusk.net>
---  Date        : 2019-10-07
+--  Date        : 2019-10-10
 --
 --  Copyright   : Copyright (C) 2019  Felix C. Stegerman
 --  Version     : v0.0.1
@@ -48,7 +48,7 @@ module Koneko.Eval (
 
 import Control.Exception (throwIO, try)
 import Control.Monad (when)
-import Data.List (genericLength, intercalate)
+import Data.List hiding (lookup)
 import Data.Monoid((<>))
 import Data.Text.Lazy (Text)
 import Prelude hiding (lookup)
@@ -69,6 +69,8 @@ import qualified Koneko.Prld as Prld
 
 tryK :: IO a -> IO (Either KException a)
 tryK = try
+
+-- eval --
 
 eval :: [KValue] -> Evaluator
 eval []     _ s   = return s
@@ -120,21 +122,23 @@ pushIdent i c s = lookup c i >>= maybe err (return . push s)
 evalBlock :: Block -> Evaluator
 evalBlock b c s = rpush1 s b { blkScope = Just $ ctxScope c }
 
+-- call --
+
 -- TODO
 call :: Evaluator
 call c s = do
   getDebug c >>= flip when (hPutStrLn stderr "*** call ***")
   (x, s') <- pop' s
   case x of
-    KPrim (KStr _)  -> error "TODO"
+    KPrim (KStr _)  -> throwIO $ NotImplementedError "call str"
     KPair p         -> callPair p c s'
     KList l         -> callList l c s'
     KDict d         -> callDict d c s'
     KBlock b        -> callBlock b c s'
     KBuiltin b      -> biRun b c s'
-    KMulti _        -> error "TODO"
-    KRecordT _      -> error "TODO"
-    KRecord _       -> error "TODO"
+    KMulti _        -> throwIO $ NotImplementedError "call multi"
+    KRecordT _      -> throwIO $ NotImplementedError "call record-type"
+    KRecord _       -> throwIO $ NotImplementedError "call record"
     _               -> throwIO $ UncallableType $ typeToStr $ typeOf x
 
 callPair :: Pair -> Evaluator
@@ -192,25 +196,59 @@ callDict (Dict h) _ s = do
 -- TODO
 callBlock :: Block -> Evaluator
 callBlock Block{..} c s0 = do
-    scope       <- maybe err return blkScope
-    (s1, args)  <- popArgs [] s0 $ reverse blkArgs
-    eval blkCode (forkScope args c scope) s1
+    sc          <- getScope blkScope
+    (s1, args)  <- popArgs [] s0 $ reverse nargs
+    eval blkCode (forkScope (args ++ nilArgs sargs) c sc) s1
   where
-    popArgs r s []      = return (s, r)
-    popArgs r s (k:kt)  = do
-      (v, s') <- pop' s; popArgs ((unIdent k, v):r) s' kt
-    err                 = throwIO EvalScopelessBlock
+    (sargs, nargs) = partitionSpecial blkArgs
+
+-- apply --
+
+-- TODO
+apply :: Evaluator
+apply c s0 = do
+  (Block{..}, s1) <- pop' s0; sc <- getScope blkScope
+  (l, s2)         <- pop' s1
+  let (sargs, nargs)  = partitionSpecial blkArgs
+      sargs'          = filter ((/= "&") . unIdent) sargs
+      lna             = len nargs
+  when (len l < lna) $ throwIO $ ApplyExpected lna
+  let (l1, l2)  = splitAt (fromInteger lna) l
+      args      = zip (map unIdent nargs) l1 ++
+                  nilArgs sargs' ++ [("&", list l2)]
+  s3 <- eval blkCode (forkScope args c sc) emptyStack
+  return $ s3 ++ s2
+
+-- TODO
+applyDict :: Evaluator
+applyDict _ _ = throwIO $ NotImplementedError "apply-dict"
 
 -- initial context --
 
 initContext :: IO Context
 initContext = do
   ctx     <- initMainContext
-  ctxPrim <- Prim.initCtx ctx call
+  ctxPrim <- Prim.initCtx ctx call apply applyDict
   ctxBltn <- Bltn.initCtx ctxPrim
   ctxPrld <- Prld.initCtx ctxBltn
   pre     <- Prld.modFile
   ctx <$ evalFile pre ctxPrld emptyStack
+
+-- utilities: block call/apply --
+
+getScope :: Maybe Scope -> IO Scope
+getScope = maybe (throwIO EvalScopelessBlock) return
+
+popArgs :: Args -> Stack -> [Ident] -> IO (Stack, Args)
+popArgs r s []      = return (s, r)
+popArgs r s (k:kt)  = do
+  (v, s') <- pop' s; popArgs ((unIdent k, v):r) s' kt
+
+partitionSpecial :: [Ident] -> ([Ident], [Ident])
+partitionSpecial = partition $ (`elem` ["&", "&&"]) . unIdent
+
+nilArgs :: [Ident] -> Args
+nilArgs a = [ (unIdent k, nil) | k <- a ]
 
 -- utilities --
 

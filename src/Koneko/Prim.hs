@@ -2,7 +2,7 @@
 --
 --  File        : Koneko/Prim.hs
 --  Maintainer  : Felix C. Stegerman <flx@obfusk.net>
---  Date        : 2019-10-09
+--  Date        : 2019-10-10
 --
 --  Copyright   : Copyright (C) 2019  Felix C. Stegerman
 --  Version     : v0.0.1
@@ -29,11 +29,12 @@ import Koneko.Misc (prompt')
 import Paths_koneko (getDataFileName)
 
 -- TODO
-initCtx :: Context -> Evaluator -> IO Context
-initCtx ctxMain call = do
+initCtx :: Context -> Evaluator -> Evaluator -> Evaluator -> IO Context
+initCtx ctxMain call apply applyDict = do
   ctxPrim <- forkContext primModule ctxMain
   traverse_ (defPrim ctxPrim) [
-      mkPrim "call" call, apply call, if_ call,
+      mkPrim "call" call, mkPrim "apply" apply,
+      mkPrim "apply-dict" applyDict, if_ call,
       def, mkPair, mkDict, swap,
       show_, say, ask, type_, callable,
       moduleGet, moduleDefs, moduleName,
@@ -53,14 +54,8 @@ initCtx ctxMain call = do
 
 -- primitives: important --
 
-apply, if_ :: Evaluator -> Builtin
+if_ :: Evaluator -> Builtin
 def, mkPair, mkDict, swap :: Builtin
-
--- TODO
-apply call = mkPrim "apply" $ \c s0 -> do
-  ((l, f), s1) <- pop2' s0
-  s2 <- call c (f:reverse l)
-  return $ s2 ++ s1
 
 if_ call = mkPrim "if" $ \c s -> do
   ((cond, t_br, f_br), s') <- pop3' s

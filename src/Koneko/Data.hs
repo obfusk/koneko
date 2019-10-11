@@ -2,7 +2,7 @@
 --
 --  File        : Koneko/Data.hs
 --  Maintainer  : Felix C. Stegerman <flx@obfusk.net>
---  Date        : 2019-10-09
+--  Date        : 2019-10-10
 --
 --  Copyright   : Copyright (C) 2019  Felix C. Stegerman
 --  Version     : v0.0.1
@@ -55,7 +55,7 @@
                                                               --  }}}1
 
 module Koneko.Data (
-  Identifier, Module, Evaluator, KException(..), Kwd(..), Ident,
+  Identifier, Module, Evaluator, Args, KException(..), Kwd(..), Ident,
   unIdent, ident, List(..), Dict(..), Block(..), Builtin(..),
   Multi(..), RecordT(..), Record, recType, recValues, record, Scope,
   Context, ctxScope, Pair(..), KPrim(..), KValue(..), KType(..),
@@ -106,6 +106,7 @@ type MultiTable         = HashTable [Identifier] Block
 type Identifier         = Text
 type Module             = ModuleLookupTable
 type Evaluator          = Context -> Stack -> IO Stack
+type Args               = [(Identifier, KValue)]
 
 -- TODO
 data KException
@@ -116,12 +117,14 @@ data KException
     | LookupFailed !String    -- ^ ident lookup failed
     | StackUnderflow          -- ^ stack was empty
     | StackExpected !String   -- ^ stack did not contain expected value
+    | ApplyExpected !Integer
     | UncomparableType !String
     | UncallableType !String
     | UnknownField !String !String
     | EmptyList !String
     | IndexError !String !Integer
     | KeyError !String !String
+    | NotImplementedError !String
   deriving Typeable
 
 instance Exception KException
@@ -247,19 +250,21 @@ instance Ord Multi where
 
 instance Show KException where
   show (ParseError msg)         = "parse error: " ++ msg
-  show (EvalUnexpected what)    = "cannot eval " ++ what
+  show (EvalUnexpected t)       = "cannot eval " ++ t
   show (EvalScopelessBlock)     = "cannot eval scopeless block"
   show (ModuleNotFound name)    = "no module named " ++ name
   show (LookupFailed name)      = "name " ++ name ++ " is not defined"
   show (StackUnderflow)         = "stack underflow"
-  show (StackExpected what)     = "expected " ++ what ++ " on stack"
-  show (UncomparableType what)  = "type " ++ what ++ " is not comparable"
-  show (UncallableType what)    = "type " ++ what ++ " is not callable"
+  show (StackExpected t)        = "expected " ++ t ++ " on stack"
+  show (ApplyExpected n)        = "expected " ++ show n ++ " arg(s) for apply"
+  show (UncomparableType t)     = "type " ++ t ++ " is not comparable"
+  show (UncallableType t)       = "type " ++ t ++ " is not callable"
   show (UnknownField f t)       = t ++ " has no field named " ++ f
   show (EmptyList op)           = op ++ ": empty list"
   show (IndexError op i)        = op ++ ": index " ++ show i ++
                                   " is out of range"
   show (KeyError op k)          = op ++ ": key " ++ k ++ " not found"
+  show (NotImplementedError s)  = "not implemented: " ++ s
 
 instance Show Kwd where
   show (Kwd s) = ":" ++ if M.isIdent s then T.unpack s else show s
@@ -583,7 +588,7 @@ _newScope :: Identifier -> Scope
 _newScope m = Scope { parent = Left m, table = H.empty }
 
 -- TODO: can this create unnecessary duplicates?
-forkScope :: [(Identifier, KValue)] -> Context -> Scope -> Context
+forkScope :: Args -> Context -> Scope -> Context
 forkScope [] c s  = c { ctxScope = s }
 forkScope l  c s  = c { ctxScope = Scope { parent = Right s,
                                            table  = H.fromList l } }
