@@ -15,7 +15,8 @@ syn match   knkInt        '\d\+\([, \t]\|$\)\@='
 syn match   knkKwd        ':[^, \t]\+'
 syn match   knkStr        '"\(\\.\|[^\\"]\)*"\([, \t]\|$\)\@='
 
-syn keyword knkPrim       call apply if def dict show say ask type not and or
+syn keyword knkPrim       call apply apply-dict if def defmulti
+  \                       defrecord dict show say ask type not and or
 syn match   knkPrimMore   '\(=>\|callable?\|/\?=\|[<>]=\?\|int->float\|__[^, \t]\+__\)\([, \t]\|$\)\@='
 
 syn match   knkParen      '[(){}\[\]]\([, \t]\|$\)\@='

@@ -2,7 +2,7 @@
 --
 --  File        : Koneko/Data.hs
 --  Maintainer  : Felix C. Stegerman <flx@obfusk.net>
---  Date        : 2019-10-10
+--  Date        : 2019-10-11
 --
 --  Copyright   : Copyright (C) 2019  Felix C. Stegerman
 --  Version     : v0.0.1
@@ -55,25 +55,28 @@
                                                               --  }}}1
 
 module Koneko.Data (
-  Identifier, Module, Evaluator, Args, KException(..), Kwd(..), Ident,
-  unIdent, ident, List(..), Dict(..), Block(..), Builtin(..),
-  Multi(..), RecordT(..), Record, recType, recValues, record, Scope,
-  Context, ctxScope, Pair(..), KPrim(..), KValue(..), KType(..),
-  Stack, escapeFrom, escapeTo, ToVal, toVal, FromVal, fromVal, toVals,
+  Identifier, Module, Evaluator, Args, KException(..), stackExpected,
+  applyExpected, applyMissing, multiExpected, Kwd(..), Ident, unIdent,
+  ident, List(..), Dict(..), Block(..), Builtin(..), Multi(..),
+  RecordT(..), Record, recType, recValues, record, Scope, Context,
+  ctxScope, Pair(..), KPrim(..), KValue(..), KType(..), Stack,
+  escapeFrom, escapeTo, ToVal, toVal, FromVal, fromVal, toVals,
   fromVals, maybeToVal, maybeToNil, eitherToVal, eitherToNil,
   emptyStack, push', push, rpush, rpush1, pop, pop2, pop3, pop',
-  pop2', pop3', pop1push, pop2push, pop1push1, pop2push1, primModule,
-  bltnModule, prldModule, mainModule, initMainContext, forkContext,
-  forkScope, defineIn, scopeModuleName, lookup, lookupModule',
-  moduleKeys, typeOf, typeToKwd, typeToStr, isNil, isBool, isInt,
-  isFloat, isStr, isKwd, isPair, isList, isDict, isIdent, isQuot,
-  isBlock, isBuiltin, isMulti, isRecordT, isRecord, isCallable, nil,
-  false, true, bool, int, float, str, kwd, pair, list, dict, block,
-  mkPrim, mkBltn, defPrim, truthy, retOrThrow
+  pop2', pop3', popN', pop1push, pop2push, pop1push1, pop2push1,
+  primModule, bltnModule, prldModule, mainModule, initMainContext,
+  forkContext, forkScope, defineIn, scopeModuleName, lookup,
+  lookupModule', moduleKeys, typeOf, typeToKwd, typeToStr, isNil,
+  isBool, isInt, isFloat, isStr, isKwd, isPair, isList, isDict,
+  isIdent, isQuot, isBlock, isBuiltin, isMulti, isRecordT, isRecord,
+  isCallable, nil, false, true, bool, int, float, str, kwd, pair,
+  list, dict, block, mkPrim, mkBltn, defPrim, defMulti, truthy,
+  retOrThrow
 ) where
 
 import Control.DeepSeq (deepseq, NFData(..))
 import Control.Exception (Exception, throw, throwIO)
+import Control.Monad (when)
 import Data.Char (isPrint, ord)
 import Data.List (intercalate)
 import Data.Monoid ((<>))
@@ -116,11 +119,11 @@ data KException
     | ModuleNotFound !String
     | LookupFailed !String    -- ^ ident lookup failed
     | StackUnderflow          -- ^ stack was empty
-    | StackExpected !String   -- ^ stack did not contain expected value
-    | ApplyExpected !Integer
-    | ApplyMissing !String
+    | Expected !EExpected
+    | MultiMatchFailed !String !String
     | UncomparableType !String
     | UncallableType !String
+    | UnapplicableType !String !String
     | UnknownField !String !String
     | EmptyList !String
     | IndexError !String !Integer
@@ -129,6 +132,19 @@ data KException
   deriving Typeable
 
 instance Exception KException
+
+data EExpected
+  = StackExpected !String
+  | ApplyExpected !Integer
+  | ApplyMissing !String
+  | MultiExpected !String
+
+stackExpected, applyMissing, multiExpected :: String -> KException
+applyExpected :: Integer -> KException
+stackExpected = Expected . StackExpected
+applyExpected = Expected . ApplyExpected
+applyMissing  = Expected . ApplyMissing
+multiExpected = Expected . MultiExpected
 
 -- TODO: intern?!
 newtype Kwd = Kwd { unKwd :: Identifier }
@@ -256,17 +272,23 @@ instance Show KException where
   show (ModuleNotFound name)    = "no module named " ++ name
   show (LookupFailed name)      = "name " ++ name ++ " is not defined"
   show (StackUnderflow)         = "stack underflow"
-  show (StackExpected t)        = "expected " ++ t ++ " on stack"
-  show (ApplyExpected n)        = "expected " ++ show n ++ " arg(s) for apply"
-  show (ApplyMissing s)         = "expected " ++ s ++ " for apply"
+  show (Expected e)             = "expected " ++ show e
+  show (MultiMatchFailed n s)   = "no signature " ++ s ++ " for multi " ++ n
   show (UncomparableType t)     = "type " ++ t ++ " is not comparable"
   show (UncallableType t)       = "type " ++ t ++ " is not callable"
+  show (UnapplicableType t op)  = "type " ++ t ++ " does not support " ++ op
   show (UnknownField f t)       = t ++ " has no field named " ++ f
   show (EmptyList op)           = op ++ ": empty list"
   show (IndexError op i)        = op ++ ": index " ++ show i ++
                                   " is out of range"
   show (KeyError op k)          = op ++ ": key " ++ k ++ " not found"
   show (NotImplementedError s)  = "not implemented: " ++ s
+
+instance Show EExpected where
+  show (StackExpected t)    = t ++ " on stack"
+  show (ApplyExpected n)    = show n ++ " arg(s) for apply"
+  show (ApplyMissing x)     = "argument named " ++ x ++ " for apply(-dict)"
+  show (MultiExpected msg)  = msg
 
 instance Show Kwd where
   show (Kwd s) = ":" ++ if M.isIdent s then T.unpack s else show s
@@ -423,44 +445,44 @@ class FromVal a where
 
 instance FromVal () where
   fromVal (KPrim KNil)        = Right ()
-  fromVal _                   = Left $ StackExpected "nil"
+  fromVal _                   = Left $ stackExpected "nil"
 
 instance FromVal Bool where
   fromVal (KPrim (KBool x))   = Right x
-  fromVal _                   = Left $ StackExpected "bool"
+  fromVal _                   = Left $ stackExpected "bool"
 
 instance FromVal Integer where
   fromVal (KPrim (KInt x))    = Right x
-  fromVal _                   = Left $ StackExpected "int"
+  fromVal _                   = Left $ stackExpected "int"
 
 instance FromVal Double where
   fromVal (KPrim (KFloat x))  = Right x
-  fromVal _                   = Left $ StackExpected "float"
+  fromVal _                   = Left $ stackExpected "float"
 
 instance FromVal Text where
   fromVal (KPrim (KStr x))    = Right x
-  fromVal _                   = Left $ StackExpected "str"
+  fromVal _                   = Left $ stackExpected "str"
 
 instance FromVal Kwd where
   fromVal (KPrim (KKwd x))    = Right x
-  fromVal _                   = Left $ StackExpected "kwd"
+  fromVal _                   = Left $ stackExpected "kwd"
 
 instance FromVal Pair where
   fromVal (KPair x)           = Right x
-  fromVal _                   = Left $ StackExpected "pair"
+  fromVal _                   = Left $ stackExpected "pair"
 
 instance FromVal [KValue] where
   fromVal (KList (List x))    = Right x
-  fromVal _                   = Left $ StackExpected "list"
+  fromVal _                   = Left $ stackExpected "list"
 
 -- NB: ToVal is for [Pair]
 instance FromVal Dict where
   fromVal (KDict x)           = Right x
-  fromVal _                   = Left $ StackExpected "dict"
+  fromVal _                   = Left $ stackExpected "dict"
 
 instance FromVal Block where
   fromVal (KBlock x)          = Right x
-  fromVal _                   = Left $ StackExpected "block"
+  fromVal _                   = Left $ stackExpected "block"
 
 instance FromVal KValue where
   fromVal x                   = Right x
@@ -550,6 +572,12 @@ pop2' = retOrThrow . pop2
 pop3' :: (FromVal a, FromVal b, FromVal c)
       => Stack -> IO ((a, b, c), Stack)
 pop3' = retOrThrow . pop3
+
+popN' :: (FromVal a) => Int -> Stack -> IO ([a], Stack)
+popN' n s0 = if n < 0 then return ([], s0) else f [] n s0
+  where
+    f xs 0 s = return (xs, s)
+    f xs m s = do (x, s') <- pop' s; f (x:xs) (m-1) s'
 
 pop1push :: (FromVal a, ToVal b) => (a -> [b]) -> Evaluator
 pop1push f _ s = do (x, s') <- pop' s; rpush s' $ f x
@@ -760,6 +788,22 @@ mkBltn = Builtin False
 
 defPrim :: Context -> Builtin -> IO ()
 defPrim ctx f = defineIn ctx (biName f) $ KBuiltin f
+
+-- TODO: error if already exists, name not the same
+defMulti :: Context -> Identifier -> [Identifier] -> Block -> IO ()
+defMulti c mn sig b = do
+    curMod <- scopeModule c; HT.mutateIO curMod mn f
+  where
+    f Nothing = do
+      mt <- HT.new; HT.insert mt sig b
+      return (Just $ KMulti $ Multi ma mn mt, ())
+    f (Just x@(KMulti Multi{..})) = (Just x, ()) <$ do
+      when (mltArgs /= ma) $ err $ "multi " ++ T.unpack mltName ++
+        " to have " ++ show mltArgs ++ " args"
+      HT.insert mltTable sig b
+    f _ = err $ T.unpack mn ++ " to be a multi"
+    ma  = length sig
+    err = throwIO . multiExpected
 
 truthy :: KValue -> Bool
 truthy (KPrim KNil)           = False

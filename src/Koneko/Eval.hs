@@ -2,7 +2,7 @@
 --
 --  File        : Koneko/Eval.hs
 --  Maintainer  : Felix C. Stegerman <flx@obfusk.net>
---  Date        : 2019-10-10
+--  Date        : 2019-10-11
 --
 --  Copyright   : Copyright (C) 2019  Felix C. Stegerman
 --  Version     : v0.0.1
@@ -56,6 +56,7 @@ import Safe (atMay)
 import System.IO (hPutStrLn, stderr)
 
 import qualified Data.HashMap.Lazy as H
+import qualified Data.HashTable.IO as HT
 import qualified Data.Text.Lazy as T
 import qualified Data.Text.Lazy.IO as T
 
@@ -92,12 +93,11 @@ evalFile f c s = do code <- T.readFile f; evalText f code c s
 eval1, eval1_ :: KValue -> Context -> Stack -> IO (Stack, Bool)
 
 eval1 x c s = do
-  debug <- getDebug c
-  when debug $ do
+  debug c $ do
     hPutStrLn stderr $ "==> eval " ++ show x
     hPutStrLn stderr $ "--> " ++ intercalate " " (map show $ reverse s)
   r@(s', _) <- eval1_ x c s
-  when debug $
+  debug c $
     hPutStrLn stderr $ "<-- " ++ intercalate " " (map show $ reverse s')
   return r
 
@@ -127,7 +127,7 @@ evalBlock b c s = rpush1 s b { blkScope = Just $ ctxScope c }
 -- TODO
 call :: Evaluator
 call c s = do
-  getDebug c >>= flip when (hPutStrLn stderr "*** call ***")
+  debug c $ hPutStrLn stderr "*** call ***"
   (x, s') <- pop' s
   case x of
     KPrim (KStr _)  -> throwIO $ NotImplementedError "call str"
@@ -136,7 +136,7 @@ call c s = do
     KDict d         -> callDict d c s'
     KBlock b        -> callBlock b c s'
     KBuiltin b      -> biRun b c s'
-    KMulti _        -> throwIO $ NotImplementedError "call multi"
+    KMulti m        -> callMulti m c s'
     KRecordT _      -> throwIO $ NotImplementedError "call record-type"
     KRecord _       -> throwIO $ NotImplementedError "call record"
     _               -> throwIO $ UncallableType $ typeToStr $ typeOf x
@@ -202,50 +202,78 @@ callBlock Block{..} c s0 = do
   where
     (sargs, nargs) = partitionSpecial $ map unIdent blkArgs
 
+-- TODO
+callMulti :: Multi -> Evaluator
+callMulti Multi{..} c s = do
+    sig <- map (typeToStr . typeOf) . fst <$> popN' mltArgs s
+    maybe (err sig) (\b -> callBlock b c s) =<< HT.lookup mltTable sig
+  where
+    err sig = throwIO $ MultiMatchFailed (T.unpack mltName)
+            $ show $ list $ map kwd sig
+
 -- apply --
 
 -- TODO
 apply :: Evaluator
-apply c s0 = do
-  (Block{..}, s1) <- pop' s0; sc <- getScope blkScope
-  (l, s2)         <- pop' s1
-  let (sargs, nargs)  = partitionSpecial $ map unIdent blkArgs
-      sargs'          = delete "&" sargs
-      lna             = len nargs
-  when (len l < lna) $ throwIO $ ApplyExpected lna
-  when (len l > lna && "&" `notElem` sargs) $
-    throwIO $ ApplyMissing "&"
-  let (l1, l2)  = splitAt (fromInteger lna) l
-      args      = zip nargs l1 ++ map (,nil) sargs' ++ [("&", list l2)]
-  s3 <- eval blkCode (forkScope args c sc) emptyStack
-  return $ s3 ++ s2
+apply c s = do
+  debug c $ hPutStrLn stderr "*** apply ***"
+  (x, s') <- pop' s
+  case x of
+    KBlock b    -> applyBlock b c s'
+    KMulti _    -> throwIO $ NotImplementedError "apply multi"
+    KRecordT _  -> throwIO $ NotImplementedError "apply record-type"
+    _           -> throwIO $ UnapplicableType (typeToStr $ typeOf x) "apply"
 
 -- TODO
-applyDict :: Evaluator
-applyDict c s0 = do
-    (Block{..}, s1) <- pop' s0; sc <- getScope blkScope
-    (d, s2)         <- pop' s1
-    let (sargs, nargs)  = partitionSpecial $ map unIdent blkArgs
-        sargs'          = delete "&&" sargs
-        h               = unDict d
-    when ("&&" `notElem` sargs) $ throwIO $ ApplyMissing "&&"
+apply_dict :: Evaluator
+apply_dict c s = do
+  debug c $ hPutStrLn stderr "*** apply-dict ***"
+  (x, s') <- pop' s
+  case x of
+    KBlock b    -> apply_dictBlock b c s'
+    KMulti _    -> throwIO $ NotImplementedError "dict-apply multi"
+    KRecordT _  -> throwIO $ NotImplementedError "dict-apply record-type"
+    _           -> throwIO $ UnapplicableType (typeToStr $ typeOf x) "apply-dict"
+
+-- TODO
+applyBlock :: Block -> Evaluator
+applyBlock Block{..} c s0 = do
+    sc <- getScope blkScope; (l, s1) <- pop' s0
+    when (len l < lna) $ throwIO $ applyExpected lna
+    when (len l > lna && "&" `notElem` sargs) $ throwIO $ applyMissing "&"
+    let (l1, l2)  = splitAt (fromInteger lna) l
+        args      = zip nargs l1 ++ map (,nil) sargs' ++ [("&", list l2)]
+    s2 <- eval blkCode (forkScope args c sc) emptyStack
+    return $ s2 ++ s1
+  where
+    (sargs, nargs)  = partitionSpecial $ map unIdent blkArgs
+    sargs'          = delete "&" sargs
+    lna             = len nargs
+
+-- TODO
+apply_dictBlock :: Block -> Evaluator
+apply_dictBlock Block{..} c s0 = do
+    sc <- getScope blkScope; (d, s1) <- pop' s0; let h = unDict d
+    when ("&&" `notElem` sargs) $ throwIO $ applyMissing "&&"
     vals <- look h nargs
     let h'    = H.filterWithKey (\k _ -> k `notElem` nargs) h
         args  = zip nargs vals ++ map (,nil) sargs' ++
                 [("&&", KDict $ Dict h')]
-    s3 <- eval blkCode (forkScope args c sc) emptyStack
-    return $ s3 ++ s2
+    s2 <- eval blkCode (forkScope args c sc) emptyStack
+    return $ s2 ++ s1
   where
-    look h ks   = either (throwIO . KeyError "apply-dict") return
-                $ traverse (lookOne h) ks
-    lookOne h k = maybe (Left $ T.unpack k) Right $ H.lookup k h
+    (sargs, nargs)  = partitionSpecial $ map unIdent blkArgs
+    sargs'          = delete "&&" sargs
+    look h ks       = either (throwIO . KeyError "apply-dict") return
+                    $ traverse (lookOne h) ks
+    lookOne h k     = maybe (Left $ T.unpack k) Right $ H.lookup k h
 
 -- initial context --
 
 initContext :: IO Context
 initContext = do
   ctx     <- initMainContext
-  ctxPrim <- Prim.initCtx ctx call apply applyDict
+  ctxPrim <- Prim.initCtx ctx call apply apply_dict
   ctxBltn <- Bltn.initCtx ctxPrim
   ctxPrld <- Prld.initCtx ctxBltn
   pre     <- Prld.modFile
@@ -269,7 +297,8 @@ partitionSpecial = partition (`elem` ["&", "&&"])
 len :: [a] -> Integer
 len = genericLength
 
-getDebug :: Context -> IO Bool
-getDebug c = maybe False (== true) <$> lookup c "__debug__"
+debug :: Context -> IO () -> IO ()
+debug c act
+  = maybe False (== true) <$> lookup c "__debug__" >>= flip when act
 
 -- vim: set tw=70 sw=2 sts=2 et fdm=marker :

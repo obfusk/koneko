@@ -2,7 +2,7 @@
 --
 --  File        : Koneko/Prim.hs
 --  Maintainer  : Felix C. Stegerman <flx@obfusk.net>
---  Date        : 2019-10-10
+--  Date        : 2019-10-11
 --
 --  Copyright   : Copyright (C) 2019  Felix C. Stegerman
 --  Version     : v0.0.1
@@ -30,12 +30,12 @@ import Paths_koneko (getDataFileName)
 
 -- TODO
 initCtx :: Context -> Evaluator -> Evaluator -> Evaluator -> IO Context
-initCtx ctxMain call apply applyDict = do
+initCtx ctxMain call apply apply_dict = do
   ctxPrim <- forkContext primModule ctxMain
   traverse_ (defPrim ctxPrim) [
       mkPrim "call" call, mkPrim "apply" apply,
-      mkPrim "apply-dict" applyDict, if_ call,
-      def, mkPair, mkDict, swap,
+      mkPrim "apply-dict" apply_dict, if_ call,
+      def, defmulti, defrecord, mkPair, mkDict, swap,
       show_, say, ask, type_, callable,
       moduleGet, moduleDefs, moduleName,
       not_, and_, or_,
@@ -55,7 +55,7 @@ initCtx ctxMain call apply applyDict = do
 -- primitives: important --
 
 if_ :: Evaluator -> Builtin
-def, mkPair, mkDict, swap :: Builtin
+def, defmulti, defrecord, mkPair, mkDict, swap :: Builtin
 
 if_ call = mkPrim "if" $ \c s -> do
   ((cond, t_br, f_br), s') <- pop3' s
@@ -63,6 +63,15 @@ if_ call = mkPrim "if" $ \c s -> do
 
 def = mkPrim "def" $ \c s -> do
   ((Kwd k, v), s') <- pop2' s; s' <$ defineIn c k v
+
+defmulti = mkPrim "defmulti" $ \c s -> do
+  ((Kwd k, sig, b), s') <- pop3' s
+  sig' <- retOrThrow $ map unKwd <$> fromVals sig
+  s' <$ defMulti c k sig' b
+
+-- TODO
+defrecord = mkPrim "__defrecord" $ \_ _ -> do
+  error "TODO"
 
 mkPair = mkPrim "=>" $ pop2push1 Pair
 
@@ -127,8 +136,8 @@ arithI = arith
 arithF = arith
 
 intToFloat :: Builtin
-intToFloat  = mkPrim "int->float"
-            $ pop1push1 (fromInteger :: Integer -> Double)
+intToFloat
+  = mkPrim "int->float" $ pop1push1 (fromInteger :: Integer -> Double)
 
 -- repl --
 
