@@ -102,11 +102,11 @@ eval1 x c s = do
   return r
 
 eval1_ x c s = case x of
-  KPrim _         -> (, False) <$> rpush1 s x
-  KList (List l)  -> (, False) <$> evalList l c s
-  KIdent i        -> (, True ) <$> pushIdent (unIdent i) c s
-  KQuot i         -> (, False) <$> pushIdent (unIdent i) c s
-  KBlock b        -> (, False) <$> evalBlock b c s
+  KPrim _         -> (,False) <$> rpush1 s x
+  KList (List l)  -> (,False) <$> evalList l c s
+  KIdent i        -> (,True ) <$> pushIdent (unIdent i) c s
+  KQuot i         -> (,False) <$> pushIdent (unIdent i) c s
+  KBlock b        -> (,False) <$> evalBlock b c s
   _               -> throwIO $ EvalUnexpected $ typeToStr $ typeOf x
 
 -- TODO
@@ -198,9 +198,9 @@ callBlock :: Block -> Evaluator
 callBlock Block{..} c s0 = do
     sc          <- getScope blkScope
     (s1, args)  <- popArgs [] s0 $ reverse nargs
-    eval blkCode (forkScope (args ++ nilArgs sargs) c sc) s1
+    eval blkCode (forkScope (args ++ map (,nil) sargs) c sc) s1
   where
-    (sargs, nargs) = partitionSpecial blkArgs
+    (sargs, nargs) = partitionSpecial $ map unIdent blkArgs
 
 -- apply --
 
@@ -209,19 +209,35 @@ apply :: Evaluator
 apply c s0 = do
   (Block{..}, s1) <- pop' s0; sc <- getScope blkScope
   (l, s2)         <- pop' s1
-  let (sargs, nargs)  = partitionSpecial blkArgs
-      sargs'          = filter ((/= "&") . unIdent) sargs
+  let (sargs, nargs)  = partitionSpecial $ map unIdent blkArgs
+      sargs'          = delete "&" sargs
       lna             = len nargs
+  when ("&" `notElem` sargs) $ throwIO $ ApplyMissing "&"
   when (len l < lna) $ throwIO $ ApplyExpected lna
   let (l1, l2)  = splitAt (fromInteger lna) l
-      args      = zip (map unIdent nargs) l1 ++
-                  nilArgs sargs' ++ [("&", list l2)]
+      args      = zip nargs l1 ++ map (,nil) sargs' ++ [("&", list l2)]
   s3 <- eval blkCode (forkScope args c sc) emptyStack
   return $ s3 ++ s2
 
 -- TODO
 applyDict :: Evaluator
-applyDict _ _ = throwIO $ NotImplementedError "apply-dict"
+applyDict c s0 = do
+    (Block{..}, s1) <- pop' s0; sc <- getScope blkScope
+    (d, s2)         <- pop' s1
+    let (sargs, nargs)  = partitionSpecial $ map unIdent blkArgs
+        sargs'          = delete "&&" sargs
+        h               = unDict d
+    when ("&&" `notElem` sargs) $ throwIO $ ApplyMissing "&&"
+    vals <- look h nargs
+    let h'    = H.filterWithKey (\k _ -> k `notElem` nargs) h
+        args  = zip nargs vals ++ map (,nil) sargs' ++
+                [("&&", KDict $ Dict h')]
+    s3 <- eval blkCode (forkScope args c sc) emptyStack
+    return $ s3 ++ s2
+  where
+    look h ks   = either (throwIO . KeyError "apply-dict") return
+                $ traverse (lookOne h) ks
+    lookOne h k = maybe (Left $ T.unpack k) Right $ H.lookup k h
 
 -- initial context --
 
@@ -239,16 +255,13 @@ initContext = do
 getScope :: Maybe Scope -> IO Scope
 getScope = maybe (throwIO EvalScopelessBlock) return
 
-popArgs :: Args -> Stack -> [Ident] -> IO (Stack, Args)
+popArgs :: Args -> Stack -> [Identifier] -> IO (Stack, Args)
 popArgs r s []      = return (s, r)
 popArgs r s (k:kt)  = do
-  (v, s') <- pop' s; popArgs ((unIdent k, v):r) s' kt
+  (v, s') <- pop' s; popArgs ((k, v):r) s' kt
 
-partitionSpecial :: [Ident] -> ([Ident], [Ident])
-partitionSpecial = partition $ (`elem` ["&", "&&"]) . unIdent
-
-nilArgs :: [Ident] -> Args
-nilArgs a = [ (unIdent k, nil) | k <- a ]
+partitionSpecial :: [Identifier] -> ([Identifier], [Identifier])
+partitionSpecial = partition (`elem` ["&", "&&"])
 
 -- utilities --
 

@@ -118,6 +118,7 @@ data KException
     | StackUnderflow          -- ^ stack was empty
     | StackExpected !String   -- ^ stack did not contain expected value
     | ApplyExpected !Integer
+    | ApplyMissing !String
     | UncomparableType !String
     | UncallableType !String
     | UnknownField !String !String
@@ -257,6 +258,7 @@ instance Show KException where
   show (StackUnderflow)         = "stack underflow"
   show (StackExpected t)        = "expected " ++ t ++ " on stack"
   show (ApplyExpected n)        = "expected " ++ show n ++ " arg(s) for apply"
+  show (ApplyMissing s)         = "expected " ++ s ++ " for apply"
   show (UncomparableType t)     = "type " ++ t ++ " is not comparable"
   show (UncallableType t)       = "type " ++ t ++ " is not callable"
   show (UnknownField f t)       = t ++ " has no field named " ++ f
