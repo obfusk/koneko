@@ -212,8 +212,9 @@ apply c s0 = do
   let (sargs, nargs)  = partitionSpecial $ map unIdent blkArgs
       sargs'          = delete "&" sargs
       lna             = len nargs
-  when ("&" `notElem` sargs) $ throwIO $ ApplyMissing "&"
   when (len l < lna) $ throwIO $ ApplyExpected lna
+  when (len l > lna && "&" `notElem` sargs) $
+    throwIO $ ApplyMissing "&"
   let (l1, l2)  = splitAt (fromInteger lna) l
       args      = zip nargs l1 ++ map (,nil) sargs' ++ [("&", list l2)]
   s3 <- eval blkCode (forkScope args c sc) emptyStack
