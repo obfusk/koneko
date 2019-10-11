@@ -47,7 +47,7 @@ module Koneko.Eval (
 ) where
 
 import Control.Exception (throwIO, try)
-import Control.Monad (when)
+import Control.Monad (unless, when)
 import Data.List hiding (lookup)
 import Data.Monoid((<>))
 import Data.Text.Lazy (Text)
@@ -124,22 +124,28 @@ evalBlock b c s = rpush1 s b { blkScope = Just $ ctxScope c }
 
 -- call --
 
--- TODO
 call :: Evaluator
 call c s = do
   debug c $ hPutStrLn stderr "*** call ***"
   (x, s') <- pop' s
   case x of
-    KPrim (KStr _)  -> throwIO $ NotImplementedError "call str"
-    KPair p         -> callPair p c s'
-    KList l         -> callList l c s'
-    KDict d         -> callDict d c s'
-    KBlock b        -> callBlock b c s'
-    KBuiltin b      -> biRun b c s'
-    KMulti m        -> callMulti m c s'
-    KRecordT _      -> throwIO $ NotImplementedError "call record-type"
-    KRecord _       -> throwIO $ NotImplementedError "call record"
+    KPrim (KStr y)  -> callStr      y c s'
+    KPair p         -> callPair     p c s'
+    KList l         -> callList     l c s'
+    KDict d         -> callDict     d c s'
+    KBlock b        -> callBlock    b c s'
+    KBuiltin b      -> biRun        b c s'
+    KMulti m        -> callMulti    m c s'
+    KRecordT r      -> callRecordT  r c s'
+    KRecord r       -> callRecord   r c s'
     _               -> throwIO $ UncallableType $ typeToStr $ typeOf x
+
+-- TODO
+callStr :: Text -> Evaluator
+callStr _ _ s = do
+  (Kwd op, _) <- pop' s
+  case op of
+    _ -> throwIO $ UnknownField (T.unpack op) "str"
 
 callPair :: Pair -> Evaluator
 callPair Pair{..} _ s = do
@@ -161,6 +167,8 @@ callList (List l) _ s = do
     "uncons"  ->  g >> rpush s' [head l, list $ tail l]       -- safe!
     "cons"    ->  rpush1 s' $ mkPrim o $ \_ s1 -> do
                     (x, s2) <- pop' s1; rpush1 s2 (x:l)
+    "append"  ->  rpush1 s' $ mkPrim o $ \_ s1 -> do
+                    (l2, s2) <- pop' s1; rpush1 s2 $ l2 ++ l
     "empty?"  ->  rpush1 s' $ null l
     "len"     ->  rpush1 s' $ len l
     "get"     ->  rpush1 s' $ mkPrim o $ \_ s1 -> do
@@ -181,6 +189,9 @@ callDict (Dict h) _ s = do
   (Kwd op, s') <- pop' s
   let o = "dict." <> op
   case op of
+    "merge"   ->  rpush1 s' $ mkPrim o $ \_ s1 -> do
+                    (Dict h2, s2) <- pop' s1
+                    rpush1 s2 $ Dict $ H.union h h2
     "empty?"  ->  rpush1 s' $ H.null h
     "len"     ->  rpush1 s' $ toInteger $ H.size h
     "get"     ->  rpush1 s' $ mkPrim o $ \_ s1 -> do
@@ -194,15 +205,6 @@ callDict (Dict h) _ s = do
     _         ->  throwIO $ UnknownField (T.unpack op) "dict"
 
 -- TODO
-callBlock :: Block -> Evaluator
-callBlock Block{..} c s0 = do
-    sc          <- getScope blkScope
-    (s1, args)  <- popArgs [] s0 $ reverse nargs
-    eval blkCode (forkScope (args ++ map (,nil) sargs) c sc) s1
-  where
-    (sargs, nargs) = partitionSpecial $ map unIdent blkArgs
-
--- TODO
 callMulti :: Multi -> Evaluator
 callMulti Multi{..} c s = do
     sig <- map (typeToStr . typeOf) . fst <$> popN' mltArgs s
@@ -210,6 +212,15 @@ callMulti Multi{..} c s = do
   where
     err sig = throwIO $ MultiMatchFailed (T.unpack mltName)
             $ show $ list $ map kwd sig
+
+callRecord :: Record -> Evaluator
+callRecord r _ s = do
+    (Kwd k, s') <- pop' s
+    case elemIndex k recFields of
+      Nothing -> throwIO $ UnknownField (T.unpack k) (T.unpack recName)
+      Just n  -> rpush1 s' $ recValues r !! n                 -- safe!
+  where
+    RecordT{..} = recType r
 
 -- apply --
 
@@ -221,7 +232,7 @@ apply c s = do
   case x of
     KBlock b    -> applyBlock b c s'
     KMulti _    -> throwIO $ NotImplementedError "apply multi"
-    KRecordT _  -> throwIO $ NotImplementedError "apply record-type"
+    KRecordT r  -> applyRecordT r c s'
     _           -> throwIO $ UnapplicableType (typeToStr $ typeOf x) "apply"
 
 -- TODO
@@ -231,31 +242,42 @@ apply_dict c s = do
   (x, s') <- pop' s
   case x of
     KBlock b    -> apply_dictBlock b c s'
-    KMulti _    -> throwIO $ NotImplementedError "dict-apply multi"
-    KRecordT _  -> throwIO $ NotImplementedError "dict-apply record-type"
+    KMulti _    -> throwIO $ NotImplementedError "apply-dict multi"
+    KRecordT r  -> apply_dictRecordT r c s'
     _           -> throwIO $ UnapplicableType (typeToStr $ typeOf x) "apply-dict"
+
+-- call & apply: block --
+
+-- TODO
+callBlock :: Block -> Evaluator
+callBlock Block{..} c s0 = do
+    sc          <- getScope blkScope
+    (s1, args)  <- popArgs [] s0 $ reverse nargs
+    eval blkCode (forkScope (args ++ map (,nil) sargs) c sc) s1
+  where
+    (sargs, nargs) = partitionSpecial $ map unIdent blkArgs
 
 -- TODO
 applyBlock :: Block -> Evaluator
 applyBlock Block{..} c s0 = do
-    sc <- getScope blkScope; (l, s1) <- pop' s0
-    when (len l < lna) $ throwIO $ applyExpected lna
-    when (len l > lna && "&" `notElem` sargs) $ throwIO $ applyMissing "&"
-    let (l1, l2)  = splitAt (fromInteger lna) l
+    sc <- getScope blkScope; (l, s1) <- pop' s0; let ll = length l
+    when (ll < lna) $ throwIO $ applyExpected $ show lna ++ " arg(s) for apply"
+    when (ll > lna && "&" `notElem` sargs) $ throwIO $ applyMissing False
+    let (l1, l2)  = splitAt lna l
         args      = zip nargs l1 ++ map (,nil) sargs' ++ [("&", list l2)]
     s2 <- eval blkCode (forkScope args c sc) emptyStack
     return $ s2 ++ s1
   where
     (sargs, nargs)  = partitionSpecial $ map unIdent blkArgs
     sargs'          = delete "&" sargs
-    lna             = len nargs
+    lna             = length nargs
 
 -- TODO
 apply_dictBlock :: Block -> Evaluator
 apply_dictBlock Block{..} c s0 = do
-    sc <- getScope blkScope; (d, s1) <- pop' s0; let h = unDict d
-    when ("&&" `notElem` sargs) $ throwIO $ applyMissing "&&"
-    vals <- look h nargs
+    sc <- getScope blkScope; (d@(Dict h), s1) <- pop' s0
+    when ("&&" `notElem` sargs) $ throwIO $ applyMissing True
+    vals <- retOrThrow $ dictLookup "apply-dict" d nargs
     let h'    = H.filterWithKey (\k _ -> k `notElem` nargs) h
         args  = zip nargs vals ++ map (,nil) sargs' ++
                 [("&&", KDict $ Dict h')]
@@ -264,9 +286,28 @@ apply_dictBlock Block{..} c s0 = do
   where
     (sargs, nargs)  = partitionSpecial $ map unIdent blkArgs
     sargs'          = delete "&&" sargs
-    look h ks       = either (throwIO . KeyError "apply-dict") return
-                    $ traverse (lookOne h) ks
-    lookOne h k     = maybe (Left $ T.unpack k) Right $ H.lookup k h
+
+-- call & apply: record-type --
+
+callRecordT :: RecordT -> Evaluator
+callRecordT t@RecordT{..} _ s = do
+  (l, s') <- popN' (length recFields) s; _pushRec s' $ record t l
+
+applyRecordT :: RecordT -> Evaluator
+applyRecordT t _ s = do
+  (l, s') <- pop' s; _pushRec s' $ record t l
+
+apply_dictRecordT :: RecordT -> Evaluator
+apply_dictRecordT t@RecordT{..} _ s = do
+  (d@(Dict h), s') <- pop' s; let uf = H.keys h \\ recFields
+  unless (null uf) $ throwIO $
+    applyUnexpected $ "key(s) " ++ (T.unpack $ T.intercalate ", " uf)
+    ++ " for record " ++ T.unpack recName
+  let l = dictLookup "record-type.apply-dict" d recFields
+  _pushRec s' $ record t =<< l
+
+_pushRec :: Stack -> Either KException Record -> IO Stack
+_pushRec s r = retOrThrow r >>= rpush1 s . KRecord
 
 -- initial context --
 

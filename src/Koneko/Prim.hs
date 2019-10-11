@@ -11,6 +11,7 @@
 --  --                                                          ; }}}1
 
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE RecordWildCards #-}
 
 module Koneko.Prim (initCtx, replDef) where
 
@@ -46,7 +47,7 @@ initCtx ctxMain call apply apply_dict = do
       arithI "__div__" div, arithI "__mod__" mod,
       arithF "__float+__" (+), arithF "__float-__" (-),
       arithF "__float*__" (*), arithF "__float/__" (/),
-      intToFloat,
+      intToFloat, recordToDict, recordType,
       showStack, clearStack, nya
       -- ...
     ]
@@ -69,9 +70,10 @@ defmulti = mkPrim "defmulti" $ \c s -> do
   sig' <- retOrThrow $ map unKwd <$> fromVals sig
   s' <$ defMulti c k sig' b
 
--- TODO
-defrecord = mkPrim "__defrecord" $ \_ _ -> do
-  error "TODO"
+defrecord = mkPrim "defrecord" $ \c s -> do
+  ((Kwd recName, fs), s') <- pop2' s
+  recFields <- retOrThrow $ map unKwd <$> fromVals fs
+  s' <$ defineIn c recName (KRecordT RecordT{..})
 
 mkPair = mkPrim "=>" $ pop2push1 Pair
 
@@ -135,9 +137,19 @@ arithF :: Identifier -> (Double  -> Double  -> Double ) -> Builtin
 arithI = arith
 arithF = arith
 
+-- primitives: conversion --
+
 intToFloat :: Builtin
 intToFloat
   = mkPrim "int->float" $ pop1push1 (fromInteger :: Integer -> Double)
+
+recordToDict :: Builtin
+recordToDict = mkPrim "record->dict" $ pop1push1 $ \r ->
+  dict [ Pair (Kwd k) v | (k, v) <- zip (recFields $ recType r)
+                                        (recValues r) ]
+
+recordType :: Builtin
+recordType = mkPrim "record-type" $ pop1push1 $ KRecordT . recType
 
 -- repl --
 

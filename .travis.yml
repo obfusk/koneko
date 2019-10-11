@@ -52,8 +52,7 @@ script: |
       cabal_build
     fi
     cabal v2-run doctests   # nicer output than v2-test
-    cabal v2-run koneko -- --doctest lib/*.knk
-    cabal v2-run koneko -- --doctest README.md || true  # TODO
+    cabal v2-run koneko -- --doctest lib/*.knk README.md
   )
 
 cache:

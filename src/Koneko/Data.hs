@@ -56,22 +56,22 @@
 
 module Koneko.Data (
   Identifier, Module, Evaluator, Args, KException(..), stackExpected,
-  applyExpected, applyMissing, multiExpected, Kwd(..), Ident, unIdent,
-  ident, List(..), Dict(..), Block(..), Builtin(..), Multi(..),
-  RecordT(..), Record, recType, recValues, record, Scope, Context,
-  ctxScope, Pair(..), KPrim(..), KValue(..), KType(..), Stack,
-  escapeFrom, escapeTo, ToVal, toVal, FromVal, fromVal, toVals,
-  fromVals, maybeToVal, maybeToNil, eitherToVal, eitherToNil,
-  emptyStack, push', push, rpush, rpush1, pop, pop2, pop3, pop',
-  pop2', pop3', popN', pop1push, pop2push, pop1push1, pop2push1,
-  primModule, bltnModule, prldModule, mainModule, initMainContext,
-  forkContext, forkScope, defineIn, scopeModuleName, lookup,
-  lookupModule', moduleKeys, typeOf, typeToKwd, typeToStr, isNil,
-  isBool, isInt, isFloat, isStr, isKwd, isPair, isList, isDict,
+  applyExpected, applyUnexpected, applyMissing, multiExpected,
+  Kwd(..), Ident, unIdent, ident, List(..), Dict(..), Block(..),
+  Builtin(..), Multi(..), RecordT(..), Record, recType, recValues,
+  record, Scope, Context, ctxScope, Pair(..), KPrim(..), KValue(..),
+  KType(..), Stack, escapeFrom, escapeTo, ToVal, toVal, FromVal,
+  fromVal, toVals, fromVals, maybeToVal, maybeToNil, eitherToVal,
+  eitherToNil, emptyStack, push', push, rpush, rpush1, pop, pop2,
+  pop3, pop', pop2', pop3', popN', pop1push, pop2push, pop1push1,
+  pop2push1, primModule, bltnModule, prldModule, mainModule,
+  initMainContext, forkContext, forkScope, defineIn, scopeModuleName,
+  lookup, lookupModule', moduleKeys, typeOf, typeToKwd, typeToStr,
+  isNil, isBool, isInt, isFloat, isStr, isKwd, isPair, isList, isDict,
   isIdent, isQuot, isBlock, isBuiltin, isMulti, isRecordT, isRecord,
   isCallable, nil, false, true, bool, int, float, str, kwd, pair,
-  list, dict, block, mkPrim, mkBltn, defPrim, defMulti, truthy,
-  retOrThrow
+  list, dict, block, dictLookup, mkPrim, mkBltn, defPrim, defMulti,
+  truthy, retOrThrow
 ) where
 
 import Control.DeepSeq (deepseq, NFData(..))
@@ -135,16 +135,18 @@ instance Exception KException
 
 data EExpected
   = StackExpected !String
-  | ApplyExpected !Integer
-  | ApplyMissing !String
+  | ApplyExpected !String
+  | ApplyMissing !Bool
   | MultiExpected !String
 
-stackExpected, applyMissing, multiExpected :: String -> KException
-applyExpected :: Integer -> KException
-stackExpected = Expected . StackExpected
-applyExpected = Expected . ApplyExpected
-applyMissing  = Expected . ApplyMissing
-multiExpected = Expected . MultiExpected
+stackExpected, applyExpected, applyUnexpected, multiExpected
+  :: String -> KException
+applyMissing :: Bool -> KException
+stackExpected   = Expected . StackExpected
+applyExpected   = Expected . ApplyExpected . ("expected " ++)
+applyUnexpected = Expected . ApplyExpected . ("unexpected " ++)
+applyMissing    = Expected . ApplyMissing
+multiExpected   = Expected . MultiExpected
 
 -- TODO: intern?!
 newtype Kwd = Kwd { unKwd :: Identifier }
@@ -198,10 +200,11 @@ data Record = Record {
   recValues :: [KValue]
 } deriving (Eq, Ord, Generic, NFData)
 
-record :: RecordT -> [KValue] -> Maybe Record
-record recType recValues
-  | length (recFields recType) == length recValues  = Just Record{..}
-  | otherwise                                       = Nothing
+record :: RecordT -> [KValue] -> Either KException Record
+record recType@RecordT{..} recValues
+  | length recFields == length recValues = Right Record{..}
+  | otherwise = Left $ applyExpected $ (show $ length recFields) ++
+                " arg(s) for record " ++ T.unpack recName
 
 data Scope = Scope {
   parent  :: Either Identifier Scope,
@@ -272,7 +275,7 @@ instance Show KException where
   show (ModuleNotFound name)    = "no module named " ++ name
   show (LookupFailed name)      = "name " ++ name ++ " is not defined"
   show (StackUnderflow)         = "stack underflow"
-  show (Expected e)             = "expected " ++ show e
+  show (Expected e)             = show e
   show (MultiMatchFailed n s)   = "no signature " ++ s ++ " for multi " ++ n
   show (UncomparableType t)     = "type " ++ t ++ " is not comparable"
   show (UncallableType t)       = "type " ++ t ++ " is not callable"
@@ -285,10 +288,13 @@ instance Show KException where
   show (NotImplementedError s)  = "not implemented: " ++ s
 
 instance Show EExpected where
-  show (StackExpected t)    = t ++ " on stack"
-  show (ApplyExpected n)    = show n ++ " arg(s) for apply"
-  show (ApplyMissing x)     = "argument named " ++ x ++ " for apply(-dict)"
-  show (MultiExpected msg)  = msg
+  show (StackExpected t)    = "expected " ++ t ++ " on stack"
+  show (ApplyExpected msg)  = msg
+  show (ApplyMissing b)
+      = "expected block to have argument named " ++ x ++ " for " ++ op
+    where
+      (x, op) = if b then ("&&", "apply-dict") else ("&", "apply")
+  show (MultiExpected msg)  = "expected " ++ msg
 
 instance Show Kwd where
   show (Kwd s) = ":" ++ if M.isIdent s then T.unpack s else show s
@@ -328,7 +334,7 @@ instance Show Multi where
                     T.unpack mltName ++ ">"
 
 instance Show RecordT where
-  show RecordT{..} = "#<record-type:" ++ show recName ++ ">"
+  show RecordT{..} = "#<record-type:" ++ T.unpack recName ++ ">"
 
 instance Show Record where
   show Record{..} = T.unpack (recName recType) ++ "{ " ++ flds ++ " }"
@@ -427,6 +433,9 @@ instance ToVal [Pair] where
     where
       f (Pair (Kwd k) v) = (k, v)
 
+instance ToVal Dict where
+  toVal = KDict
+
 instance ToVal Block where
   toVal = KBlock
 
@@ -475,7 +484,6 @@ instance FromVal [KValue] where
   fromVal (KList (List x))    = Right x
   fromVal _                   = Left $ stackExpected "list"
 
--- NB: ToVal is for [Pair]
 instance FromVal Dict where
   fromVal (KDict x)           = Right x
   fromVal _                   = Left $ stackExpected "dict"
@@ -484,12 +492,16 @@ instance FromVal Block where
   fromVal (KBlock x)          = Right x
   fromVal _                   = Left $ stackExpected "block"
 
+instance FromVal Record where
+  fromVal (KRecord x)         = Right x
+  fromVal _                   = Left $ stackExpected "record"
+
 instance FromVal KValue where
   fromVal x                   = Right x
 
 -- NB: no FromVal for
 -- * ident, quot (both Ident)
--- * builtin, multi, record(-type) (no need?)
+-- * builtin, multi, record-type (no need?)
 
 toVals :: ToVal a => [a] -> [KValue]
 toVals = map toVal
@@ -782,6 +794,12 @@ block blkArgs blkCode blkScope = KBlock Block{..}
 
 -- utilities --
 
+dictLookup :: String -> Dict -> [Identifier]
+           -> Either KException [KValue]
+dictLookup op (Dict h) = traverse f
+  where
+    f k = maybe (Left $ KeyError op $ T.unpack k) Right $ H.lookup k h
+
 mkPrim, mkBltn :: Identifier -> Evaluator -> Builtin
 mkPrim = Builtin True
 mkBltn = Builtin False
@@ -799,7 +817,7 @@ defMulti c mn sig b = do
       return (Just $ KMulti $ Multi ma mn mt, ())
     f (Just x@(KMulti Multi{..})) = (Just x, ()) <$ do
       when (mltArgs /= ma) $ err $ "multi " ++ T.unpack mltName ++
-        " to have " ++ show mltArgs ++ " args"
+        " to have " ++ show mltArgs ++ " arg(s)"
       HT.insert mltTable sig b
     f _ = err $ T.unpack mn ++ " to be a multi"
     ma  = length sig

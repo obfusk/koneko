@@ -419,6 +419,7 @@ Point{ :x 1 =>, :y 2 => }
 >>> ,dup
 >>> .x                                      ; field access
 1
+>>> ,drop
 >>> :x swap call                            ; desugared
 1
 
@@ -665,7 +666,9 @@ NB: work in progress.
 256
 >>> 0 [ 1 + ] [ twice ] twice twice twice call call
 256
+```
 
+```
 >>> 0 [ 1 + ] ???                         ; TODO
 65536
 ```

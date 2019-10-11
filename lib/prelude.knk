@@ -152,6 +152,10 @@
 
 :get^     [ 'get 'member? 2ornil ] def
 
+:update ( :dict   :dict ) [ !merge ] defmulti
+:update ( :record :dict ) [ over [ 'record->dict dip !merge ] dip
+                            record-type apply-dict ] defmulti   ; TODO
+
 ; ... TODO ...
 
 ; -- lists --
