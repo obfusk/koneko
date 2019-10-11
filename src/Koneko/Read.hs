@@ -2,7 +2,7 @@
 --
 --  File        : Koneko/Read.hs
 --  Maintainer  : Felix C. Stegerman <flx@obfusk.net>
---  Date        : 2019-10-10
+--  Date        : 2019-10-11
 --
 --  Copyright   : Copyright (C) 2019  Felix C. Stegerman
 --  Version     : v0.0.1
@@ -37,14 +37,17 @@
 module Koneko.Read (read, read') where
 
 import Control.Exception (throw)
+import Control.Monad (replicateM)
 import Control.Monad.Fail (MonadFail)
 import Data.Functor
+import Data.List (foldl')
 import Data.Maybe (fromJust) -- careful!
 import Data.Text.Lazy (Text)
 import Prelude hiding (quot, read)
 import Text.Megaparsec
 import Text.Megaparsec.Char
 
+import qualified Data.Char as C
 import qualified Data.Text.Lazy as T
 
 import Koneko.Data (Identifier, Ident, Block(..), KValue(..))
@@ -81,11 +84,18 @@ str   = D.str   <$> _str
 kwd   = D.kwd   <$> (char ':' *> (_str <|> pIdent))
 
 _str :: Parser Text
-_str = char '"' >> T.concat <$> manyTill (esc <|> chr) (char '"')
+_str  = char '"' >> T.concat <$> manyTill (choice [
+          esc, hex "\\x" 2, hex "\\u" 4, hex "\\U" 8, chr
+        ]) (char '"')
   where
-    esc = choice [ t <$ string f | (f,t) <- bsl ] <?> "escape sequence"
-    chr = T.singleton <$> anySingle <?> "character"
-    bsl = zip D.escapeFrom D.escapeTo
+    esc     = choice [ t <$ string f | (f,t) <- bsl ] <?> "escape sequence"
+    chr     = T.singleton <$> anySingle <?> "character"
+    bsl     = zip D.escapeFrom D.escapeTo
+    hex p n = string p >> T.singleton <$> _hex n
+
+_hex :: Int -> Parser Char
+_hex n = C.chr . foldl' (\a c -> a * 16 + C.digitToInt c) 0 <$>
+         replicateM n (satisfy C.isHexDigit <?> "hex digit")
 
 -- TODO: rx
 
