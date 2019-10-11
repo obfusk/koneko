@@ -2,7 +2,7 @@
 --
 --  File        : Koneko/Read.hs
 --  Maintainer  : Felix C. Stegerman <flx@obfusk.net>
---  Date        : 2019-10-09
+--  Date        : 2019-10-10
 --
 --  Copyright   : Copyright (C) 2019  Felix C. Stegerman
 --  Version     : v0.0.1
@@ -46,7 +46,7 @@ import Text.Megaparsec.Char
 
 import qualified Data.Text.Lazy as T
 
-import Koneko.Data (Ident, Block(..), KValue(..))
+import Koneko.Data (Identifier, Ident, Block(..), KValue(..))
 import Koneko.Misc (Parser, pIdent, pIdent_, pInt, pFloat, lexeme,
                     symbol, sp)
 
@@ -114,7 +114,7 @@ block = try $ KBlock <$> do
 
 -- parser: sugar --
 
-dict, dot, bang, key :: Parser [KValue]
+dict, dot, bang, key, apply, applyDict :: Parser [KValue]
 
 dict  = try $ fmap ((:[_dict]) . D.list)
       $ symbol "{" *> manyValuesTill (symbol "}")
@@ -126,10 +126,23 @@ key = try $ do
   k <- sugarIdent ':'; v <- value_
   return $ [D.kwd k] ++ v ++ [_pair]
 
+apply = try $ do
+  (q, l) <- _ap '(' ")"; return $ [l, q, _apply]
+
+applyDict = try $ do
+  (q, l) <- _ap '{' "}"; return $ [l, _dict, q, _applyDict]
+
 _dot :: Ident -> [KValue]
 _dot i = [D.kwd $ D.unIdent i, _swap, _call]
 
--- TODO: foo() foo{} etc.
+_ap :: Char -> Text -> Parser (KValue, KValue)
+_ap op cl = do
+  i <- sugarIdent op; vs <- manyValuesTill $ symbol cl
+  q <- KQuot <$> identOrFail i
+  return (q, D.list vs)
+
+sugar :: Parser [KValue]
+sugar = choice [dict, dot, bang, key, apply, applyDict]
 
 -- parser: multiple values & program --
 
@@ -139,14 +152,14 @@ oneValue = choice [prim, list, quot, block, ident]
 
 value_, manyValues, program :: Parser [KValue]
 
-value_ = choice [dict, dot, bang, key] <|> (:[]) <$> oneValue
+value_ = sugar <|> (:[]) <$> oneValue
 
 manyValues = concat <$> many value_
 
+program = optional shebang *> sp *> manyValues <* eof
+
 manyValuesTill :: Parser a -> Parser [KValue]
 manyValuesTill end = concat <$> manyTill value_ end
-
-program = optional shebang *> sp *> manyValues <* eof
 
 shebang :: Parser ()
 shebang = void $ string "#!" >> many (satisfy (/= '\n')) >> newline
@@ -154,18 +167,23 @@ shebang = void $ string "#!" >> many (satisfy (/= '\n')) >> newline
 -- parser: miscellaneous --
 
 ident_ :: Parser Ident
-ident_  = lexeme $ D.ident <$> pIdent >>=
-          maybe (fail "invalid ident") return
+ident_ = lexeme $ pIdent >>= identOrFail
 
 -- TODO
-sugarIdent :: Char -> Parser Text
+sugarIdent :: Char -> Parser Identifier
 sugarIdent c = try $ do
   i <- lexeme $ pIdent_ $ Just c
   if T.last i /= c then fail "TODO" else return $ T.init i    -- safe!
 
-_dict, _swap, _call, _pair :: KValue
-(_dict, _swap, _call, _pair) =
+_dict, _swap, _call, _pair, _apply, _applyDict :: KValue
+(_dict, _swap, _call, _pair, _apply, _applyDict) =
   let idt = KIdent . fromJust . D.ident  -- safe!
-  in (idt "dict", idt "swap", idt "call", idt "=>")
+  in (idt "dict", idt "swap", idt "call", idt "=>", idt "apply",
+      idt "apply-dict")
+
+-- miscellaneous --
+
+identOrFail :: Monad m => Identifier -> m Ident
+identOrFail = maybe (fail "invalid ident") return . D.ident
 
 -- vim: set tw=70 sw=2 sts=2 et fdm=marker :
