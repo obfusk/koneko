@@ -37,6 +37,7 @@
 module Koneko.Read (read, read') where
 
 import Control.Exception (throw)
+import Control.Monad.Fail (MonadFail)
 import Data.Functor
 import Data.Maybe (fromJust) -- careful!
 import Data.Text.Lazy (Text)
@@ -183,7 +184,7 @@ _dict, _swap, _call, _pair, _apply, _applyDict :: KValue
 
 -- miscellaneous --
 
-identOrFail :: Monad m => Identifier -> m Ident
+identOrFail :: MonadFail m => Identifier -> m Ident
 identOrFail = maybe (fail "invalid ident") return . D.ident
 
 -- vim: set tw=70 sw=2 sts=2 et fdm=marker :
