@@ -2,7 +2,7 @@
 
     File        : README.md
     Maintainer  : Felix C. Stegerman <flx@obfusk.net>
-    Date        : 2019-10-07
+    Date        : 2019-10-11
 
     Copyright   : Copyright (C) 2019  Felix C. Stegerman
     Version     : v0.0.1
@@ -291,6 +291,11 @@ separated from the code by a `.`.
 
 ### Calling vs Applying
 
+NB: since there are usually no guarantees about whether a block has
+named arguments (or how many), only blocks/functions known to
+explicitly support applying should be applied.  Record constructors
+always support application.
+
 Applying a normal block isn't much different from calling it.  Except
 that it takes its arguments from the list it is applied to (in reverse
 order) instead of from the stack.  The number of elements of the list
@@ -421,13 +426,6 @@ Point{ :x 1 =>, :y 2 => }
 ( 1 2 3 )
 >>> 1 ( 2 3 ) :cons swap call call          ; desugared
 ( 1 2 3 )
-
->>> swap( 1 2 )                             ; non-postfix apply
-1
->>> ( 1 2 ) 'swap apply                     ; desugared
-1
->>> 1 2 swap                                ; same as call for normal callables
-1
 ```
 
 <!--
@@ -738,11 +736,15 @@ TODO: haddock
 
 [![LGPLv3+](https://www.gnu.org/graphics/lgplv3-147x51.png)](https://www.gnu.org/licenses/lgpl-3.0.html)
 
+<!--
+
 ### Thesis
 
 (i.e. `thesis/*`)
 
 [![CC-BY-SA](https://licensebuttons.net/l/by-sa/4.0/88x31.png)](https://creativecommons.org/licenses/by-sa/4.0/)
+
+-->
 
 ## References
 
