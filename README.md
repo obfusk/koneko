@@ -2,7 +2,7 @@
 
     File        : README.md
     Maintainer  : Felix C. Stegerman <flx@obfusk.net>
-    Date        : 2019-10-11
+    Date        : 2019-10-14
 
     Copyright   : Copyright (C) 2019  Felix C. Stegerman
     Version     : v0.0.1
@@ -22,10 +22,11 @@ koneko - a concatenative not-quite-lisp for kittens
 
 NB: work in progress.
 
-Koneko is a simple concatenative stack-based programming language with
-lisp influences.  It is intended to combine the elegance of the
-(point-free) "concatenation is composition" model with the elegance of
-lisp-like languages (esp. anonymous functions with named arguments).
+Koneko (子猫 -- "kitten" in Japanese) is a simple concatenative
+stack-based programming language with lisp influences.  It is intended
+to combine the elegance of the (point-free) "concatenation is
+composition" model with the elegance of lisp-like languages (esp.
+anonymous functions with named arguments).
 
 ### Properties
 
@@ -77,20 +78,37 @@ that takes a scope and a stack and returns an (updated) stack.
 Juxtaposition (concatenation) of tokens denotes function composition.
 Some tokens, like list literals, are nested.
 
-Evaluating any data type literal results in pushing a corresponding
-value of its type onto the stack.
+Evaluating any data type literal (e.g. bool, int, list, block) results
+in pushing a corresponding value of its type onto the stack.
 
 All data types are immutable.
 
 The syntax and semantics of concatenative languages form the algebraic
-structure of a monoid [1].  We expect the same to be true for koneko,
-and will update this paragraph when we confirm this.
+structure of a monoid [[1]](#references).  We expect the same to be
+true for koneko, and will update this paragraph when we confirm this.
 
 ### Type System
 
 Koneko is strongly typed.  For now, it will use dynamic typing and
 allow blocks to be of variable arity.  Optional (static) type and/or
 arity checking may be added in the future.
+
+### Errors
+
+Invalid programs will result in errors; these include:
+
+* parse errors (invalid syntax);
+* name not defined (referencing an undefined ident);
+* stack underflow;
+* type error (expected e.g. an int on the stack, got something else);
+* empty list (when trying to access the head or tail);
+* key errors (when trying to access a key not in a dict);
+* etc.
+
+There is currently no mechanism for exception handling.  When an error
+occurs, an error message is printed and the program is terminated
+(except when using the repl, in which case the repl continues after
+printing an error message and resetting the stack).
 
 ### Comments & Whitespace
 
@@ -118,6 +136,10 @@ is an identifier if it:
 Unquoted identifiers are calls; i.e. the identifier is looked up in
 the current scope, the value found is pushed onto the stack, and the
 top of the stack is `call`ed.
+
+NB: `+`, `foo`, and `<42>'` are all identifiers; there is no
+distinction between the names of "functions", "variables", and
+"operators".
 
 ### Quoting
 
@@ -148,12 +170,24 @@ following order:
 * builtins;
 * the prelude.
 
+NB: `def` is the module definition primitive; it takes a keyword
+representing the name of the ident to be defined and a value to bind
+the ident to.
+
 ```koneko
 >>> , :answer 42 def            ; define a constant (in the current module)
 >>> , :inc [ 1 + ] def          ; define a function
 >>> 'answer inc
 43
 ```
+
+NB: koneko is a functional language: named arguments cannot be
+"assigned" another value; "redefining" an existing definition in a
+module is not allowed according to the language specification (except
+in the repl), but this is currently not enforced by the
+implementation.  Definitions **should** also only occur at the
+beginning of modules, preceding any other code (but this is also not
+currently enforced).
 
 The default module is `__main__`; primitives, builtins, and the
 prelude are `__prim__`, `__bltn__`, and `__prld__` respectively.
@@ -190,11 +224,17 @@ nil
 ```
 
 ```koneko
->>> :key-word       ; keyword
+>>> :key-word       ; keyword (aka symbol)
 :key-word
 >>> :"keyword that is not a valid identifier"
 :"keyword that is not a valid identifier"
 ```
+
+NB: for more information on keywords/symbols, see [[2]](#references).
+
+NB: ideally keywords are implemented as interned strings but the
+language specification does not guarantee that (and the current
+implementation does not intern them).
 
 <!--
 
@@ -262,10 +302,16 @@ A block is delimited by square brackets; arguments (if any) are
 separated from the code by a `.`.
 
 ```koneko
->>> , :myblock [ 42 ] def         ; a block that pushes 42 onto the stack
->>> 'myblock                      ; put it on the stack
+>>> ; push a block -- that pushes 42 onto the stack -- onto the stack
+>>> [ 42 ]
 [ 42 ]
 >>> call                          ; call the block on the stack
+42
+
+>>> , :myblock [ 42 ] def         ; let's give it a name
+>>> 'myblock                      ; put it on the stack
+[ 42 ]
+>>> call
 42
 >>> myblock                       ; call it by name
 42
@@ -356,6 +402,16 @@ Some more examples:
 ```
 
 ... TODO ...
+
+### Functions vs Callables
+
+Functions are: blocks, builtins, multis, and record-types; these all
+behave like (stack-based) functions and can be `call`ed (and sometimes
+`apply`d and/or `apply-dict`ed).
+
+Callables are: all types that can be `call`ed: foremostly functions,
+but also other types (e.g. list and record) that are not functions but
+which implement certain primitive operations via calls.
 
 ### Multi(method)s
 
@@ -521,6 +577,13 @@ defines more convenient versions of these, like `+` and `div`:
 `__int+__`, `__int-__`, `__int*__`, `__div__`, `__mod__`,
 `__float+__`, `__float-__`, `__float*__`, `__float/__`.
 
+To list all primitives, run:
+
+```
+>>> :__prim__ __module-defs__     ; (some output elided)
+( := :apply :ask :call :callable? :def :defmulti :if ... )
+```
+
 ### Builtins
 
 Operations that are easier or more efficient to implement in the
@@ -635,6 +698,10 @@ Hi!
 * store/match how?
 
 -->
+
+#### Exception Handling
+
+... TODO ...
 
 ## More Examples
 
@@ -752,5 +819,6 @@ TODO: haddock
 ## References
 
 1. https://en.wikipedia.org/wiki/Concatenative_programming_language#Properties
+2. https://en.wikipedia.org/wiki/Symbol_(programming)
 
 <!-- vim: set tw=70 sw=2 sts=2 et fdm=marker : -->

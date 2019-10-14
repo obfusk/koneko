@@ -2,7 +2,7 @@
 --
 --  File        : Koneko/Prim.hs
 --  Maintainer  : Felix C. Stegerman <flx@obfusk.net>
---  Date        : 2019-10-11
+--  Date        : 2019-10-14
 --
 --  Copyright   : Copyright (C) 2019  Felix C. Stegerman
 --  Version     : v0.0.1
@@ -37,7 +37,7 @@ initCtx ctxMain call apply apply_dict = do
       mkPrim "call" call, mkPrim "apply" apply,
       mkPrim "apply-dict" apply_dict, if_ call,
       def, defmulti, defrecord, mkPair, mkDict, swap,
-      show_, say, ask, type_, callable,
+      show_, say, ask, type_, callable, function,
       moduleGet, moduleDefs, moduleName,
       not_, and_, or_,
       comp "=" (==), comp "/=" (/=), comp "<" (<),
@@ -86,7 +86,7 @@ swap = mkPrim "swap" $ pop2push $ \x y -> [y, x] :: [KValue]
 
 -- primitives: miscellaneous --
 
-show_, say, ask, type_, callable :: Builtin
+show_, say, ask, type_, callable, function :: Builtin
 
 show_ = mkPrim "show" $ pop1push1 $ T.pack . (show :: KValue -> String)
 
@@ -97,9 +97,9 @@ say = mkPrim "say" $ \_ s -> do (x, s') <- pop' s; s' <$ T.putStrLn x
 ask = mkPrim "ask" $ \_ s -> do
   (x, s') <- pop' s; maybeToNil <$> prompt' x >>= rpush1 s'
 
-type_ = mkPrim "type" $ pop1push1 $ typeToKwd . typeOf
-
-callable = mkPrim "callable?" $ pop1push1 isCallable
+type_     = mkPrim "type"       $ pop1push1 $ typeToKwd . typeOf
+callable  = mkPrim "callable?"  $ pop1push1 isCallable
+function  = mkPrim "function?"  $ pop1push1 isFunction
 
 -- primitives: modules --
 
@@ -139,16 +139,15 @@ arithF = arith
 
 -- primitives: conversion --
 
-intToFloat :: Builtin
+intToFloat, recordToDict, recordType :: Builtin
+
 intToFloat
   = mkPrim "int->float" $ pop1push1 (fromInteger :: Integer -> Double)
 
-recordToDict :: Builtin
 recordToDict = mkPrim "record->dict" $ pop1push1 $ \r ->
   dict [ Pair (Kwd k) v | (k, v) <- zip (recFields $ recType r)
                                         (recValues r) ]
 
-recordType :: Builtin
 recordType = mkPrim "record-type" $ pop1push1 $ KRecordT . recType
 
 -- repl --

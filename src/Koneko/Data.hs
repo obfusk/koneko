@@ -2,7 +2,7 @@
 --
 --  File        : Koneko/Data.hs
 --  Maintainer  : Felix C. Stegerman <flx@obfusk.net>
---  Date        : 2019-10-11
+--  Date        : 2019-10-14
 --
 --  Copyright   : Copyright (C) 2019  Felix C. Stegerman
 --  Version     : v0.0.1
@@ -69,9 +69,9 @@ module Koneko.Data (
   lookup, lookupModule', moduleKeys, typeOf, typeToKwd, typeToStr,
   isNil, isBool, isInt, isFloat, isStr, isKwd, isPair, isList, isDict,
   isIdent, isQuot, isBlock, isBuiltin, isMulti, isRecordT, isRecord,
-  isCallable, nil, false, true, bool, int, float, str, kwd, pair,
-  list, dict, block, dictLookup, mkPrim, mkBltn, defPrim, defMulti,
-  truthy, retOrThrow
+  isCallable, isFunction, nil, false, true, bool, int, float, str,
+  kwd, pair, list, dict, block, dictLookup, mkPrim, mkBltn, defPrim,
+  defMulti, truthy, retOrThrow
 ) where
 
 import Control.DeepSeq (deepseq, NFData(..))
@@ -745,14 +745,16 @@ isMulti     = (TMulti     ==) . typeOf
 isRecordT   = (TRecordT   ==) . typeOf
 isRecord    = (TRecord    ==) . typeOf
 
-isCallable :: KValue -> Bool
+isCallable, isFunction :: KValue -> Bool
 isCallable = (`elem` callableTypes) . typeOf
+isFunction = (`elem` functionTypes) . typeOf
 
-callableTypes :: [KType]
+callableTypes, functionTypes :: [KType]
 callableTypes = [
     TStr, TPair, TList, TDict, TBlock, TBuiltin, TMulti, TRecordT,
     TRecord
   ]
+functionTypes = [TBlock, TBuiltin, TMulti, TRecordT]
 
 -- "constructors" --
 

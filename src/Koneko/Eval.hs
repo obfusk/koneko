@@ -2,7 +2,7 @@
 --
 --  File        : Koneko/Eval.hs
 --  Maintainer  : Felix C. Stegerman <flx@obfusk.net>
---  Date        : 2019-10-11
+--  Date        : 2019-10-14
 --
 --  Copyright   : Copyright (C) 2019  Felix C. Stegerman
 --  Version     : v0.0.1
@@ -142,10 +142,27 @@ call c s = do
 
 -- TODO
 callStr :: Text -> Evaluator
-callStr _ _ s = do
-  (Kwd op, _) <- pop' s
+callStr x _ s = do
+  (Kwd op, s') <- pop' s
+  let o = "str." <> op
   case op of
-    _ -> throwIO $ UnknownField (T.unpack op) "str"
+    "append"  ->  rpush1 s' $ mkPrim o $ pop1push1 (<> x)
+    "slice"   ->  rpush1 s' $ mkPrim o $ \_ s1 -> do
+                    ((i, j, step), s2) <- pop3' s1; let lx = lengthT x
+                    i' <- nilToDef i 0; j' <- nilToDef j lx
+                    unless (step == 1) $ throwIO $ NotImplementedError
+                      $ T.unpack $ op <> ": step other than 1"
+                    rpush1 s2 $ slice T.take T.drop i' j' step lx x
+    "empty?"  ->  rpush1 s' $ T.null x
+    "len"     ->  rpush1 s' $ lengthT x
+    "get"     ->  rpush1 s' $ mkPrim o $ \_ s1 -> do
+                    (i, s2) <- pop' s1
+                    case indexT x i of
+                      Nothing -> throwIO $ IndexError (T.unpack o) i
+                      Just y  -> rpush1 s2 y
+    "member?" ->  rpush1 s' $ mkPrim o $ pop1push1 $ mem lengthT x
+    "elem?"   ->  rpush1 s' $ mkPrim o $ pop1push1 (`T.isInfixOf` x)
+    _         ->  throwIO $ UnknownField (T.unpack op) "str"
 
 callPair :: Pair -> Evaluator
 callPair Pair{..} _ s = do
@@ -165,10 +182,14 @@ callList (List l) _ s = do
     "head"    ->  g >> rpush1 s' (head l)                     -- safe!
     "tail"    ->  g >> rpush1 s' (tail l)                     -- safe!
     "uncons"  ->  g >> rpush s' [head l, list $ tail l]       -- safe!
-    "cons"    ->  rpush1 s' $ mkPrim o $ \_ s1 -> do
-                    (x, s2) <- pop' s1; rpush1 s2 (x:l)
-    "append"  ->  rpush1 s' $ mkPrim o $ \_ s1 -> do
-                    (l2, s2) <- pop' s1; rpush1 s2 $ l2 ++ l
+    "cons"    ->  rpush1 s' $ mkPrim o $ pop1push1 (:l)
+    "append"  ->  rpush1 s' $ mkPrim o $ pop1push1 (++ l)
+    "slice"   ->  rpush1 s' $ mkPrim o $ \_ s1 -> do
+                    ((i, j, step), s2) <- pop3' s1; let ll = len l
+                    i' <- nilToDef i 0; j' <- nilToDef j ll
+                    unless (step == 1) $ throwIO $ NotImplementedError
+                      $ T.unpack $ op <> ": step other than 1"
+                    rpush1 s2 $ slice take drop i' j' step ll l
     "empty?"  ->  rpush1 s' $ null l
     "len"     ->  rpush1 s' $ len l
     "get"     ->  rpush1 s' $ mkPrim o $ \_ s1 -> do
@@ -176,11 +197,8 @@ callList (List l) _ s = do
                     case atMay l $ fromInteger i of
                       Nothing -> throwIO $ IndexError (T.unpack o) i
                       Just x  -> rpush1 s2 x
-    "member?" ->  rpush1 s' $ mkPrim o $ \_ s1 -> do
-                    (i, s2) <- pop' s1
-                    rpush1 s2 $ 0 <= i && i < len l
-    "elem?"   ->  rpush1 s' $ mkPrim o $ \_ s1 -> do
-                    (x, s2) <- pop' s1; rpush1 s2 $ x `elem` l
+    "member?" ->  rpush1 s' $ mkPrim o $ pop1push1 $ mem len l
+    "elem?"   ->  rpush1 s' $ mkPrim o $ pop1push1 (`elem` l)
     _         ->  throwIO $ UnknownField (T.unpack op) "list"
 
 -- TODO
@@ -337,6 +355,28 @@ partitionSpecial = partition (`elem` ["&", "&&"])
 
 len :: [a] -> Integer
 len = genericLength
+
+mem :: (a -> Integer) -> a -> Integer -> Bool
+mem l x i = 0 <= i && i < (l x)
+
+lengthT :: Text -> Integer
+lengthT = toInteger . T.length
+
+-- TODO
+indexT :: Text -> Integer -> Maybe Text
+indexT t i = if mem lengthT t i then f i else Nothing
+  where
+    f = Just . T.singleton . T.index t . fromInteger
+
+-- TODO
+slice :: Num a => (a -> b -> b) -> (a -> b -> b)
+      -> Integer -> Integer -> Integer -> Integer -> b -> b
+slice tak drp i j _ ll l = tak (f j - i') $ drp i' l
+  where
+    f n = fromInteger $ if n < 0 then ll + n else n; i' = f i
+
+nilToDef :: FromVal a => KValue -> a -> IO a
+nilToDef x d = if isNil x then return d else retOrThrow $ fromVal x
 
 debug :: Context -> IO () -> IO ()
 debug c act

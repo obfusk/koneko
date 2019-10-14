@@ -2,7 +2,7 @@
 ;
 ; File        : prelude.knk
 ; Maintainer  : Felix C. Stegerman <flx@obfusk.net>
-; Date        : 2019-10-11
+; Date        : 2019-10-14
 ;
 ; Copyright   : Copyright (C) 2019  Felix C. Stegerman
 ; Version     : v0.0.1
@@ -70,6 +70,9 @@
  :over  [ x y   . 'x 'y 'x        ] def ; [ 'dup dip swap ]
 :2over  [ x y z . 'x 'y 'z 'x 'y  ] def
 
+:2call  [ x f g   . 'x f 'x g       ] def ; [ dup 'f dip g ]
+:3call  [ x f g h . 'x f 'x g 'x h  ] def
+
 ; ... TODO ...
 
 ; -- arithmetic --
@@ -114,9 +117,9 @@
 :* ( :int   :float  ) [ 'int->float dip * ] defmulti
 :* ( :float :int    ) [  int->float     * ] defmulti
 
-:/      [ __float/__  ] def
-:div    [ __div__     ] def
-:mod    [ __mod__     ] def
+:/    '__float/__ def ; aliases
+:div  '__div__    def
+:mod  '__mod__    def
 
 ; -- sequences --
 
@@ -141,6 +144,23 @@
 ; >>> ( :one :two :three ) :two elem?
 ; #t
 ;
+; >>> ( 1 2 3 ) ( 4 5 ) ++
+; ( 1 2 3 4 5 )
+; >>> "foo" "bar" ++
+; "foobar"
+;
+; >>> ( 0 1 2 3 4 5 6 7 8 9 ) -5 [i-)
+; ( 5 6 7 8 9 )
+; >>> ( 0 1 2 3 4 5 6 7 8 9 ) 5 [-j)
+; ( 0 1 2 3 4 )
+;
+; >>> "0123456789" 5 [i-)
+; "56789"
+; >>> "0123456789" -5 [-j)
+; "01234"
+; >>> "0123456789" 3 -3 [i-j)
+; "3456"
+;
 ; >>> { x: 1, y: 2 } { x: 99 } update
 ; { :x 99 =>, :y 2 => }
 ;
@@ -154,6 +174,12 @@
 :elem?    [ swap !elem?   ] def
 
 :get^     [ 'get 'member? 2ornil ] def
+
+:++       [ !append ] def
+
+:[i-)     [ nil [i-j)       ] def
+:[-j)     [ nil swap [i-j)  ] def
+:[i-j)    [ x i j . 'i 'j 1 'x !slice ] def
 
 :update ( :dict   :dict ) [ !merge ] defmulti
 :update ( :record :dict ) [ over [ 'record->dict dip !merge ] dip
@@ -212,7 +238,7 @@
 :foldl  [ z f . dup empty? [ drop 'z ]
                 [ uncons swap 'z swap f 'f foldl ] if ] def
 
-:each   [ f . dup empty? [ drop ] [ uncons 'f dip 'f each ] if ] def
+:each   [ f . dup empty? 'drop [ uncons 'f dip 'f each ] if ] def
 
 ; ... TODO ...
 
@@ -252,7 +278,7 @@
 ;
 ; --                                                            ; }}}1
 
-:num?   [ dup int? 'float? dip or ] def
+:num?   [ 'int? 'float? 2call or ] def
 
 ; -- TODO --
 
