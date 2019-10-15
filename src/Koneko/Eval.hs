@@ -48,6 +48,7 @@ module Koneko.Eval (
 
 import Control.Exception (throwIO, try)
 import Control.Monad (unless, when)
+import Data.Char (ord)
 import Data.List hiding (lookup)
 import Data.Monoid((<>))
 import Data.Text.Lazy (Text)
@@ -146,6 +147,9 @@ callStr x _ s = do
   (Kwd op, s') <- pop' s
   let o = "str." <> op
   case op of
+    "ord"     ->  do  unless (T.length x == 1) $ throwIO $
+                        stackExpected "str of length 1"
+                      rpush1 s' $ toInteger $ ord $ T.head x
     "append"  ->  rpush1 s' $ mkPrim o $ pop1push1 (<> x)
     "slice"   ->  rpush1 s' $ mkPrim o $ \_ s1 -> do
                     ((i, j, step), s2) <- pop3' s1; let lx = lengthT x
@@ -183,6 +187,7 @@ callList (List l) _ s = do
     "tail"    ->  g >> rpush1 s' (tail l)                     -- safe!
     "uncons"  ->  g >> rpush s' [head l, list $ tail l]       -- safe!
     "cons"    ->  rpush1 s' $ mkPrim o $ pop1push1 (:l)
+    "sort"    ->  rpush1 s' $ sort l
     "append"  ->  rpush1 s' $ mkPrim o $ pop1push1 (++ l)
     "slice"   ->  rpush1 s' $ mkPrim o $ \_ s1 -> do
                     ((i, j, step), s2) <- pop3' s1; let ll = len l
@@ -207,6 +212,9 @@ callDict (Dict h) _ s = do
   (Kwd op, s') <- pop' s
   let o = "dict." <> op
   case op of
+    "keys"    ->  rpush1 s' $ map kwd $ H.keys h
+    "values"  ->  rpush1 s' $ H.elems h
+    "pairs"   ->  rpush1 s' [ pair (Kwd k) v | (k, v) <- H.toList h ]
     "merge"   ->  rpush1 s' $ mkPrim o $ \_ s1 -> do
                     (Dict h2, s2) <- pop' s1
                     rpush1 s2 $ Dict $ H.union h h2

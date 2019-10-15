@@ -144,6 +144,9 @@
 ; >>> ( :one :two :three ) :two elem?
 ; #t
 ;
+; >>> ( 4 2 1 3 ) sort
+; ( 1 2 3 4 )
+;
 ; >>> ( 1 2 3 ) ( 4 5 ) ++
 ; ( 1 2 3 4 5 )
 ; >>> "foo" "bar" ++
@@ -175,6 +178,7 @@
 
 :get^     [ 'get 'member? 2ornil ] def
 
+:sort     [ .sort   ] def
 :++       [ !append ] def
 
 :[i-)     [ nil [i-j)       ] def
@@ -186,6 +190,20 @@
                             record-type apply-dict ] defmulti   ; TODO
 
 ; ... TODO ...
+
+; -- strings & characters --
+
+; --                                                            ; {{{1
+;
+; >>> "猫" ord
+; 29483
+; >>> 0x732b chr
+; "猫"
+;
+; --                                                            ; }}}1
+
+:ord    [ .ord ]  def
+:chr    '__chr__  def
 
 ; -- lists --
 

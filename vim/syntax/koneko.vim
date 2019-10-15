@@ -17,7 +17,7 @@ syn match   knkStr        '"\(\\.\|[^\\"]\)*"\([, \t]\|$\)\@='
 
 syn keyword knkPrim       call if def defmulti defrecord
   \                       dict show say ask type not and or
-syn match   knkPrimMore   '\(apply\(-dict\)\?\|=>\|callable?\|function?\|/\?=\|[<>]=\?\|int->float\|record->dict\|record-type\|__[^, \t]\+__\)\([, \t]\|$\)\@='
+syn match   knkPrimMore   '\(apply\(-dict\)\?\|=>\|callable?\|function?\|/\?=\|[<>]=\?\|int->float\|record->dict\|record-type\(-\(name\|fields\)\)\?\|__[^, \t]\+__\)\([, \t]\|$\)\@='
 
 syn match   knkParen      '[(){}\[\]]\([, \t]\|$\)\@='
 syn match   knkSpecial    '[\'.!,]'

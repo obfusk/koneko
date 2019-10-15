@@ -496,6 +496,10 @@ instance FromVal Record where
   fromVal (KRecord x)         = Right x
   fromVal _                   = Left $ stackExpected "record"
 
+instance FromVal RecordT where
+  fromVal (KRecordT x)        = Right x
+  fromVal _                   = Left $ stackExpected "record-type"
+
 instance FromVal KValue where
   fromVal x                   = Right x
 

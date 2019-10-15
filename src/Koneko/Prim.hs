@@ -15,7 +15,9 @@
 
 module Koneko.Prim (initCtx, replDef) where
 
+import Control.Exception (throwIO)
 import Control.Monad (unless)
+import Data.Char (chr)
 import Data.Foldable (traverse_)
 import Data.List (isSuffixOf, sort)
 import System.Directory (listDirectory)
@@ -47,7 +49,8 @@ initCtx ctxMain call apply apply_dict = do
       arithI "__div__" div, arithI "__mod__" mod,
       arithF "__float+__" (+), arithF "__float-__" (-),
       arithF "__float*__" (*), arithF "__float/__" (/),
-      intToFloat, recordToDict, recordType,
+      chr_, intToFloat, recordToDict, recordType,
+      recordTypeName, recordTypeFields,
       showStack, clearStack, nya
       -- ...
     ]
@@ -139,7 +142,13 @@ arithF = arith
 
 -- primitives: conversion --
 
-intToFloat, recordToDict, recordType :: Builtin
+chr_, intToFloat, recordToDict, recordType :: Builtin
+
+chr_ = mkPrim "__chr__" $ \_ s -> do
+  (i, s') <- pop' s
+  unless (0 <= i && i < 0x110000) $ throwIO $
+    stackExpected "int in range [0,0x110000)"
+  rpush1 s' $ T.singleton $ chr $ fromInteger i
 
 intToFloat
   = mkPrim "int->float" $ pop1push1 (fromInteger :: Integer -> Double)
@@ -149,6 +158,13 @@ recordToDict = mkPrim "record->dict" $ pop1push1 $ \r ->
                                         (recValues r) ]
 
 recordType = mkPrim "record-type" $ pop1push1 $ KRecordT . recType
+
+-- primitives: record-type info --
+
+recordTypeName, recordTypeFields :: Builtin
+recordTypeName    = mkPrim "record-type-name" $ pop1push1 $ Kwd . recName
+recordTypeFields  = mkPrim "record-type-fields" $ pop1push1
+                  $ map kwd . recFields
 
 -- repl --
 
