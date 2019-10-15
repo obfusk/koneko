@@ -292,6 +292,10 @@
 
 ; --                                                            ; {{{1
 ;
+; >>> 1 2 = [ "oh no!" say ] when
+; >>> 1 1 = [ "good!"  say ] when
+; good!
+;
 ; >>> , :temp [ dup ( [ 15 < ] [ "is cold!" ] [ 25 > ] [ "is warm!" ] :else [ "is ok!" ] ) cond [ show " " ++ ] dip ++ say ] def
 ; >>> 10 temp
 ; 10 is cold!
@@ -308,6 +312,8 @@
 ; #f
 ;
 ; --                                                            ; }}}1
+
+:when   [ [ ] if ] def
 
  :cond  [ cons '_&cond apply call ] def
 :_&cond [ x p? f & . 'p? function? [ 'x p? ] [ 'p? ] if

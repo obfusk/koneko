@@ -746,6 +746,20 @@ NB: work in progress.
 ( 1 4 9 )
 ```
 
+```koneko
+>>> , :maybe [ swap [ over nil? not swap when ] foldl ] def
+>>> , :Customer ( :orders ) defrecord
+>>> , :Order ( :price ) defrecord
+>>> Customer( ( Order( 42 ) ) )
+Customer{ :orders ( Order{ :price 42 => } ) => }
+>>> ,dup
+>>> ( [ .orders ] [ 0 get^ ] [ .price ] ) maybe
+42
+>>> ,drop
+>>> ( [ .orders ] [ 1 get^ ] [ .price ] ) maybe
+nil
+```
+
 <!-- [ ] <==> [ drop () ] if empty? -->
 
 ... TODO ...
