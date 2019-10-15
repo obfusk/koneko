@@ -70,8 +70,8 @@
  :over  [ x y   . 'x 'y 'x        ] def ; [ 'dup dip swap ]
 :2over  [ x y z . 'x 'y 'z 'x 'y  ] def
 
-:2call  [ x f g   . 'x f 'x g       ] def ; [ dup 'f dip g ]
-:3call  [ x f g h . 'x f 'x g 'x h  ] def
+:bi     [ x f g   . 'x f 'x g       ] def ; [ dup 'f dip g ]
+:tri    [ x f g h . 'x f 'x g 'x h  ] def
 
 ; ... TODO ...
 
@@ -313,7 +313,7 @@
 :_&cond [ x p? f & . 'p? function? [ 'x p? ] [ 'p? ] if
           [ 'f ] [ 'x '& cons '_&cond apply ] if ] def
 
-:num?   [ 'int? 'float? 2call or ] def
+:num?   [ 'int? 'float? bi or ] def
 
 ; -- TODO --
 
