@@ -2,7 +2,7 @@
 --
 --  File        : Main.hs
 --  Maintainer  : Felix C. Stegerman <flx@obfusk.net>
---  Date        : 2019-10-06
+--  Date        : 2019-10-15
 --
 --  Copyright   : Copyright (C) 2019  Felix C. Stegerman
 --  Version     : v0.0.1
@@ -26,8 +26,9 @@ import qualified System.Console.CmdArgs as CA
 
 import Koneko.Data (defineIn, emptyStack, true)
 import Koneko.Eval (initContext, evalFile, evalStdin, evalText)
-import Koneko.Repl (repl, stdinTTY)
+import Koneko.Repl (repl)
 import Koneko.Test (doctest')
+import Koneko_utils (stdinTTY)
 
 import qualified Paths_koneko as P
 

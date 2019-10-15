@@ -2,7 +2,7 @@
 --
 --  File        : Koneko/Repl.hs
 --  Maintainer  : Felix C. Stegerman <flx@obfusk.net>
---  Date        : 2019-10-07
+--  Date        : 2019-10-15
 --
 --  Copyright   : Copyright (C) 2019  Felix C. Stegerman
 --  Version     : v0.0.1
@@ -12,17 +12,13 @@
 
 {-# LANGUAGE OverloadedStrings #-}
 
-module Koneko.Repl (
-  repl, repl', promptText, errorText, stdinTTY
-) where
+module Koneko.Repl (repl, repl', promptText, errorText) where
 
 import Control.DeepSeq (($!!))
 import Control.Monad (unless)
 import Data.String (IsString)
 import Data.Text.Lazy (Text)
 import System.IO (hPutStrLn, stderr)
-import System.Posix.IO (stdInput)
-import System.Posix.Terminal (queryTerminal)
 
 import qualified Data.Text.Lazy as T
 import qualified Data.Text.Lazy.IO as T
@@ -63,8 +59,5 @@ shouldSkip s line = null s || T.head line `elem` [',',';']    -- safe!
 promptText, errorText :: IsString s => s
 promptText  = ">>> "
 errorText   = "*** ERROR: "
-
-stdinTTY :: IO Bool
-stdinTTY = queryTerminal stdInput
 
 -- vim: set tw=70 sw=2 sts=2 et fdm=marker :

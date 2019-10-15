@@ -50,7 +50,7 @@ common deps
   -- Other library packages from which modules are imported.
   build-depends:
     -- included w/ ghc:
-    base >=4.9, deepseq, directory, filepath, text, unix,
+    base >=4.9, deepseq, directory, filepath, text,
     -- included w/ haskell-platform:
     random, unordered-containers >=0.2.9.0,
     -- separate packages:
@@ -58,6 +58,14 @@ common deps
 
   -- Directories containing source files.
   hs-source-dirs:      src
+
+  if os(windows)
+    hs-source-dirs:    src-win
+  else
+    hs-source-dirs:    src-unix
+    build-depends:
+      -- included w/ ghc:
+      unix
 
   -- Base language which the package is written in.
   default-language:    Haskell2010
@@ -80,6 +88,7 @@ library
     Koneko.Read
     Koneko.Repl
     Koneko.Test
+    Koneko_utils
     Paths_koneko
 
   -- Modules included in this library but not exported.
@@ -109,6 +118,7 @@ executable koneko
     Koneko.Read
     Koneko.Repl
     Koneko.Test
+    Koneko_utils
     Paths_koneko
 
   autogen-modules:

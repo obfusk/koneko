@@ -2,7 +2,7 @@
 
     File        : README.md
     Maintainer  : Felix C. Stegerman <flx@obfusk.net>
-    Date        : 2019-10-14
+    Date        : 2019-10-15
 
     Copyright   : Copyright (C) 2019  Felix C. Stegerman
     Version     : v0.0.1
@@ -63,12 +63,18 @@ $ koneko -e '"Hello, World!" say'
 hello, World!
 ```
 
+### REPL
+
 ```bash
 $ koneko
 >>> "Hello, World!" say
 Hello, World!
 >>> ^D
 ```
+
+NB: the interpreter currently cannot detect whether input comes from a
+tty on windows, so you'll need to invoke it with the `-i` option (for
+interactive mode) to get a REPL on that platform.
 
 ## The Language
 
