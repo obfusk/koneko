@@ -164,6 +164,9 @@
 ; >>> "0123456789" 3 -3 [i-j)
 ; "3456"
 ;
+; >>> ( 1 2 3 ) reverse
+; ( 3 2 1 )
+;
 ; >>> { x: 1, y: 2 } { x: 99 } update
 ; { :x 99 =>, :y 2 => }
 ;
@@ -185,9 +188,11 @@
 :[-j)     [ nil swap [i-j)  ] def
 :[i-j)    [ x i j . 'i 'j 1 'x !slice ] def
 
-:update ( :dict   :dict ) [ !merge ] defmulti
-:update ( :record :dict ) [ over [ 'record->dict dip !merge ] dip
-                            record-type apply-dict ] defmulti   ; TODO
+:reverse  ( :list ) [ () [ swap cons ] foldl ] defmulti
+
+:update   ( :dict   :dict ) [ !merge ] defmulti
+:update   ( :record :dict ) [ over [ 'record->dict dip !merge ] dip
+                              record-type apply-dict ] defmulti   ; TODO
 
 ; ... TODO ...
 
