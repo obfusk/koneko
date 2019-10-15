@@ -281,11 +281,19 @@
 
 :times  [ f n . 'n 0 <= [ ] [ f 'f 'n 1 - times ] if ] def
 
-; -- TODO --
+; ... TODO ...
 
-; -- predicates --
+; -- conditionals & predicates --
 
 ; --                                                            ; {{{1
+;
+; >>> , :temp [ dup ( [ 15 < ] [ "is cold!" ] [ 25 > ] [ "is warm!" ] :else [ "is ok!" ] ) cond [ show " " ++ ] dip ++ say ] def
+; >>> 10 temp
+; 10 is cold!
+; >>> 20 temp
+; 20 is ok!
+; >>> 30 temp
+; 30 is warm!
 ;
 ; >>> 1 num?
 ; #t
@@ -295,6 +303,10 @@
 ; #f
 ;
 ; --                                                            ; }}}1
+
+ :cond  [ cons '_&cond apply call ] def
+:_&cond [ x p? f & . 'p? function? [ 'x p? ] [ 'p? ] if
+          [ 'f ] [ 'x '& cons '_&cond apply ] if ] def
 
 :num?   [ 'int? 'float? 2call or ] def
 
