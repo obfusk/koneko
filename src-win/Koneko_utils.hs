@@ -12,8 +12,10 @@
 
 module Koneko_utils (stdinTTY) where
 
--- TODO
+import System.IO (hIsTerminalDevice, stdout)
+
+-- NB: not portable (GHC only)
 stdinTTY :: IO Bool
-stdinTTY = return False
+stdinTTY = hIsTerminalDevice stdout
 
 -- vim: set tw=70 sw=2 sts=2 et fdm=marker :

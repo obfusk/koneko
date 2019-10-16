@@ -72,10 +72,6 @@ Hello, World!
 >>> ^D
 ```
 
-NB: the interpreter currently cannot detect whether input comes from a
-tty on windows, so you'll need to invoke it with the `-i` option (for
-interactive mode) to get a REPL on that platform.
-
 ## The Language
 
 A program is a sequence of tokens.  Each token represents a function
