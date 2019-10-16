@@ -2,7 +2,7 @@
 --
 --  File        : Koneko/Prld.hs
 --  Maintainer  : Felix C. Stegerman <flx@obfusk.net>
---  Date        : 2019-10-03
+--  Date        : 2019-10-15
 --
 --  Copyright   : Copyright (C) 2019  Felix C. Stegerman
 --  Version     : v0.0.1
@@ -12,11 +12,13 @@
 
 module Koneko.Prld (modFile, initCtx) where
 
+import System.FilePath ((</>))
+
 import Koneko.Data
 import Paths_koneko (getDataFileName)
 
 modFile :: IO FilePath
-modFile = getDataFileName "lib/prelude.knk"
+modFile = getDataFileName $ "lib" </> "prelude.knk"
 
 initCtx :: Context -> IO Context
 initCtx ctxBltn = do
