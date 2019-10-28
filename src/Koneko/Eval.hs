@@ -2,7 +2,7 @@
 --
 --  File        : Koneko/Eval.hs
 --  Maintainer  : Felix C. Stegerman <flx@obfusk.net>
---  Date        : 2019-10-14
+--  Date        : 2019-10-27
 --
 --  Copyright   : Copyright (C) 2019  Felix C. Stegerman
 --  Version     : v0.0.1
@@ -10,6 +10,7 @@
 --
 --  --                                                          ; }}}1
 
+{-# LANGUAGE NoMonomorphismRestriction #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE TupleSections #-}
@@ -145,27 +146,26 @@ call c s = do
 callStr :: Text -> Evaluator
 callStr x _ s = do
   (Kwd op, s') <- pop' s
-  let o = "str." <> op
+  let o = "str." <> op; p = rpush1 s'; pr = p . mkPrim o
   case op of
     "ord"     ->  do  unless (T.length x == 1) $ throwIO $
                         stackExpected "str of length 1"
-                      rpush1 s' $ toInteger $ ord $ T.head x
-    "append"  ->  rpush1 s' $ mkPrim o $ pop1push1 (<> x)
-    "slice"   ->  rpush1 s' $ mkPrim o $ \_ s1 -> do
+                      p $ toInteger $ ord $ T.head x
+    "append"  ->  pr $ pop1push1 (<> x)
+    "slice"   ->  pr $ \_ s1 -> do
                     ((i, j, step), s2) <- pop3' s1; let lx = lengthT x
                     i' <- nilToDef i 0; j' <- nilToDef j lx
                     unless (step == 1) $ throwIO $ NotImplementedError
                       $ T.unpack $ op <> ": step other than 1"
                     rpush1 s2 $ slice T.take T.drop i' j' step lx x
-    "empty?"  ->  rpush1 s' $ T.null x
-    "len"     ->  rpush1 s' $ lengthT x
-    "get"     ->  rpush1 s' $ mkPrim o $ \_ s1 -> do
+    "empty?"  ->  p $ T.null x
+    "len"     ->  p $ lengthT x
+    "get"     ->  pr $ \_ s1 -> do
                     (i, s2) <- pop' s1
-                    case indexT x i of
-                      Nothing -> throwIO $ IndexError (T.unpack o) i
-                      Just y  -> rpush1 s2 y
-    "member?" ->  rpush1 s' $ mkPrim o $ pop1push1 $ mem lengthT x
-    "elem?"   ->  rpush1 s' $ mkPrim o $ pop1push1 (`T.isInfixOf` x)
+                    let err = throwIO $ IndexError (T.unpack o) i
+                    maybe err (rpush1 s2) $ indexT x i
+    "member?" ->  pr $ pop1push1 $ mem lengthT x
+    "elem?"   ->  pr $ pop1push1 (`T.isInfixOf` x)
     _         ->  throwIO $ UnknownField (T.unpack op) "str"
 
 callPair :: Pair -> Evaluator
@@ -180,53 +180,50 @@ callPair Pair{..} _ s = do
 callList :: List -> Evaluator
 callList (List l) _ s = do
   (Kwd op, s') <- pop' s
-  let o = "list." <> op
+  let o = "list." <> op; p = rpush1 s'; pr = p . mkPrim o
       g = when (null l) $ throwIO $ EmptyList $ T.unpack o
   case op of
-    "head"    ->  g >> rpush1 s' (head l)                     -- safe!
-    "tail"    ->  g >> rpush1 s' (tail l)                     -- safe!
+    "head"    ->  g >> p (head l)                             -- safe!
+    "tail"    ->  g >> p (tail l)                             -- safe!
     "uncons"  ->  g >> rpush s' [head l, list $ tail l]       -- safe!
-    "cons"    ->  rpush1 s' $ mkPrim o $ pop1push1 (:l)
-    "sort"    ->  rpush1 s' $ sort l
-    "append"  ->  rpush1 s' $ mkPrim o $ pop1push1 (++ l)
-    "slice"   ->  rpush1 s' $ mkPrim o $ \_ s1 -> do
+    "cons"    ->  pr $ pop1push1 (:l)
+    "sort"    ->  p $ sort l
+    "append"  ->  pr $ pop1push1 (++ l)
+    "slice"   ->  pr $ \_ s1 -> do
                     ((i, j, step), s2) <- pop3' s1; let ll = len l
                     i' <- nilToDef i 0; j' <- nilToDef j ll
                     unless (step == 1) $ throwIO $ NotImplementedError
                       $ T.unpack $ op <> ": step other than 1"
                     rpush1 s2 $ slice take drop i' j' step ll l
-    "empty?"  ->  rpush1 s' $ null l
-    "len"     ->  rpush1 s' $ len l
-    "get"     ->  rpush1 s' $ mkPrim o $ \_ s1 -> do
+    "empty?"  ->  p $ null l
+    "len"     ->  p $ len l
+    "get"     ->  pr $ \_ s1 -> do
                     (i, s2) <- pop' s1
-                    case atMay l $ fromInteger i of
-                      Nothing -> throwIO $ IndexError (T.unpack o) i
-                      Just x  -> rpush1 s2 x
-    "member?" ->  rpush1 s' $ mkPrim o $ pop1push1 $ mem len l
-    "elem?"   ->  rpush1 s' $ mkPrim o $ pop1push1 (`elem` l)
+                    let err = throwIO $ IndexError (T.unpack o) i
+                    maybe err (rpush1 s2) $ atMay l $ fromInteger i
+    "member?" ->  pr $ pop1push1 $ mem len l
+    "elem?"   ->  pr $ pop1push1 (`elem` l)
     _         ->  throwIO $ UnknownField (T.unpack op) "list"
 
 -- TODO
 callDict :: Dict -> Evaluator
 callDict (Dict h) _ s = do
   (Kwd op, s') <- pop' s
-  let o = "dict." <> op
+  let o = "dict." <> op; p = rpush1 s'; pr = p . mkPrim o
   case op of
-    "keys"    ->  rpush1 s' $ map kwd $ H.keys h
-    "values"  ->  rpush1 s' $ H.elems h
-    "pairs"   ->  rpush1 s' [ pair (Kwd k) v | (k, v) <- H.toList h ]
-    "merge"   ->  rpush1 s' $ mkPrim o $ \_ s1 -> do
+    "keys"    ->  p $ map kwd $ H.keys h
+    "values"  ->  p $ H.elems h
+    "pairs"   ->  p [ pair (Kwd k) v | (k, v) <- H.toList h ]
+    "merge"   ->  pr $ \_ s1 -> do
                     (Dict h2, s2) <- pop' s1
                     rpush1 s2 $ Dict $ H.union h h2
-    "empty?"  ->  rpush1 s' $ H.null h
-    "len"     ->  rpush1 s' $ toInteger $ H.size h
-    "get"     ->  rpush1 s' $ mkPrim o $ \_ s1 -> do
+    "empty?"  ->  p $ H.null h
+    "len"     ->  p $ toInteger $ H.size h
+    "get"     ->  pr $ \_ s1 -> do
                     (Kwd k, s2) <- pop' s1
-                    case H.lookup k h of
-                      Nothing -> throwIO $ KeyError (T.unpack o)
-                                                    (T.unpack k)
-                      Just x  -> rpush1 s2 x
-    "member?" ->  rpush1 s' $ mkPrim o $ \_ s1 -> do
+                    let err = throwIO $ KeyError (T.unpack o) (T.unpack k)
+                    maybe err (rpush1 s2) $ H.lookup k h
+    "member?" ->  pr $ \_ s1 -> do
                     (Kwd k, s2) <- pop' s1; rpush1 s2 $ H.member k h
     _         ->  throwIO $ UnknownField (T.unpack op) "dict"
 
@@ -242,9 +239,8 @@ callMulti Multi{..} c s = do
 callRecord :: Record -> Evaluator
 callRecord r _ s = do
     (Kwd k, s') <- pop' s
-    case elemIndex k recFields of
-      Nothing -> throwIO $ UnknownField (T.unpack k) (T.unpack recName)
-      Just n  -> rpush1 s' $ recValues r !! n                 -- safe!
+    let err = throwIO $ UnknownField (T.unpack k) (T.unpack recName)
+    maybe err (rpush1 s' . (recValues r !!)) $ elemIndex k recFields -- safe!
   where
     RecordT{..} = recType r
 
