@@ -17,7 +17,7 @@
 [![LGPLv3+](https://img.shields.io/badge/license-LGPLv3+-blue.svg)](https://www.gnu.org/licenses/lgpl-3.0.html)
 
 <p align="center">
-  <img src="logo.png" alt="koneko logo" /><br />
+  <img src="logo.svg" alt="koneko logo" width="150" /><br />
   koneko - a concatenative not-quite-lisp for kittens
 </p>
 
