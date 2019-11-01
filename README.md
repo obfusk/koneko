@@ -2,7 +2,7 @@
 
     File        : README.md
     Maintainer  : Felix C. Stegerman <flx@obfusk.net>
-    Date        : 2019-10-15
+    Date        : 2019-11-01
 
     Copyright   : Copyright (C) 2019  Felix C. Stegerman
     Version     : v0.0.1
@@ -16,9 +16,12 @@
 [![GPLv3+](https://img.shields.io/badge/license-GPLv3+-blue.svg)](https://www.gnu.org/licenses/gpl-3.0.html)
 [![LGPLv3+](https://img.shields.io/badge/license-LGPLv3+-blue.svg)](https://www.gnu.org/licenses/lgpl-3.0.html)
 
-## Description
+<p align="center">
+  <img src="logo.png" alt="koneko logo" /><br />
+  koneko - a concatenative not-quite-lisp for kittens
+</p>
 
-koneko - a concatenative not-quite-lisp for kittens
+## Description
 
 NB: work in progress.
 
