@@ -2,7 +2,7 @@
 --
 --  File        : Koneko/Data.hs
 --  Maintainer  : Felix C. Stegerman <flx@obfusk.net>
---  Date        : 2019-10-14
+--  Date        : 2019-11-01
 --
 --  Copyright   : Copyright (C) 2019  Felix C. Stegerman
 --  Version     : v0.0.1
@@ -807,7 +807,7 @@ dictLookup op (Dict h) = traverse f
     f k = maybe (Left $ KeyError op $ T.unpack k) Right $ H.lookup k h
 
 mkPrim, mkBltn :: Identifier -> Evaluator -> Builtin
-mkPrim = Builtin True
+mkPrim = Builtin True . (<> "__") . ("__" <>)
 mkBltn = Builtin False
 
 defPrim :: Context -> Builtin -> IO ()

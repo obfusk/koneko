@@ -155,7 +155,7 @@ up and the value found is pushed onto the stack.
 >>> 1 2 +                                   ; push and call "+"
 3
 >>> 'not                                    ; push "not"
-#<primitive:not>
+#<primitive:__not__>
 >>> 1 2 '+ call                             ; push "+", then call it
 3
 ```
@@ -513,6 +513,12 @@ Point{ :x 1 =>, :y 2 => }
 
 Primitive operations that make up the core language.
 
+NB: all primitives start and end with `__` (e.g. `__call__`); the
+prelude defines aliases without them (for the primitives intended to
+be used directly); unlike the primitives themselves, these aliases
+(e.g. `call`) can be shadowed by named arguments and module
+definitions.
+
 ```koneko
 >>> 41 [ 1 + ]
 [ 1 + ]
@@ -527,9 +533,9 @@ Primitive operations that make up the core language.
 >>> #f not                      ; logical
 #t
 >>> #f 1 or
-#t
+1
 >>> 1 nil and
-#f
+nil
 
 >>> ( 42 ) show                 ; convert to readable str
 "( 42 )"
@@ -585,8 +591,8 @@ defines more convenient versions of these, like `+` and `div`:
 To list all primitives, run:
 
 ```
->>> :__prim__ __module-defs__     ; (some output elided)
-( := :apply :ask :call :callable? :def :defmulti :if ... )
+>>> :__prim__ __module-defs__     ; (elided)
+( :__=__ :__apply__ :__call__ :__def__ :__if__ ... )
 ```
 
 ### Builtins
@@ -765,6 +771,22 @@ Customer{ :orders ( Order{ :price 42 => } ) => }
 nil
 ```
 
+```koneko
+>>> , :myif [ 'and dip or call ] def  ; TODO: primitive redundancy?
+>>> 42 [ :A ] [ :B ] myif
+:A
+>>> #f [ :A ] [ :B ] myif
+:B
+```
+
+```koneko
+>>> , :mycall [ f . f ] def           ; TODO: primitive redundancy?
+>>> [ 1 2 + ] call
+3
+>>> [ 3 + ] mycall
+6
+```
+
 <!-- [ ] <==> [ drop () ] if empty? -->
 
 ... TODO ...
@@ -812,6 +834,10 @@ TODO: haddock
 * iterators?
 
 -->
+
+### Known Bugs
+
+* (un)intended lazyness: e.g. `1 0 div drop` does not raise an error.
 
 ## License
 

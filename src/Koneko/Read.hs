@@ -42,6 +42,7 @@ import Control.Monad.Fail (MonadFail)
 import Data.Functor
 import Data.List (foldl')
 import Data.Maybe (fromJust) -- careful!
+import Data.Monoid((<>))
 import Data.Text.Lazy (Text)
 import Prelude hiding (quot, read)
 import Text.Megaparsec
@@ -188,9 +189,8 @@ sugarIdent c = try $ do
 
 _dict, _swap, _call, _pair, _apply, _applyDict :: KValue
 (_dict, _swap, _call, _pair, _apply, _applyDict) =
-  let idt = KIdent . fromJust . D.ident  -- safe!
-  in (idt "dict", idt "swap", idt "call", idt "=>", idt "apply",
-      idt "apply-dict")
+  let i = KIdent . fromJust . D.ident . (<> "__") . ("__" <>) -- safe!
+  in (i "dict", i "swap", i "call", i "=>", i "apply", i "apply-dict")
 
 -- miscellaneous --
 

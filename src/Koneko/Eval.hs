@@ -2,7 +2,7 @@
 --
 --  File        : Koneko/Eval.hs
 --  Maintainer  : Felix C. Stegerman <flx@obfusk.net>
---  Date        : 2019-10-27
+--  Date        : 2019-11-01
 --
 --  Copyright   : Copyright (C) 2019  Felix C. Stegerman
 --  Version     : v0.0.1
@@ -146,7 +146,7 @@ call c s = do
 callStr :: Text -> Evaluator
 callStr x _ s = do
   (Kwd op, s') <- pop' s
-  let o = "str." <> op; p = rpush1 s'; pr = p . mkPrim o
+  let o = "str." <> op; p = rpush1 s'; pr = p . mkOp o
   case op of
     "ord"     ->  do  unless (T.length x == 1) $ throwIO $
                         stackExpected "str of length 1"
@@ -180,7 +180,7 @@ callPair Pair{..} _ s = do
 callList :: List -> Evaluator
 callList (List l) _ s = do
   (Kwd op, s') <- pop' s
-  let o = "list." <> op; p = rpush1 s'; pr = p . mkPrim o
+  let o = "list." <> op; p = rpush1 s'; pr = p . mkOp o
       g = when (null l) $ throwIO $ EmptyList $ T.unpack o
   case op of
     "head"    ->  g >> p (head l)                             -- safe!
@@ -209,7 +209,7 @@ callList (List l) _ s = do
 callDict :: Dict -> Evaluator
 callDict (Dict h) _ s = do
   (Kwd op, s') <- pop' s
-  let o = "dict." <> op; p = rpush1 s'; pr = p . mkPrim o
+  let o = "dict." <> op; p = rpush1 s'; pr = p . mkOp o
   case op of
     "keys"    ->  p $ map kwd $ H.keys h
     "values"  ->  p $ H.elems h
@@ -356,6 +356,9 @@ partitionSpecial :: [Identifier] -> ([Identifier], [Identifier])
 partitionSpecial = partition (`elem` ["&", "&&"])
 
 -- utilities --
+
+mkOp :: Identifier -> Evaluator -> Builtin
+mkOp = mkPrim . (<> ")") . ("(" <>)
 
 len :: [a] -> Integer
 len = genericLength

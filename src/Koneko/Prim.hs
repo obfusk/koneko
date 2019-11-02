@@ -2,7 +2,7 @@
 --
 --  File        : Koneko/Prim.hs
 --  Maintainer  : Felix C. Stegerman <flx@obfusk.net>
---  Date        : 2019-10-14
+--  Date        : 2019-11-01
 --
 --  Copyright   : Copyright (C) 2019  Felix C. Stegerman
 --  Version     : v0.0.1
@@ -44,11 +44,10 @@ initCtx ctxMain call apply apply_dict = do
       not_, and_, or_,
       comp "=" (==), comp "/=" (/=), comp "<" (<),
       comp "<=" (<=), comp ">" (>), comp ">=" (>=),
-      arithI "__int+__" (+), arithI "__int-__" (-),
-      arithI "__int*__" (*),
-      arithI "__div__" div, arithI "__mod__" mod,
-      arithF "__float+__" (+), arithF "__float-__" (-),
-      arithF "__float*__" (*), arithF "__float/__" (/),
+      arithI "int+" (+), arithI "int-" (-), arithI "int*" (*),
+      arithI "div" div, arithI "mod" mod,
+      arithF "float+" (+), arithF "float-" (-),
+      arithF "float*" (*), arithF "float/" (/),
       chr_, intToFloat, recordToDict, recordType,
       recordTypeName, recordTypeFields,
       showStack, clearStack, nya
@@ -108,23 +107,23 @@ function  = mkPrim "function?"  $ pop1push1 isFunction
 
 moduleGet, moduleDefs, moduleName :: Builtin
 
-moduleGet = mkPrim "__module-get__" $ \c s -> do
+moduleGet = mkPrim "module-get" $ \c s -> do
   ((Kwd k, Kwd m), s') <- pop2' s
   lookupModule' c k m >>= rpush1 s'
 
-moduleDefs = mkPrim "__module-defs__" $ \c s -> do
+moduleDefs = mkPrim "module-defs" $ \c s -> do
   (Kwd m, s') <- pop' s
   sort . map kwd <$> moduleKeys c m >>= rpush1 s'
 
-moduleName = mkPrim "__name__" $ \c s ->
+moduleName = mkPrim "name" $ \c s ->
   rpush1 s $ kwd $ scopeModuleName c
 
 -- primitives: Eq, Ord --
 
 not_, and_, or_ :: Builtin
 not_  = mkPrim "not"  $ pop1push1 $ not . truthy
-and_  = mkPrim "and"  $ pop2push1 $ \x y -> truthy x && truthy y
-or_   = mkPrim "or"   $ pop2push1 $ \x y -> truthy x || truthy y
+and_  = mkPrim "and"  $ pop2push1 $ \x y -> if truthy x then y else x
+or_   = mkPrim "or"   $ pop2push1 $ \x y -> if truthy x then x else y
 
 comp :: Identifier -> (KValue -> KValue -> Bool) -> Builtin
 comp name op = mkPrim name $ pop2push1 op
@@ -144,7 +143,7 @@ arithF = arith
 
 chr_, intToFloat, recordToDict, recordType :: Builtin
 
-chr_ = mkPrim "__chr__" $ \_ s -> do
+chr_ = mkPrim "chr" $ \_ s -> do
   (i, s') <- pop' s
   unless (0 <= i && i < 0x110000) $ throwIO $
     stackExpected "int in range [0,0x110000)"
@@ -178,15 +177,15 @@ replDef ctx = do
 showStack, clearStack :: Builtin
 
 -- TODO
-showStack = mkPrim "__show-stack__" $ \_ s ->
+showStack = mkPrim "show-stack" $ \_ s ->
   s <$ traverse_ (putStrLn . show) s
 
-clearStack = mkPrim "__clear-stack__" $ \_ _ -> return emptyStack
+clearStack = mkPrim "clear-stack" $ \_ _ -> return emptyStack
 
 -- nya --
 
 nya :: Builtin
-nya = mkPrim "__nya__" $ \_ s -> s <$ do
+nya = mkPrim "nya" $ \_ s -> s <$ do
   nyaD  <- getDataFileName "nya"
   cats  <- filter (isSuffixOf ".cat") <$> listDirectory nyaD
   unless (null cats) $ do

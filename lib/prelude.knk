@@ -2,7 +2,7 @@
 ;
 ; File        : prelude.knk
 ; Maintainer  : Felix C. Stegerman <flx@obfusk.net>
-; Date        : 2019-10-14
+; Date        : 2019-11-01
 ;
 ; Copyright   : Copyright (C) 2019  Felix C. Stegerman
 ; Version     : v0.0.1
@@ -12,9 +12,52 @@
 
 ; -- TODO --
 ;
-; * add more functions!
+; * more functions!
+; * refactor!
 ;
 ; --
+
+; -- aliases for primitives --
+
+:def                '__def__                __def__
+
+:call               '__call__                 def
+:apply              '__apply__                def
+:apply-dict         '__apply-dict__           def
+
+:if                 '__if__                   def
+
+:defmulti           '__defmulti__             def
+:defrecord          '__defrecord__            def
+
+:=>                 '__=>__                   def
+:dict               '__dict__                 def
+
+:show               '__show__                 def
+:say                '__say__                  def
+:ask                '__ask__                  def
+
+:type               '__type__                 def
+:callable?          '__callable?__            def
+:function?          '__function?__            def
+
+:not                '__not__                  def
+:and                '__and__                  def
+:or                 '__or__                   def
+
+:=                  '__=__                    def
+:/=                 '__/=__                   def
+:<                  '__<__                    def
+:<=                 '__<=__                   def
+:>                  '__>__                    def
+:>=                 '__>=__                   def
+
+:int->float         '__int->float__           def
+:record->dict       '__record->dict__         def
+
+:record-type        '__record-type__          def
+:record-type-name   '__record-type-name__     def
+:record-type-fields '__record-type-fields__   def
 
 ; -- stack shuffling --
 
@@ -56,7 +99,7 @@
 ;
 ; --                                                            ; }}}1
 
-:swap   [ x y . 'y 'x ] def ; primitive
+:swap   [ x y . 'y 'x ] def
 
  :dup   [ x   . 'x 'x       ] def
 :2dup   [ x y . 'x 'y 'x 'y ] def
@@ -69,6 +112,10 @@
 
  :over  [ x y   . 'x 'y 'x        ] def ; [ 'dup dip swap ]
 :2over  [ x y z . 'x 'y 'z 'x 'y  ] def
+
+; ... TODO ...
+
+; -- combinators --
 
 :bi     [ x f g   . 'x f 'x g       ] def ; [ dup 'f dip g ]
 :tri    [ x f g h . 'x f 'x g 'x h  ] def
@@ -320,6 +367,8 @@
           [ 'f ] [ 'x '& cons '_&cond apply ] if ] def
 
 :num?   [ 'int? 'float? bi or ] def
+
+; ... TODO ...
 
 ; -- TODO --
 
