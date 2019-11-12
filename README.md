@@ -527,7 +527,7 @@ definitions.
 >>> call                        ; call the block at the top of the stack
 42
 
->>> 1 2 <                       ; comparison: = /= < <= > >=
+>>> 1 2 <                       ; comparison: = not= < <= > >=
 #t
 >>> [ :less ] [ :not-less ] if  ; conditional
 :less

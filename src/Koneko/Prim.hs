@@ -2,7 +2,7 @@
 --
 --  File        : Koneko/Prim.hs
 --  Maintainer  : Felix C. Stegerman <flx@obfusk.net>
---  Date        : 2019-11-01
+--  Date        : 2019-11-12
 --
 --  Copyright   : Copyright (C) 2019  Felix C. Stegerman
 --  Version     : v0.0.1
@@ -42,7 +42,7 @@ initCtx ctxMain call apply apply_dict = do
       show_, say, ask, type_, callable, function,
       moduleGet, moduleDefs, moduleName,
       not_, and_, or_,
-      comp "=" (==), comp "/=" (/=), comp "<" (<),
+      comp "=" (==), comp "not=" (/=), comp "<" (<),
       comp "<=" (<=), comp ">" (>), comp ">=" (>=),
       arithI "int+" (+), arithI "int-" (-), arithI "int*" (*),
       arithI "div" div, arithI "mod" mod,
