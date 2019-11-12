@@ -437,10 +437,13 @@ which implement certain primitive operations via calls.
 ### Records
 
 ```koneko
->>> , :Point ( :x :y ) defrecord  ; define record type
+>>> , :Point ( :x :y ) defrecord  ; define record type + predicate
 >>> Point{ x: 1, y: -1 }          ; create record instance
 Point{ :x 1 =>, :y -1 => }
 >>> ,dup
+>>> Point?
+#t
+>>> ,drop dup
 >>> .x
 1
 >>> ,drop dup

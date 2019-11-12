@@ -10,6 +10,7 @@
 --
 --  --                                                          ; }}}1
 
+{-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE RecordWildCards #-}
 
@@ -20,6 +21,7 @@ import Control.Monad (unless)
 import Data.Char (chr)
 import Data.Foldable (traverse_)
 import Data.List (isSuffixOf, sort)
+import Data.Monoid ((<>))
 import System.Directory (listDirectory)
 import System.FilePath ((</>))
 import System.Random (getStdRandom, randomR)
@@ -72,10 +74,17 @@ defmulti = mkPrim "defmulti" $ \c s -> do
   sig' <- retOrThrow $ map unKwd <$> fromVals sig
   s' <$ defMulti c k sig' b
 
+-- TODO
 defrecord = mkPrim "defrecord" $ \c s -> do
-  ((Kwd recName, fs), s') <- pop2' s
-  recFields <- retOrThrow $ map unKwd <$> fromVals fs
-  s' <$ defineIn c recName (KRecordT RecordT{..})
+    ((Kwd recName, fs), s') <- pop2' s
+    recFields <- retOrThrow $ map unKwd <$> fromVals fs
+    let r = RecordT{..}; p = recName <> "?"
+    s' <$ do defineIn c recName (KRecordT r); defPred c r p
+  where
+    defPred c t p = defineIn c p $ f $ pop1push1 $ \case
+        KRecord r -> recType r == t; _ -> False
+      where
+        f = KBuiltin . mkBltn (scopeModuleName c <> ":" <> p)
 
 mkPair = mkPrim "=>" $ pop2push1 Pair
 

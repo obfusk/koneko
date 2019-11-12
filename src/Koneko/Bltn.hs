@@ -2,7 +2,7 @@
 --
 --  File        : Koneko/Bltn.hs
 --  Maintainer  : Felix C. Stegerman <flx@obfusk.net>
---  Date        : 2019-10-07
+--  Date        : 2019-11-12
 --
 --  Copyright   : Copyright (C) 2019  Felix C. Stegerman
 --  Version     : v0.0.1
@@ -31,12 +31,5 @@ initCtx ctxPrim = do
 typePreds :: [Builtin]
 typePreds = [ mkBltn (x <> "?") $ pop1push1
             $ (== x) . typeToStr . typeOf | x <- typeNames ]
-
-typeNames :: [Identifier]
-typeNames = [
-    "nil", "bool", "int", "float", "str", "kwd", "pair", "list",
-    "dict", "ident", "quot", "block", "builtin", "multi",
-    "record-type", "record"
-  ]
 
 -- vim: set tw=70 sw=2 sts=2 et fdm=marker :

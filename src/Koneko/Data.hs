@@ -66,12 +66,12 @@ module Koneko.Data (
   pop3, pop', pop2', pop3', popN', pop1push, pop2push, pop1push1,
   pop2push1, primModule, bltnModule, prldModule, mainModule,
   initMainContext, forkContext, forkScope, defineIn, scopeModuleName,
-  lookup, lookupModule', moduleKeys, typeOf, typeToKwd, typeToStr,
-  isNil, isBool, isInt, isFloat, isStr, isKwd, isPair, isList, isDict,
-  isIdent, isQuot, isBlock, isBuiltin, isMulti, isRecordT, isRecord,
-  isCallable, isFunction, nil, false, true, bool, int, float, str,
-  kwd, pair, list, dict, block, dictLookup, mkPrim, mkBltn, defPrim,
-  defMulti, truthy, retOrThrow
+  lookup, lookupModule', moduleKeys, typeNames, typeOf, typeToKwd,
+  typeToStr, isNil, isBool, isInt, isFloat, isStr, isKwd, isPair,
+  isList, isDict, isIdent, isQuot, isBlock, isBuiltin, isMulti,
+  isRecordT, isRecord, isCallable, isFunction, nil, false, true, bool,
+  int, float, str, kwd, pair, list, dict, block, dictLookup, mkPrim,
+  mkBltn, defPrim, defMulti, truthy, retOrThrow
 ) where
 
 import Control.DeepSeq (deepseq, NFData(..))
@@ -315,11 +315,11 @@ instance Show Dict where
 
 -- TODO
 instance Show Block where
-  show (Block a c _) = case (a, c) of
+  show (Block p c _) = case (p, c) of
       ([], [])  -> "[ ]"
       ([], _ )  -> "[ " ++ f c ++ " ]"
-      (_ , [])  -> "[ " ++ f a ++ " . ]"
-      (_ , _ )  -> "[ " ++ f a ++ " . " ++ f c ++ " ]"
+      (_ , [])  -> "[ " ++ f p ++ " . ]"
+      (_ , _ )  -> "[ " ++ f p ++ " . " ++ f c ++ " ]"
     where
       f :: Show a => [a] -> String
       f = intercalate " " . map show
@@ -330,11 +330,14 @@ instance Show Builtin where
       t = if biPrim then "primitive" else "builtin"
 
 instance Show Multi where
-  show Multi{..}  = "#<multi:" ++ show mltArity ++ ":" ++
-                    T.unpack mltName ++ ">"
+  show Multi{..}
+    = "#<multi:" ++ show mltArity ++ ":" ++ T.unpack mltName ++ ">"
 
 instance Show RecordT where
-  show RecordT{..} = "#<record-type:" ++ T.unpack recName ++ ">"
+  show RecordT{..}
+      = "#<record-type:" ++ T.unpack recName ++ "(" ++ f ++ ")>"
+    where
+      f = intercalate "#" $ map T.unpack recFields
 
 instance Show Record where
   show Record{..} = T.unpack (recName recType) ++ "{ " ++ flds ++ " }"
@@ -687,6 +690,13 @@ getModule c modName = HT.lookup (modules c) modName >>= maybe err return
     err = throwIO $ ModuleNotFound $ T.unpack modName
 
 -- type predicates --
+
+typeNames :: [Identifier]
+typeNames = [
+    "nil", "bool", "int", "float", "str", "kwd", "pair", "list",
+    "dict", "ident", "quot", "block", "builtin", "multi",
+    "record-type", "record"
+  ]
 
 typeOf :: KValue -> KType
 typeOf (KPrim p) = case p of
