@@ -42,7 +42,6 @@ import Control.Monad.Fail (MonadFail)
 import Data.Functor
 import Data.List (foldl')
 import Data.Maybe (fromJust) -- careful!
-import Data.Monoid((<>))
 import Data.Text.Lazy (Text)
 import Prelude hiding (quot, read)
 import Text.Megaparsec
