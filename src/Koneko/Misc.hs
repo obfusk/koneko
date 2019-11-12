@@ -2,7 +2,7 @@
 --
 --  File        : Koneko/Misc.hs
 --  Maintainer  : Felix C. Stegerman <flx@obfusk.net>
---  Date        : 2019-10-09
+--  Date        : 2019-11-12
 --
 --  Copyright   : Copyright (C) 2019  Felix C. Stegerman
 --  Version     : v0.0.1
@@ -84,7 +84,7 @@ pIdent_ ok = T.pack <$> (try a <|> b)
     a       = (:[]) <$> okChar <* notFollowedBy miChar
     b       = (:)   <$> hdChar <*> some (try b1 <|> tlChar)
     b1      = miChar <* notFollowedBy (speof <|> (bad >> speof))
-    okChar  = letterChar <|> numberChar <|> oneOf specialChar
+    okChar  = letterChar <|> numberChar <|> symbolChar <|> oneOf specialChar
     hdChar  = okChar <|> oneOf brackets
     miChar  = hdChar <|> oneOf badStart
     tlChar  = okChar <|> oneOf bracketsC <|> good

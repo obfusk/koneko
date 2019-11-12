@@ -129,9 +129,9 @@ evaluates a line, unless the line starts with a `,`.
 
 ### Ident(ifier)s
 
-Any contiguous sequence of one or more letters, numbers, brackets (any
-of `(){}[]`), special characters (any of `~@$%^&*-_=+|<>/?` and `'!:`)
-is an identifier if it:
+Any contiguous sequence of one or more unicode letters, numbers,
+symbols, brackets (any of `(){}[]`), or special characters (any of
+`~@$%^&*-_=+|<>/?` and `'!:`) is an identifier if it:
 
 * does not start with any of `'!:` or end with `:`;
 * is not a single bracket or `()`;
