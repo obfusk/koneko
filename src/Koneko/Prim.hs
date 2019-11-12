@@ -22,6 +22,7 @@ import Data.Char (chr)
 import Data.Foldable (traverse_)
 import Data.List (isSuffixOf, sort)
 import Data.Monoid ((<>))
+import Prelude hiding (lookup)
 import System.Directory (listDirectory)
 import System.FilePath ((</>))
 import System.Random (getStdRandom, randomR)
@@ -70,9 +71,14 @@ def = mkPrim "def" $ \c s -> do
   ((Kwd k, v), s') <- pop2' s; s' <$ defineIn c k v
 
 defmulti = mkPrim "defmulti" $ \c s -> do
-  ((Kwd k, sig, b), s') <- pop3' s
-  sig' <- retOrThrow $ map unKwd <$> fromVals sig
-  s' <$ defMulti c k sig' b
+    ((Kwd k, sig, b), s') <- pop3' s
+    sig' <- traverse (f c) =<< retOrThrow (map unKwd <$> fromVals sig)
+    s' <$ defMulti c k sig' b
+  where
+    f c k | k == "_" || k `elem` typeNames = return k
+          | otherwise = lookup c k >>= \case
+              Just (KRecordT t) -> return $ recordTypeSig t
+              _                 -> throwIO $ LookupFailed $ T.unpack k
 
 -- TODO
 defrecord = mkPrim "defrecord" $ \c s -> do

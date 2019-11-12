@@ -60,25 +60,27 @@ module Koneko.Data (
   Kwd(..), Ident, unIdent, ident, List(..), Dict(..), Block(..),
   Builtin(..), Multi(..), RecordT(..), Record, recType, recValues,
   record, Scope, Context, ctxScope, Pair(..), KPrim(..), KValue(..),
-  KType(..), Stack, escapeFrom, escapeTo, ToVal, toVal, FromVal,
-  fromVal, toVals, fromVals, maybeToVal, maybeToNil, eitherToVal,
-  eitherToNil, emptyStack, push', push, rpush, rpush1, pop, pop2,
-  pop3, pop', pop2', pop3', popN', pop1push, pop2push, pop1push1,
-  pop2push1, primModule, bltnModule, prldModule, mainModule,
-  initMainContext, forkContext, forkScope, defineIn, scopeModuleName,
-  lookup, lookupModule', moduleKeys, typeNames, typeOf, typeToKwd,
-  typeToStr, isNil, isBool, isInt, isFloat, isStr, isKwd, isPair,
-  isList, isDict, isIdent, isQuot, isBlock, isBuiltin, isMulti,
-  isRecordT, isRecord, isCallable, isFunction, nil, false, true, bool,
-  int, float, str, kwd, pair, list, dict, block, dictLookup, mkPrim,
-  mkBltn, defPrim, defMulti, truthy, retOrThrow
+  KType(..), Stack, freeVars, escapeFrom, escapeTo, ToVal, toVal,
+  FromVal, fromVal, toVals, fromVals, maybeToVal, maybeToNil,
+  eitherToVal, eitherToNil, emptyStack, push', push, rpush, rpush1,
+  pop, pop2, pop3, pop', pop2', pop3', popN', pop1push, pop2push,
+  pop1push1, pop2push1, primModule, bltnModule, prldModule,
+  mainModule, initMainContext, forkContext, forkScope, defineIn,
+  scopeModuleName, lookup, lookupModule', moduleKeys, typeNames,
+  typeOf, typeToKwd, typeToStr, isNil, isBool, isInt, isFloat, isStr,
+  isKwd, isPair, isList, isDict, isIdent, isQuot, isBlock, isBuiltin,
+  isMulti, isRecordT, isRecord, isCallable, isFunction, nil, false,
+  true, bool, int, float, str, kwd, pair, list, dict, block,
+  dictLookup, mkPrim, mkBltn, defPrim, defMulti, truthy, retOrThrow,
+  recordTypeSig, underscored, digitParams
 ) where
 
 import Control.DeepSeq (deepseq, NFData(..))
 import Control.Exception (Exception, throw, throwIO)
 import Control.Monad (when)
-import Data.Char (isPrint, ord)
-import Data.List (intercalate)
+import Data.Char (intToDigit, isPrint, ord)
+import Data.List (intercalate, maximum)
+import Data.Maybe (catMaybes)
 import Data.Monoid ((<>))
 import Data.String (IsString)
 import Data.Text.Lazy (Text)
@@ -87,7 +89,8 @@ import GHC.Generics (Generic)
 import Numeric (showHex)
 import Prelude hiding (lookup)
 
-import qualified Data.HashMap.Lazy as H
+import qualified Data.HashMap.Strict as H
+import qualified Data.HashSet as S
 import qualified Data.HashTable.IO as HT
 import qualified Data.Text.Lazy as T
 import qualified Prelude as P
@@ -243,6 +246,19 @@ data KType
   deriving (Eq, Ord, Generic, NFData)
 
 type Stack = [KValue]
+
+-- TODO
+freeVars :: [KValue] -> S.HashSet Identifier
+freeVars = umap S.empty
+  where
+    f s (KList l)   = umap s $ unList l
+    f s (KIdent i)  = g s $ unIdent i
+    f s (KQuot i)   = g s $ unIdent i
+    f s (KBlock b)  = let p = S.fromList $ map unIdent $ blkParams b
+                      in umap (S.union p s) $ blkCode b
+    f _ _           = S.empty
+    g s i           = if S.member i s then S.empty else S.singleton i
+    umap s          = S.unions . map (f s)
 
 -- instances --
 
@@ -657,8 +673,8 @@ scopeModuleName = let f s = either id f $ parent s in f . ctxScope
 -- Prim -> Scope* -> Module -> Prel -> Bltn
 -- throws ModuleNotFound
 lookup :: Context -> Identifier -> IO (Maybe KValue)
-lookup c k = first [lookupPrim, lookupScope $ ctxScope c,
-                    lookupPrel, lookupBltn]
+lookup c k = M.firstJust [lookupPrim, lookupScope $ ctxScope c,
+                          lookupPrel, lookupBltn]
   where
     lookupScope s = maybe (f s) (return . Just) $ H.lookup k $ table s
     f s           = either look lookupScope $ parent s
@@ -666,8 +682,6 @@ lookup c k = first [lookupPrim, lookupScope $ ctxScope c,
     lookupBltn    = look bltnModule
     lookupPrel    = look prldModule
     look          = lookupModule c k
-    first []      = return Nothing
-    first (x:xt)  = x >>= maybe (first xt) (return . Just)
 
 -- throws ModuleNotFound
 lookupModule :: Context -> Identifier -> Identifier -> IO (Maybe KValue)
@@ -817,7 +831,7 @@ dictLookup op (Dict h) = traverse f
     f k = maybe (Left $ KeyError op $ T.unpack k) Right $ H.lookup k h
 
 mkPrim, mkBltn :: Identifier -> Evaluator -> Builtin
-mkPrim = Builtin True . (<> "__") . ("__" <>)
+mkPrim = Builtin True . underscored
 mkBltn = Builtin False
 
 defPrim :: Context -> Builtin -> IO ()
@@ -846,5 +860,20 @@ truthy _                      = True
 
 retOrThrow :: Either KException a -> IO a
 retOrThrow = either throwIO return
+
+recordTypeSig :: RecordT -> Identifier
+recordTypeSig = T.pack . show
+
+underscored :: Text -> Text
+underscored = (<> "__") . ("__" <>)
+
+-- TODO
+digitParams :: Block -> [Ident]
+digitParams Block{..} = map (Ident_ . fst) $ take n parms     -- safe!
+  where
+    n     = maximum $ (0:) $ catMaybes $ map (flip P.lookup parms)
+          $ S.toList $ freeVars blkCode
+    parms = [ (underscored $ T.singleton (intToDigit i), i)
+            | i <- [1..9] ]
 
 -- vim: set tw=70 sw=2 sts=2 et fdm=marker :

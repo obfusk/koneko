@@ -129,9 +129,13 @@ evaluates a line, unless the line starts with a `,`.
 
 ### Ident(ifier)s
 
-Any contiguous sequence of one or more unicode letters, numbers,
-symbols, brackets (any of `(){}[]`), or special characters (any of
-`~@$%^&*-_=+|<>/?` and `'!:`) is an identifier if it:
+Any contiguous sequence of one or more:
+
+* unicode letters, numbers, symbols; or
+* brackets (any of `(){}[]`); or
+* special characters (any of `~@$%^&*-_=+|<>/?` and `'!:`)
+
+is an identifier if it:
 
 * does not start with any of `'!:` or end with `:`;
 * is not a single bracket or `()`;
@@ -434,6 +438,9 @@ which implement certain primitive operations via calls.
 4.0
 ```
 
+NB: `defmulti` always creates or extends a multi in the current
+module; to extend a multi from e.g. the prelude, alias it first.
+
 ### Records
 
 ```koneko
@@ -452,6 +459,11 @@ Point{ :x 1 =>, :y -1 => }
 >>> ,drop
 >>> { x: 99 } update              ; update record (creates a new one)
 Point{ :x 99 =>, :y -1 => }
+
+>>> , :+ '+ def                   ; alias to extend
+>>> , :+ ( :Point :Point ) [ '.x '.y .[ '1 bi$ + ] bi$ 2bi Point ] defmulti
+>>> Point( 1 2 ) Point( 3 4 ) +
+Point{ :x 4 =>, :y 6 => }
 ```
 
 <!-- ADTs ??? -->
@@ -493,6 +505,18 @@ Point{ :x 1 =>, :y 2 => }
 ( 1 2 3 )
 >>> 1 ( 2 3 ) :cons swap call call          ; desugared
 ( 1 2 3 )
+
+>>> , ( 1 2 3 ) 5                           ; block w/ "holes" -- TODO
+>>> ![ 10 * '1 div ] map
+( 2 4 6 )
+>>> , ( 1 2 3 ) 5                           ; . doesn't call (! does)
+>>> .[ 10 * '1 div ] call map
+( 2 4 6 )
+>>> , ( 1 2 3 ) 5                           ; desugared
+>>> [ __1__ . [ 10 * '__1__ div ] ] call map
+( 2 4 6 )
+>>> ( 1 2 3 ) [ 10 * 5 div ] map            ; equivalent
+( 2 4 6 )
 ```
 
 <!--
@@ -628,23 +652,29 @@ examples.
 >>> , 1 2 show-stack
 2
 1
->>> ; :swap [ x y . 'y 'x ] def
 >>> , swap show-stack             ; swap top 2 values on stack
 1
 2
->>> ; :dup [ x . 'x 'x ] def
 >>> , dup show-stack              ; dup(licate) top of stack
 1
 1
 2
->>> ; :drop [ _ . ] def
 >>> , drop show-stack             ; drop (pop & discard) top of stack
 1
 2
->>> ; :dip [ x f . f 'x ] def
->>> 3 '+ dip *                    ; pop x, call f, push x
-9
+```
 
+```koneko
+>>> , 35 [ 2 + ] [ 7 + ] bi       ; combinators
+>>> , show-stack
+42
+37
+
+>>> 3 '+ dip *                    ; pop x, call f, push x
+237
+```
+
+```koneko
 >>> 1 2 +                         ; arithmetic
 3
 >>> 1.0 2.0 /
@@ -769,10 +799,10 @@ NB: work in progress.
 >>> Customer( ( Order( 42 ) ) )
 Customer{ :orders ( Order{ :price 42 => } ) => }
 >>> ,dup
->>> ( [ .orders ] [ 0 get^ ] [ .price ] ) maybe
+>>> ( '.orders [ 0 get^ ] '.price ) maybe
 42
 >>> ,drop
->>> ( [ .orders ] [ 1 get^ ] [ .price ] ) maybe
+>>> ( '.orders [ 1 get^ ] '.price ) maybe
 nil
 ```
 

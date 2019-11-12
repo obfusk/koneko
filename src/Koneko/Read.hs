@@ -115,37 +115,66 @@ list = try $ D.list <$> (a <|> b)
 -- | NB: also matches float and int (but they match earlier)
 ident = KIdent <$> ident_
 
-quot = char '\'' >> KQuot <$> ident_
+quot  = char '\'' >> KQuot <$> ident_
+
+block = KBlock <$> block_
 
 -- TODO
-block = try $ KBlock <$> do
-  _ <- symbol "["
-  blkParams <- concat <$> (optional $ try $ manyTill ident_ $ symbol ".")
-  blkCode   <- manyValuesTill $ symbol "]"
-  let blkScope = Nothing in return Block{..}
+block_ :: Parser Block
+block_ = try $ do
+  _       <- symbol "["
+  params  <- concat <$> (optional $ try $ manyTill ident_ $ symbol ".")
+  code    <- manyValuesTill $ symbol "]"
+  return $ Block params code Nothing
 
 -- parser: sugar --
 
-dict, dot, bang, key, apply, applyDict :: Parser [KValue]
+ellipsis, hdot, hbang, qdig, ddig, qdot, qbang, dot, bang, dict, key,
+  apply, applyDict :: Parser [KValue]
 
-dict  = try $ fmap ((:[_dict]) . D.list)
+ellipsis = [_IDENT "ellipsis"] <$ symbol "..."
+
+-- TODO
+hdot  = try $ char '.' >>                         _wrap  <$> block_
+hbang = try $ char '!' >> ((++ [_IDENT "call"]) . _wrap) <$> block_
+
+qdig  = try $ char '\'' >> _dig (KQuot . _IDENT')             -- safe!
+ddig  = try $ char  '.' >> _dig _IDENT                        -- safe!
+
+qdot  = string "'." >> _blk <$> _isc []
+qbang = string "'!" >> _blk <$> _isc [_IDENT "call"]
+
+dot   = char    '.' >>          _isc []
+bang  = char    '!' >>          _isc [_IDENT "call"]
+
+dict  = try $ fmap ((:[_IDENT "dict"]) . D.list)
       $ symbol "{" *> manyValuesTill (symbol "}")
-
-dot   = char '.' >> _dot <$> ident_
-bang  = char '!' >> (++ [_call]) . _dot <$> ident_
 
 key = try $ do
   k <- sugarIdent ':'; v <- value_
-  return $ [D.kwd k] ++ v ++ [_pair]
+  return $ [D.kwd k] ++ v ++ [_IDENT "=>"]
 
 apply = try $ do
-  (q, l) <- _ap '(' ")"; return $ [l, q, _apply]
+  (q, l) <- _ap '(' ")"; return [l, q, _IDENT "apply"]
 
 applyDict = try $ do
-  (q, l) <- _ap '{' "}"; return $ [l, _dict, q, _applyDict]
+  (q, l) <- _ap '{' "}"
+  return [l, _IDENT "dict", q, _IDENT "apply-dict"]
 
-_dot :: Ident -> [KValue]
-_dot i = [D.kwd $ D.unIdent i, _swap, _call]
+_wrap :: Block -> [KValue]
+_wrap b = [D.block (D.digitParams b) [KBlock b] Nothing]
+
+_dig :: (Text -> KValue) -> Parser [KValue]
+_dig f  = fmap ((:[]) . f . T.singleton)
+        $ lexeme $ satisfy (`elem` ['1'..'9'])
+
+_blk :: [KValue] -> [KValue]
+_blk code = [D.block [] code Nothing]
+
+_isc :: [KValue] -> Parser [KValue]
+_isc vs = f <$> ident_
+  where
+    f i = [D.kwd $ D.unIdent i, _IDENT "swap", _IDENT "call"] ++ vs
 
 _ap :: Char -> Text -> Parser (KValue, KValue)
 _ap op cl = do
@@ -154,7 +183,8 @@ _ap op cl = do
   return (q, D.list vs)
 
 sugar :: Parser [KValue]
-sugar = choice [dict, dot, bang, key, apply, applyDict]
+sugar = choice [ellipsis, hdot, hbang, qdig, ddig, qdot, qbang,
+                dot, bang, dict, key, apply, applyDict]
 
 -- parser: multiple values & program --
 
@@ -187,12 +217,13 @@ sugarIdent c = try $ do
   i <- lexeme $ pIdent_ $ Just c
   if T.last i /= c then fail "TODO" else return $ T.init i    -- safe!
 
-_dict, _swap, _call, _pair, _apply, _applyDict :: KValue
-(_dict, _swap, _call, _pair, _apply, _applyDict) =
-  let i = KIdent . fromJust . D.ident . (<> "__") . ("__" <>) -- safe!
-  in (i "dict", i "swap", i "call", i "=>", i "apply", i "apply-dict")
-
 -- miscellaneous --
+
+-- UNSAFE!
+_IDENT  :: Text -> KValue
+_IDENT' :: Text -> Ident
+_IDENT  = KIdent . _IDENT'
+_IDENT' = fromJust . D.ident . D.underscored
 
 identOrFail :: MonadFail m => Identifier -> m Ident
 identOrFail = maybe (fail "invalid ident") return . D.ident

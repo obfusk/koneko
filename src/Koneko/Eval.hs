@@ -57,12 +57,13 @@ import Prelude hiding (lookup)
 import Safe (atMay)
 import System.IO (hPutStrLn, stderr)
 
-import qualified Data.HashMap.Lazy as H
+import qualified Data.HashMap.Strict as H
 import qualified Data.HashTable.IO as HT
 import qualified Data.Text.Lazy as T
 import qualified Data.Text.Lazy.IO as T
 
 import Koneko.Data
+import Koneko.Misc (firstJust)
 
 import qualified Koneko.Read as R
 
@@ -230,11 +231,15 @@ callDict (Dict h) _ s = do
 -- TODO
 callMulti :: Multi -> Evaluator
 callMulti Multi{..} c s = do
-    sig <- map (typeToStr . typeOf) . fst <$> popN' mltArity s
-    maybe (err sig) (\b -> callBlock b c s) =<< HT.lookup mltTable sig
+    sig <- map toSig . fst <$> popN' mltArity s
+    let f b = callBlock b c s; look = HT.lookup mltTable
+    maybe (err sig) f =<< firstJust [look sig, look def]
   where
-    err sig = throwIO $ MultiMatchFailed (T.unpack mltName)
-            $ show $ list $ map kwd sig
+    toSig (KRecord r) = recordTypeSig $ recType r
+    toSig t           = typeToStr $ typeOf t
+    def               = replicate mltArity "_"
+    err sig           = throwIO $ MultiMatchFailed (T.unpack mltName)
+                      $ show $ list $ map kwd sig
 
 callRecord :: Record -> Evaluator
 callRecord r _ s = do

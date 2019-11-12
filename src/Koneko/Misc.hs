@@ -14,7 +14,8 @@
 
 module Koneko.Misc (
   Parser, isIdent, pIdent, pIdent_, pInt, pFloat, isSpaceOrComma,
-  lexeme, symbol, speof, sp, sp1, spaceOrComment, prompt', prompt
+  lexeme, symbol, speof, sp, sp1, spaceOrComment, prompt', prompt,
+  firstJust
 ) where
 
 import Data.Char (isSpace)
@@ -149,5 +150,11 @@ prompt' x = (Just <$> prompt x) `catchIOError` \e ->
 
 prompt :: Text -> IO Text
 prompt x = do T.putStr x; hFlush stdout; T.getLine
+
+-- miscellaneous --
+
+firstJust :: Monad m => [m (Maybe a)] -> m (Maybe a)
+firstJust []      = return Nothing
+firstJust (x:xt)  = x >>= maybe (firstJust xt) (return . Just)
 
 -- vim: set tw=70 sw=2 sts=2 et fdm=marker :

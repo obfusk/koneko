@@ -78,16 +78,23 @@
 ; 42
 ;
 ; >>> clear-stack
+; >>> , 1 2 2dup show-stack
+; 2
+; 1
+; 2
+; 1
+;
+; >>> clear-stack
 ; >>> nil
 ; nil
 ; >>> drop
 ; >>> drop
 ; *** ERROR: stack underflow
 ;
-; >>> , 1 2 'dup dip swap show-stack
-; 1
-; 2
-; 1
+; >>> 42 37 2drop
+;
+; >>> , 42 37 nip show-stack
+; 37
 ;
 ; >>> clear-stack
 ; >>> , 1 2 over show-stack
@@ -95,30 +102,147 @@
 ; 2
 ; 1
 ;
-; ... TODO ...
+; >>> clear-stack
+; >>> , 1 2 3 2over show-stack
+; 2
+; 1
+; 3
+; 2
+; 1
+;
+; >>> clear-stack
+; >>> , 1 2 3 over2 show-stack
+; 1
+; 3
+; 2
+; 1
 ;
 ; --                                                            ; }}}1
 
 :swap   [ x y . 'y 'x ] def
 
  :dup   [ x   . 'x 'x       ] def
-:2dup   [ x y . 'x 'y 'x 'y ] def
+:2dup   [ x y . 'x 'y 'x 'y ] def             ; [ over over ]
 
  :drop  [ _   . ] def
-:2drop  [ _ _ . ] def
+:2drop  [ _ _ . ] def                         ; [ drop drop ]
 
- :dip   [ x f   .  f 'x     ] def
-:2dip   [ x y f .  f 'x 'y  ] def
+:nip    [ _ y . 'y ] def                      ; [ 'drop dip ]
 
- :over  [ x y   . 'x 'y 'x        ] def ; [ 'dup dip swap ]
-:2over  [ x y z . 'x 'y 'z 'x 'y  ] def
+ :over  [ x y   . 'x 'y 'x        ] def       ; [ 'dup dip swap ]
+:2over  [ x y z . 'x 'y 'z 'x 'y  ] def       ; [ over2 over2 ]
+
+:over2  [ x y z . 'x 'y 'z 'x ] def           ; [ 'over dip swap ]
 
 ; ... TODO ...
 
 ; -- combinators --
 
-:bi     [ x f g   . 'x f 'x g       ] def ; [ dup 'f dip g ]
-:tri    [ x f g h . 'x f 'x g 'x h  ] def
+; --                                                            ; {{{1
+;
+; >>> , 1 2 'dup dip swap show-stack
+; 1
+; 2
+; 1
+;
+; >>> clear-stack
+; >>> , 1 2 3 4 '- 2dip show-stack
+; 4
+; 3
+; -1
+;
+; >>> clear-stack
+; >>> , 2 [ dup * ] keep show-stack
+; 2
+; 4
+;
+; >>> clear-stack
+; >>> , 2 3 '* 2keep show-stack
+; 3
+; 2
+; 6
+;
+; >>> clear-stack
+; >>> , 35 [ 2 + ] [ 7 + ] bi show-stack
+; 42
+; 37
+;
+; >>> clear-stack
+; >>> 1 [ 1 + ] [ 2 + ] [ 3 + ] tri * +
+; 14
+;
+; >>> clear-stack
+; >>> 2 3 [ dup * ] bi$ +
+; 13
+;
+; >>> clear-stack
+; >>> , 2 3 4 [ dup * ] tri$ show-stack
+; 16
+; 9
+; 4
+;
+; >>> clear-stack
+; >>> , 4 9 [ 2 div ] [ 3 div ] bi~ show-stack
+; 3
+; 2
+;
+; >>> clear-stack
+; >>> ( 1 2 3 :x :y :z .[ '1 swap => ] tri$ tri~ )
+; ( :x 1 => :y 2 => :z 3 => )
+;
+; >>> clear-stack
+; >>> , 2 3 [ dup * ] [ 1 + ] bi* show-stack
+; 4
+; 3
+; 9
+; 4
+;
+; >>> clear-stack
+; >>> , 1 2 '+ '- 2bi show-stack
+; -1
+; 3
+;
+; >>> clear-stack
+; >>> , 7 2 '+ '- 'div 2tri show-stack
+; 3
+; 5
+; 9
+;
+; >>> clear-stack
+; >>> , 1 2 3 4 '+ 2bi$ show-stack
+; 7
+; 3
+;
+; >>> clear-stack
+; >>> , 1 2 3 4 '+ '- 2bi~ show-stack
+; -1
+; 3
+;
+; --                                                            ; }}}1
+
+ :dip   [ x f   . f 'x    ] def
+:2dip   [ x y f . f 'x 'y ] def               ; [ swap 'dip dip ]
+
+ :keep  [  over 'call  dip  ] def             ; [ x f . 'x f 'x ]
+:2keep  [ 2over 'call 2dip  ] def             ; [ '2dup dip 2dip ]
+
+:bi     [ x f g   . 'x f 'x g       ] def     ; [ 'keep dip call ]
+:tri    [ x f g h . 'x f 'x g 'x h  ] def     ; [ 'keep 2dip bi ]
+
+:bi$    [ x y f   . 'x f 'y f       ] def     ; [ dup bi~ ]
+:tri$   [ x y z f . 'x f 'y f 'z f  ] def     ; [ dup dup tri~ ]
+
+:bi~    [ x y f g     . 'x f 'y g       ] def ; [ 'dip dip call ]
+:tri~   [ x y z f g h . 'x f 'y g 'z h  ] def
+
+:bi*    [ x y f g . 'x f 'y f 'x g 'y g ] def ; [ [ 'bi$ 2keep ] dip bi$ ]
+
+:2bi    [ '2keep dip call ] def
+:2tri   [ '2keep 2dip 2bi ] def
+
+:2bi$   [ dup 2bi~ ] def
+
+:2bi~   [ '2dip dip call ] def
 
 ; ... TODO ...
 
@@ -168,7 +292,7 @@
 :div  '__div__    def
 :mod  '__mod__    def
 
-; -- sequences --
+; -- sequences -- TODO --
 
 ; --                                                            ; {{{1
 ;
@@ -219,8 +343,8 @@
 ;
 ; --                                                            ; }}}1
 
-:empty?   [ .empty? ] def
-:len      [ .len    ] def
+:empty?   '.empty?  def
+:len      '.len     def
 
 :get      [ swap !get     ] def
 :member?  [ swap !member? ] def
@@ -228,8 +352,8 @@
 
 :get^     [ 'get 'member? 2ornil ] def
 
-:sort     [ .sort   ] def
-:++       [ !append ] def
+:sort     '.sort    def
+:++       '!append  def
 
 :[i-)     [ nil [i-j)       ] def
 :[-j)     [ nil swap [i-j)  ] def
@@ -237,9 +361,9 @@
 
 :reverse  ( :list ) [ () [ swap cons ] foldl ] defmulti
 
-:update   ( :dict   :dict ) [ !merge ] defmulti
-:update   ( :record :dict ) [ over [ 'record->dict dip !merge ] dip
-                              record-type apply-dict ] defmulti   ; TODO
+:update   ( :dict :dict ) [ !merge ] defmulti
+:update   ( :_    :_    ) [ over [ 'record->dict dip !merge ] dip
+                            record-type apply-dict ] defmulti   ; TODO
 
 ; ... TODO ...
 
@@ -254,10 +378,10 @@
 ;
 ; --                                                            ; }}}1
 
-:ord    [ .ord ]  def
+:ord    '.ord     def
 :chr    '__chr__  def
 
-; -- lists --
+; -- lists -- TODO --
 
 ; --                                                            ; {{{1
 ;
@@ -295,14 +419,14 @@
 ;
 ; --                                                            ; }}}1
 
-:head   [ .head ] def
-:tail   [ .tail ] def
+:head   '.head  def
+:tail   '.tail  def
 
 :head^  [ 'head [ empty? not ] ornil ] def
 :tail^  [ 'tail [ empty? not ] ornil ] def
 
-:uncons [ .uncons ] def
-:cons   [ !cons   ] def
+:uncons '.uncons  def
+:cons   '!cons    def
 
 :map    [ f . dup empty? [ ] [ uncons 'f dip 'f map cons ] if ] def
 :foldl  [ z f . dup empty? [ drop 'z ]
@@ -312,7 +436,7 @@
 
 ; ... TODO ...
 
-; -- miscellaneous --
+; -- miscellaneous -- TODO --
 
 ; --                                                            ; {{{1
 ;
@@ -335,7 +459,7 @@
 
 ; ... TODO ...
 
-; -- conditionals & predicates --
+; -- conditionals & predicates -- TODO --
 
 ; --                                                            ; {{{1
 ;
