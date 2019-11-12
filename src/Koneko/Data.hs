@@ -2,7 +2,7 @@
 --
 --  File        : Koneko/Data.hs
 --  Maintainer  : Felix C. Stegerman <flx@obfusk.net>
---  Date        : 2019-11-01
+--  Date        : 2019-11-12
 --
 --  Copyright   : Copyright (C) 2019  Felix C. Stegerman
 --  Version     : v0.0.1
@@ -165,7 +165,7 @@ newtype Dict = Dict { unDict :: DictTable }
   deriving (Eq, Ord, Generic, NFData)
 
 data Block = Block {
-  blkArgs   :: [Ident],
+  blkParams :: [Ident],
   blkCode   :: [KValue],
   blkScope  :: Maybe Scope
 } deriving (Generic, NFData)
@@ -181,14 +181,14 @@ instance NFData Builtin where
   rnf Builtin{..} = (biPrim, biName) `deepseq` ()
 
 data Multi = Multi {
-  mltArgs   :: Int,
+  mltArity  :: Int,
   mltName   :: Identifier,
   mltTable  :: MultiTable
 }
 
 -- TODO
 instance NFData Multi where
-  rnf Multi{..} = (mltArgs, mltName) `deepseq` ()
+  rnf Multi{..} = (mltArity, mltName) `deepseq` ()
 
 data RecordT = RecordT {
   recName   :: Identifier,
@@ -291,7 +291,7 @@ instance Show EExpected where
   show (StackExpected t)    = "expected " ++ t ++ " on stack"
   show (ApplyExpected msg)  = msg
   show (ApplyMissing b)
-      = "expected block to have argument named " ++ x ++ " for " ++ op
+      = "expected block to have parameter named " ++ x ++ " for " ++ op
     where
       (x, op) = if b then ("&&", "apply-dict") else ("&", "apply")
   show (MultiExpected msg)  = "expected " ++ msg
@@ -330,7 +330,7 @@ instance Show Builtin where
       t = if biPrim then "primitive" else "builtin"
 
 instance Show Multi where
-  show Multi{..}  = "#<multi:" ++ show mltArgs ++ ":" ++
+  show Multi{..}  = "#<multi:" ++ show mltArity ++ ":" ++
                     T.unpack mltName ++ ">"
 
 instance Show RecordT where
@@ -794,7 +794,7 @@ dict = toVal
 -- NB: no ToVal for ident, quot
 
 block :: [Ident] -> [KValue] -> Maybe Scope -> KValue
-block blkArgs blkCode blkScope = KBlock Block{..}
+block blkParams blkCode blkScope = KBlock Block{..}
 
 -- TODO: multi, record(-type)?
 
@@ -822,8 +822,8 @@ defMulti c mn sig b = do
       mt <- HT.new; HT.insert mt sig b
       return (Just $ KMulti $ Multi ma mn mt, ())
     f (Just x@(KMulti Multi{..})) = (Just x, ()) <$ do
-      when (mltArgs /= ma) $ err $ "multi " ++ T.unpack mltName ++
-        " to have " ++ show mltArgs ++ " arg(s)"
+      when (mltArity /= ma) $ err $ "multi " ++ T.unpack mltName ++
+        " to have arity " ++ show mltArity
       HT.insert mltTable sig b
     f _ = err $ T.unpack mn ++ " to be a multi"
     ma  = length sig

@@ -2,7 +2,7 @@
 --
 --  File        : Koneko/Read.hs
 --  Maintainer  : Felix C. Stegerman <flx@obfusk.net>
---  Date        : 2019-10-11
+--  Date        : 2019-11-12
 --
 --  Copyright   : Copyright (C) 2019  Felix C. Stegerman
 --  Version     : v0.0.1
@@ -120,8 +120,8 @@ quot = char '\'' >> KQuot <$> ident_
 -- TODO
 block = try $ KBlock <$> do
   _ <- symbol "["
-  blkArgs <- concat <$> (optional $ try $ manyTill ident_ $ symbol ".")
-  blkCode <- manyValuesTill $ symbol "]"
+  blkParams <- concat <$> (optional $ try $ manyTill ident_ $ symbol ".")
+  blkCode   <- manyValuesTill $ symbol "]"
   let blkScope = Nothing in return Block{..}
 
 -- parser: sugar --

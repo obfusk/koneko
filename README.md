@@ -2,7 +2,7 @@
 
     File        : README.md
     Maintainer  : Felix C. Stegerman <flx@obfusk.net>
-    Date        : 2019-11-01
+    Date        : 2019-11-12
 
     Copyright   : Copyright (C) 2019  Felix C. Stegerman
     Version     : v0.0.1
@@ -29,7 +29,7 @@ Koneko (子猫 -- "kitten" in Japanese) is a simple concatenative
 stack-based programming language with lisp influences.  It is intended
 to combine the elegance of the (point-free) "concatenation is
 composition" model with the elegance of lisp-like languages (esp.
-anonymous functions with named arguments).
+anonymous functions with named parameters).
 
 ### Properties
 
@@ -43,7 +43,7 @@ anonymous functions with named arguments).
 * lisp-like
   - homoiconic
   - blocks/lambdas (anonymous functions)
-  - named arguments/points (lexically scoped)
+  - named parameters/points (lexically scoped)
 * functional
   - only immutable data structures
   - does have side effects (I/O)
@@ -164,7 +164,7 @@ up and the value found is pushed onto the stack.
 
 ### Naming Things
 
-Identifiers refer to either named arguments or definitions in modules.
+Identifiers refer to either named parameters or definitions in modules.
 
 When an identifier is called or quoted, it is looked up in the
 following order:
@@ -186,7 +186,7 @@ the ident to.
 43
 ```
 
-NB: koneko is a functional language: named arguments cannot be
+NB: koneko is a functional language: named parameters cannot be
 "assigned" another value; "redefining" an existing definition in a
 module is not allowed according to the language specification (except
 in the repl), but this is currently not enforced by the
@@ -300,10 +300,12 @@ NB: list literals have the head on the left.
 
 A block consists of:
 
-* optional arguments (which are popped from the stack, right to left);
+* optional parameters (for which the arguments are popped from the
+  stack -- right to left (i.e. from the top of the stack) -- when the
+  block is called);
 * code (i.e. a sequence of tokens) that is executed when the block is called.
 
-A block is delimited by square brackets; arguments (if any) are
+A block is delimited by square brackets; parameters (if any) are
 separated from the code by a `.`.
 
 ```koneko
@@ -323,7 +325,7 @@ separated from the code by a `.`.
 ```
 
 ```koneko
->>> , :myswap [ x y . 'y 'x ] def ; a block with named arguments
+>>> , :myswap [ x y . 'y 'x ] def ; a block with named parameters
 >>> 1 2 myswap
 1
 >>> ,show-stack
@@ -343,17 +345,17 @@ separated from the code by a `.`.
 ### Calling vs Applying
 
 NB: since there are usually no guarantees about whether a block has
-named arguments (or how many), only blocks/functions known to
+named parameters (or how many), only blocks/functions known to
 explicitly support applying should be applied.  Record constructors
 always support application.
 
 Applying a normal block isn't much different from calling it.  Except
 that it takes its arguments from the list it is applied to (in reverse
 order) instead of from the stack.  The number of elements of the list
-must equal the number of arguments of the block.  The block cannot
-(indirectly) access the part of the stack before the list it is
-applied to.  It can push any number of return values on to the stack
-as usual.
+(i.e. the number of arguments) must equal the number of parameters of
+the block.  The block cannot (indirectly) access the part of the stack
+before the list it is applied to.  It can push any number of return
+values on to the stack as usual.
 
 ```koneko
 >>> , :foo [ x y . ( 'x 'y ) show say ] def   ; normal block
@@ -365,11 +367,11 @@ as usual.
 ( :x :y )
 ```
 
-A block with an argument named `&` will ignore that argument when
+A block with a parameter named `&` will ignore that parameter when
 called normally (setting it to `nil`).  It can be applied to a list
 with a number of elements equal to or greater than the number of
-normal arguments of the block.  The argument `&` is set to a (possibly
-empty) list of the remaining elements.
+normal parameters of the block.  The parameter `&` is set to a
+(possibly empty) list of the remaining elements/arguments.
 
 ```koneko
 >>> , :foo [ x & . ( 'x '& ) show say ] def   ; block with &
@@ -381,12 +383,12 @@ empty) list of the remaining elements.
 ( :x ( :y :z ) )
 ```
 
-A block with an argument named `&&` will ignore that argument when
+A block with a parameter named `&&` will ignore that parameter when
 called normally (setting it to `nil`).  It can be applied to a dict,
-which needs to provide values for each normal argument (by name).  The
-argument `&&` is set to a (possibly empty) dict of the remaining
+which needs to provide values for each normal parameter (by name).
+The parameter `&&` is set to a (possibly empty) dict of the remaining
 key/value pairs (the ones not used to provide values for the normal
-arguments).
+parameters).
 
 ```koneko
 >>> , :foo [ x && . ( 'x '&& ) show say ] def ; block with &&
@@ -421,7 +423,7 @@ which implement certain primitive operations via calls.
 ### Multi(method)s
 
 ```koneko
->>> ; a multi w/ 2 arguments, defined for a mix of int and float
+>>> ; a multi w/ 2 parameters, defined for a mix of int and float
 >>> , :add ( :int   :int    ) [ __int+__            ] defmulti
 >>> , :add ( :float :float  ) [ __float+__          ] defmulti
 >>> , :add ( :int   :float  ) [ 'int->float dip add ] defmulti
@@ -516,7 +518,7 @@ Primitive operations that make up the core language.
 NB: all primitives start and end with `__` (e.g. `__call__`); the
 prelude defines aliases without them (for the primitives intended to
 be used directly); unlike the primitives themselves, these aliases
-(e.g. `call`) can be shadowed by named arguments and module
+(e.g. `call`) can be shadowed by named parameters and module
 definitions.
 
 ```koneko
@@ -719,7 +721,7 @@ Hi!
 NB: work in progress.
 
 ```koneko
->>> , :twice [ f . f f ] def              ; with named arguments
+>>> , :twice [ f . f f ] def              ; with named parameters
 >>> 42 [ 1 + ] twice
 44
 ```

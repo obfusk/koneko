@@ -2,7 +2,7 @@
 --
 --  File        : Koneko/Eval.hs
 --  Maintainer  : Felix C. Stegerman <flx@obfusk.net>
---  Date        : 2019-11-01
+--  Date        : 2019-11-12
 --
 --  Copyright   : Copyright (C) 2019  Felix C. Stegerman
 --  Version     : v0.0.1
@@ -230,7 +230,7 @@ callDict (Dict h) _ s = do
 -- TODO
 callMulti :: Multi -> Evaluator
 callMulti Multi{..} c s = do
-    sig <- map (typeToStr . typeOf) . fst <$> popN' mltArgs s
+    sig <- map (typeToStr . typeOf) . fst <$> popN' mltArity s
     maybe (err sig) (\b -> callBlock b c s) =<< HT.lookup mltTable sig
   where
     err sig = throwIO $ MultiMatchFailed (T.unpack mltName)
@@ -274,40 +274,40 @@ apply_dict c s = do
 callBlock :: Block -> Evaluator
 callBlock Block{..} c s0 = do
     sc          <- getScope blkScope
-    (s1, args)  <- popArgs [] s0 $ reverse nargs
-    eval blkCode (forkScope (args ++ map (,nil) sargs) c sc) s1
+    (s1, args)  <- popArgs [] s0 $ reverse nparms
+    eval blkCode (forkScope (args ++ map (,nil) sparms) c sc) s1
   where
-    (sargs, nargs) = partitionSpecial $ map unIdent blkArgs
+    (sparms, nparms) = partitionSpecial $ map unIdent blkParams
 
 -- TODO
 applyBlock :: Block -> Evaluator
 applyBlock Block{..} c s0 = do
     sc <- getScope blkScope; (l, s1) <- pop' s0; let ll = length l
-    when (ll < lna) $ throwIO $ applyExpected $ show lna ++ " arg(s) for apply"
-    when (ll > lna && "&" `notElem` sargs) $ throwIO $ applyMissing False
-    let (l1, l2)  = splitAt lna l
-        args      = zip nargs l1 ++ map (,nil) sargs' ++ [("&", list l2)]
+    when (ll < lnp) $ throwIO $ applyExpected $ show lnp ++ " arg(s) for apply"
+    when (ll > lnp && "&" `notElem` sparms) $ throwIO $ applyMissing False
+    let (l1, l2)  = splitAt lnp l
+        args      = zip nparms l1 ++ map (,nil) sparms' ++ [("&", list l2)]
     s2 <- eval blkCode (forkScope args c sc) emptyStack
     return $ s2 ++ s1
   where
-    (sargs, nargs)  = partitionSpecial $ map unIdent blkArgs
-    sargs'          = delete "&" sargs
-    lna             = length nargs
+    (sparms, nparms)  = partitionSpecial $ map unIdent blkParams
+    sparms'           = delete "&" sparms
+    lnp               = length nparms
 
 -- TODO
 apply_dictBlock :: Block -> Evaluator
 apply_dictBlock Block{..} c s0 = do
     sc <- getScope blkScope; (d@(Dict h), s1) <- pop' s0
-    when ("&&" `notElem` sargs) $ throwIO $ applyMissing True
-    vals <- retOrThrow $ dictLookup "apply-dict" d nargs
-    let h'    = H.filterWithKey (\k _ -> k `notElem` nargs) h
-        args  = zip nargs vals ++ map (,nil) sargs' ++
+    when ("&&" `notElem` sparms) $ throwIO $ applyMissing True
+    vals <- retOrThrow $ dictLookup "apply-dict" d nparms
+    let h'    = H.filterWithKey (\k _ -> k `notElem` nparms) h
+        args  = zip nparms vals ++ map (,nil) sparms' ++
                 [("&&", KDict $ Dict h')]
     s2 <- eval blkCode (forkScope args c sc) emptyStack
     return $ s2 ++ s1
   where
-    (sargs, nargs)  = partitionSpecial $ map unIdent blkArgs
-    sargs'          = delete "&&" sargs
+    (sparms, nparms)  = partitionSpecial $ map unIdent blkParams
+    sparms'           = delete "&&" sparms
 
 -- call & apply: record-type --
 
