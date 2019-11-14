@@ -2,7 +2,7 @@
 --
 --  File        : Koneko/Misc.hs
 --  Maintainer  : Felix C. Stegerman <flx@obfusk.net>
---  Date        : 2019-11-12
+--  Date        : 2019-11-14
 --
 --  Copyright   : Copyright (C) 2019  Felix C. Stegerman
 --  Version     : v0.0.1
@@ -98,7 +98,7 @@ brackets, bracketsO, bracketsC, specialChar, badStart, goodTail,
 brackets      = bracketsO ++ bracketsC
 bracketsO     = "({["
 bracketsC     = ")}]"
-specialChar   = "~@$%^&*-_=+|<>/?"
+specialChar   = "@%&*-_/?"
 badStart      = goodTail ++ ":"
 goodTail      = "'!"
 badEnd        = bracketsO ++ ":"
