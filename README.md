@@ -2,7 +2,7 @@
 
     File        : README.md
     Maintainer  : Felix C. Stegerman <flx@obfusk.net>
-    Date        : 2019-11-12
+    Date        : 2019-11-14
 
     Copyright   : Copyright (C) 2019  Felix C. Stegerman
     Version     : v0.0.1
@@ -89,8 +89,7 @@ in pushing a corresponding value of its type onto the stack.
 All data types are immutable.
 
 The syntax and semantics of concatenative languages form the algebraic
-structure of a monoid [[1]](#references).  We expect the same to be
-true for koneko, and will update this paragraph when we confirm this.
+structure of a monoid [[1]](#references).
 
 ### Type System
 
@@ -115,6 +114,8 @@ occurs, an error message is printed and the program is terminated
 (except when using the repl, in which case the repl continues after
 printing an error message and resetting the stack).
 
+<!-- TODO: arith errors -->
+
 ### Comments & Whitespace
 
 ```
@@ -131,9 +132,9 @@ evaluates a line, unless the line starts with a `,`.
 
 Any contiguous sequence of one or more:
 
-* unicode letters, numbers, symbols; or
+* unicode letters, numbers, or symbols (including `~$^=+|<>`); or
 * brackets (any of `(){}[]`); or
-* special characters (any of `~@$%^&*-_=+|<>/?` and `'!:`)
+* any of these "punctuation" characters: `@%&*-_/?` and `'!:`
 
 is an identifier if it:
 
@@ -142,18 +143,51 @@ is an identifier if it:
 * is not a valid integer literal, floating point literal, or `nil`;
 * and does not end with an opening bracket.
 
-Unquoted identifiers are calls; i.e. the identifier is looked up in
-the current scope, the value found is pushed onto the stack, and the
-top of the stack is `call`ed.
+Unquoted idents are always evaluated as calls: the ident is looked up
+in the current scope, the value found is pushed onto the stack, and
+the top of the stack is `call`ed.
 
-NB: `+`, `foo`, and `<42>'` are all identifiers; there is no
-distinction between the names of "functions", "variables", and
-"operators".
+NB: `+`, `foo`, and `<42>'` are all idents; there is no distinction
+between the names of "functions", "variables", and "operators".
+
+#### Special Ident(ifier)s
+
+* idents starting and ending with `__` (e.g. `__call__`) are
+  reserved for primitives and should not be used elsewhere;
+* `_` is not reserved, but should only be used for ignored parameters
+  and has special meaning as a "default type name" for multis;
+* `&` and `&&` are not reserved, but have special meaning as
+  parameter names (see `apply` and `apply-dict`).
+
+#### Naming Conventions
+
+Functions with names starting with:
+
+* `&` can be `apply`d to a variable number of arguments;
+* `&&` can be `apply-dict`ed to a dict;
+* a number (e.g. `2dip`) perform an operation on that number of their
+  arguments.
+
+Functions with names ending with:
+
+* `?` (e.g. `nil?`) are predicates (i.e. functions that return a bool);
+* `^` return `nil` instead of an "expected" error (e.g. `head` will
+  fail for an empty list, whereas `head^` will return `nil`).
+
+Combinators with names ending with:
+
+* `$` (e.g. `bi$`) take multiple values and a single function;
+* `~` (e.g. `bi~`) take multiple values and functions and "pair" them;
+* `*` (e.g. `bi*`) take multiple values and functions and "multiply"
+  them.
+
+NB: combinators that take a single value and multiple functions (e.g.
+`bi` and `tri`) do not end with a "special" character.
 
 ### Quoting
 
-Quoted identifiers ("quots") omit the `call`; the identifier is looked
-up and the value found is pushed onto the stack.
+Quoted idents ("quots") omit the `call`: the ident is looked up and
+the value found is pushed onto the stack.
 
 ```koneko
 >>> 1 2 +                                   ; push and call "+"
@@ -170,8 +204,8 @@ up and the value found is pushed onto the stack.
 
 Identifiers refer to either named parameters or definitions in modules.
 
-When an identifier is called or quoted, it is looked up in the
-following order:
+When an ident is called or quoted, it is looked up in the following
+order:
 
 * primitives;
 * the current scope and any parent scope(s);
@@ -235,8 +269,8 @@ nil
 ```koneko
 >>> :key-word       ; keyword (aka symbol)
 :key-word
->>> :"keyword that is not a valid identifier"
-:"keyword that is not a valid identifier"
+>>> :"keyword that is not a valid ident"
+:"keyword that is not a valid ident"
 ```
 
 NB: for more information on keywords/symbols, see [[2]](#references).

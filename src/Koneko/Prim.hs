@@ -2,7 +2,7 @@
 --
 --  File        : Koneko/Prim.hs
 --  Maintainer  : Felix C. Stegerman <flx@obfusk.net>
---  Date        : 2019-11-12
+--  Date        : 2019-11-14
 --
 --  Copyright   : Copyright (C) 2019  Felix C. Stegerman
 --  Version     : v0.0.1
@@ -143,7 +143,9 @@ or_   = mkPrim "or"   $ pop2push1 $ \x y -> if truthy x then x else y
 comp :: Identifier -> (KValue -> KValue -> Bool) -> Builtin
 comp name op = mkPrim name $ pop2push1 op
 
--- primitives: arithmetic, comparison --
+-- primitives: arithmetic --
+
+-- TODO: catch 0 div etc.
 
 arith :: (FromVal a, ToVal a)
       => Identifier -> (a -> a -> a) -> Builtin

@@ -2,7 +2,7 @@
 --
 --  File        : Koneko/Test.hs
 --  Maintainer  : Felix C. Stegerman <flx@obfusk.net>
---  Date        : 2019-10-07
+--  Date        : 2019-11-14
 --
 --  Copyright   : Copyright (C) 2019  Felix C. Stegerman
 --  Version     : v0.0.1
@@ -128,15 +128,18 @@ exampleGroup fileName es ls
   where
     ls'             = dropWhile (not . isPrompt' . snd) ls
     (e, ls'')       = span (isSameExample . snd) $ tail ls'   -- safe!
-    lineNo          = fst $ head ls'                          -- safe!
-    inputLine       = T.drop (T.length prefix + T.length RE.promptText)
-                    $ snd $ head ls'                          -- safe!
-    outputLines     = map ((T.drop $ T.length prefix) . snd) e
+    e'              = map (dropPrefix . snd) e
+    (c,outputLines) = span isCont e'
+    (lineNo, fl)    = head ls'                                -- safe!
+    inputLine       = T.concat $ map dropPrompt (dropPrefix fl:c)
     isSameExample s = maybe False (\x -> not $ isPrompt x || T.null x)
                     $ T.stripPrefix prefix s
-    prefix          = T.takeWhile isSpace $ snd $ head ls'    -- safe!
+    dropPrefix      = T.drop $ T.length prefix
+    dropPrompt      = T.drop $ T.length RE.promptText
+    prefix          = T.takeWhile isSpace fl
     isPrompt'       = isPrompt . T.dropWhile isSpace
     isPrompt        = T.isPrefixOf RE.promptText
+    isCont          = T.isPrefixOf "... "                     --  TODO
 
 -- TODO
 knkCommentBlocks :: [[(Int, Text)]] -> [(Int, Text)] -> [[(Int, Text)]]
