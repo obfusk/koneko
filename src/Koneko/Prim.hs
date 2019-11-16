@@ -2,7 +2,7 @@
 --
 --  File        : Koneko/Prim.hs
 --  Maintainer  : Felix C. Stegerman <flx@obfusk.net>
---  Date        : 2019-11-14
+--  Date        : 2019-11-15
 --
 --  Copyright   : Copyright (C) 2019  Felix C. Stegerman
 --  Version     : v0.0.1
@@ -16,7 +16,8 @@
 
 module Koneko.Prim (initCtx, replDef) where
 
-import Control.Exception (throwIO)
+import Control.DeepSeq (force, NFData)
+import Control.Exception (catch, evaluate, throwIO)
 import Control.Monad (unless)
 import Data.Char (chr)
 import Data.Foldable (traverse_)
@@ -27,6 +28,7 @@ import System.Directory (listDirectory)
 import System.FilePath ((</>))
 import System.Random (getStdRandom, randomR)
 
+import qualified Control.Exception as E
 import qualified Data.Text.Lazy as T
 import qualified Data.Text.Lazy.IO as T
 
@@ -145,11 +147,14 @@ comp name op = mkPrim name $ pop2push1 op
 
 -- primitives: arithmetic --
 
--- TODO: catch 0 div etc.
-
-arith :: (FromVal a, ToVal a)
+arith :: (FromVal a, ToVal a, NFData a)
       => Identifier -> (a -> a -> a) -> Builtin
-arith name op = mkPrim name $ pop2push1 op
+arith name op = mkPrim name $ \_ s -> do
+    ((x, y), s') <- pop2' s
+    rpush1 s' =<< (f $ evaluate $ force $ op x y)
+  where
+    f = flip catch $ \case  E.DivideByZero  -> throwIO DivideByZero
+                            e               -> throwIO e
 
 arithI :: Identifier -> (Integer -> Integer -> Integer) -> Builtin
 arithF :: Identifier -> (Double  -> Double  -> Double ) -> Builtin

@@ -2,7 +2,7 @@
 --
 --  File        : Koneko/Eval.hs
 --  Maintainer  : Felix C. Stegerman <flx@obfusk.net>
---  Date        : 2019-11-12
+--  Date        : 2019-11-15
 --
 --  Copyright   : Copyright (C) 2019  Felix C. Stegerman
 --  Version     : v0.0.1
@@ -47,6 +47,7 @@ module Koneko.Eval (
   tryK, eval, evalText, evalStdin, evalFile, initContext
 ) where
 
+import Control.DeepSeq (($!!))
 import Control.Exception (throwIO, try)
 import Control.Monad (unless, when)
 import Data.Char (ord)
@@ -76,12 +77,15 @@ tryK = try
 
 -- eval --
 
-eval :: [KValue] -> Evaluator
-eval []     _ s   = return s
-eval (x:xt) c s0  = do
+eval, evl :: [KValue] -> Evaluator
+
+eval xs c s = (return $!!) =<< evl xs c s
+
+evl    []  _ s  = return s
+evl (x:xt) c s0 = do
   (s1, deferredCall) <- eval1 x c s0
-  s2 <- if deferredCall then call c s1 else return s1
-  eval xt c s2
+  let f = if deferredCall then call c s1 else return s1
+  if null xt then f else f >>= evl xt c   -- tail call!
 
 evalText :: FilePath -> Text -> Evaluator
 evalText name code = eval $ R.read' name code
@@ -99,10 +103,10 @@ eval1 x c s = do
   debug c $ do
     hPutStrLn stderr $ "==> eval " ++ show x
     hPutStrLn stderr $ "--> " ++ intercalate " " (map show $ reverse s)
-  r@(s', _) <- eval1_ x c s
+  r@(s', _) <- eval1_ x c $!! s
   debug c $
     hPutStrLn stderr $ "<-- " ++ intercalate " " (map show $ reverse s')
-  return r
+  return $!! r
 
 eval1_ x c s = case x of
   KPrim _         -> (,False) <$> rpush1 s x
@@ -114,7 +118,7 @@ eval1_ x c s = case x of
 
 -- TODO
 evalList :: [KValue] -> Evaluator
-evalList xs c s = do ys <- eval xs c emptyStack; rpush1 s $ reverse ys
+evalList xs c s = do ys <- evl xs c emptyStack; rpush1 s $ reverse ys
 
 -- TODO
 pushIdent :: Text -> Evaluator
@@ -280,7 +284,7 @@ callBlock :: Block -> Evaluator
 callBlock Block{..} c s0 = do
     sc          <- getScope blkScope
     (s1, args)  <- popArgs [] s0 $ reverse nparms
-    eval blkCode (forkScope (args ++ map (,nil) sparms) c sc) s1
+    evl blkCode (forkScope (args ++ map (,nil) sparms) c sc) s1
   where
     (sparms, nparms) = partitionSpecial $ map unIdent blkParams
 
@@ -292,8 +296,7 @@ applyBlock Block{..} c s0 = do
     when (ll > lnp && "&" `notElem` sparms) $ throwIO $ applyMissing False
     let (l1, l2)  = splitAt lnp l
         args      = zip nparms l1 ++ map (,nil) sparms' ++ [("&", list l2)]
-    s2 <- eval blkCode (forkScope args c sc) emptyStack
-    return $ s2 ++ s1
+    (++ s1) <$> evl blkCode (forkScope args c sc) emptyStack
   where
     (sparms, nparms)  = partitionSpecial $ map unIdent blkParams
     sparms'           = delete "&" sparms
@@ -308,8 +311,7 @@ apply_dictBlock Block{..} c s0 = do
     let h'    = H.filterWithKey (\k _ -> k `notElem` nparms) h
         args  = zip nparms vals ++ map (,nil) sparms' ++
                 [("&&", KDict $ Dict h')]
-    s2 <- eval blkCode (forkScope args c sc) emptyStack
-    return $ s2 ++ s1
+    (++ s1) <$> evl blkCode (forkScope args c sc) emptyStack
   where
     (sparms, nparms)  = partitionSpecial $ map unIdent blkParams
     sparms'           = delete "&&" sparms

@@ -2,7 +2,7 @@
 --
 --  File        : Koneko/Data.hs
 --  Maintainer  : Felix C. Stegerman <flx@obfusk.net>
---  Date        : 2019-11-12
+--  Date        : 2019-11-15
 --
 --  Copyright   : Copyright (C) 2019  Felix C. Stegerman
 --  Version     : v0.0.1
@@ -131,6 +131,7 @@ data KException
     | EmptyList !String
     | IndexError !String !Integer
     | KeyError !String !String
+    | DivideByZero
     | NotImplementedError !String
   deriving Typeable
 
@@ -290,7 +291,7 @@ instance Show KException where
   show (EvalScopelessBlock)     = "cannot eval scopeless block"
   show (ModuleNotFound name)    = "no module named " ++ name
   show (LookupFailed name)      = "name " ++ name ++ " is not defined"
-  show (StackUnderflow)         = "stack underflow"
+  show  StackUnderflow          = "stack underflow"
   show (Expected e)             = show e
   show (MultiMatchFailed n s)   = "no signature " ++ s ++ " for multi " ++ n
   show (UncomparableType t)     = "type " ++ t ++ " is not comparable"
@@ -301,6 +302,7 @@ instance Show KException where
   show (IndexError op i)        = op ++ ": index " ++ show i ++
                                   " is out of range"
   show (KeyError op k)          = op ++ ": key " ++ k ++ " not found"
+  show  DivideByZero            = "divide by zero"
   show (NotImplementedError s)  = "not implemented: " ++ s
 
 instance Show EExpected where
@@ -652,7 +654,6 @@ forkContext modName c = do
 _newScope :: Identifier -> Scope
 _newScope m = Scope { parent = Left m, table = H.empty }
 
--- TODO: can this create unnecessary duplicates?
 forkScope :: Args -> Context -> Scope -> Context
 forkScope [] c s  = c { ctxScope = s }
 forkScope l  c s  = c { ctxScope = Scope { parent = Right s,

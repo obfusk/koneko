@@ -2,7 +2,7 @@
 
     File        : README.md
     Maintainer  : Felix C. Stegerman <flx@obfusk.net>
-    Date        : 2019-11-14
+    Date        : 2019-11-15
 
     Copyright   : Copyright (C) 2019  Felix C. Stegerman
     Version     : v0.0.1
@@ -903,10 +903,6 @@ TODO: haddock
 * iterators?
 
 -->
-
-### Known Bugs
-
-* (un)intended lazyness: e.g. `1 0 div drop` does not raise an error.
 
 ## License
 
