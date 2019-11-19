@@ -20,7 +20,7 @@
 
 class KonekoError extends Error {
   constructor(...args) {
-    super(...args);
+    super(...args)
     if (Error.captureStackTrace) {
       Error.captureStackTrace(this, KonekoError)
     }
@@ -57,6 +57,7 @@ const scope = {                                               //  {{{1
   new: (module = "__main__") =>
     ({ module, parent: null, table: {} }),
   fork: (c, table) => ({ parent: c, table }),
+  define: (c, k, v) => { modules[c.module][k] = v },
   lookup: (c, k) => {
     if (k in modules.__prim__) { return modules.__prim__[k] }
     let c_ = c
@@ -71,9 +72,11 @@ const scope = {                                               //  {{{1
   },
 }                                                             //  }}}1
 
+const nil   = { type: "nil" }
 const _tv   = (type, value) => ({ type, value })
-const kwd   = s => _tv("kwd", s)
+const bool  = b => _tv("bool", !!b)
 const str   = s => _tv("str", s)
+const kwd   = s => _tv("kwd", s)
 const pair  = (key, value) => ({ type: "pair", key, value })
 const list  = l => _tv("list", l)
 const ident = i => _tv("ident", i)
@@ -83,6 +86,8 @@ const block = (params, code, scope = null) =>
 const builtin = (name, f) =>
   ({ type: "builtin", prim: true, name, run: f })
 
+const mkBltn = (name, f) => ({ [name]: builtin(name, f) })
+
 const isIdent = s => RegExp("^"+_naiveIdent+"$", "u").exec(s) &&
   !Array.from("'!:"   ).includes(s[0]) &&
   !Array.from(":({["  ).includes(s.slice(-1)) &&
@@ -90,10 +95,11 @@ const isIdent = s => RegExp("^"+_naiveIdent+"$", "u").exec(s) &&
   s != "()" && s != "nil" && !isInt(s) && !isFloat(s)
 
 const isInt   = s => /^-?\d+$/u.test(s)
-const isFloat = s => /^-?\d+(\.\d+e\d+|\.\d+|e\d+)$/u.test(s)
+const isFloat = s => /^-?\d+(?:\.\d+e\d+|\.\d+|e\d+)$/u.test(s)
 const isPrint = s => /^[\p{L}\p{M}\p{N}\p{P}\p{S}\{Zs}]+$/u.test(s)
 
 const _naiveIdent = /[\p{L}\p{N}\p{S}\(\)\{\}\[\]@%&*\-_\/?'!:]+/.source
+const _space      = "(?:[\\s,]|;[^\\n]*(?:\\n|$))+"
 
 const truthy = v =>
   v.type == "nil" || (v.type == "bool" && v.value == false)
@@ -132,12 +138,11 @@ const digitParams = b => {
 const parseOne = (s, p0 = 0, end = null) => {                 //  {{{1
   let m, p1
   const t = pat => {
-    const r = new RegExp(sp+"*("+pat+")(?:"+sp+"+|$)", "usy")
+    const r = new RegExp("("+pat+")(?:"+sp+"|$)", "usy")
     r.lastIndex = p0; m = r.exec(s); p1 = r.lastIndex
     return !!m
   }
-  const sp  = "[\\s,]"
-  const hd  = "[0-9a-fA-F]"
+  const sp  = _space, hd = "[0-9a-fA-F]"
   const hex = '(\\\\x'+hd+'{2})|(\\\\u'+hd+'{4})|(\\\\U'+hd+'{8})'
   const chr = hex + '|(\\\\[rnt\\\\"])|([^"])'
   const esc = { "\\r":"\r", "\\n":"\n", "\\t":"\t", "\\\"":"\"", "\\\\":"\\" }
@@ -150,10 +155,13 @@ const parseOne = (s, p0 = 0, end = null) => {                 //  {{{1
     }
     return l.join("")
   }
+  // TODO: only match actual idents
   const parseBlock = (pre = "") => {
     let params = [], p2 = p1
-    if (t(pre+"\\["+sp+"+((?:"+_naiveIdent+sp+"+)*)"+"\\.")) {
-      params = m[2].split(RegExp(sp+"+")).filter(x => x); p2 = p1
+    if (t(pre+"\\["+sp+"((?:"+_naiveIdent+sp+")*?)"+"([.\\]])")) {
+      if (m[3] == ".") {
+        params = m[2].split(RegExp(sp, "us")).filter(x => x); p2 = p1
+      }
     }
     const [p3, vs] = parseMany(s, p2, "]")
     return [p3, block(params, vs)]
@@ -161,12 +169,12 @@ const parseOne = (s, p0 = 0, end = null) => {                 //  {{{1
 
   // primitives
   if (t("nil")) {
-    return [p1, { type: "nil" } ]
+    return [p1, nil ]
   } else if (t("#t") || t("#f")) {
-    return [p1, { type: "bool", value: m[1] == "#t" } ]
+    return [p1, bool(m[1] == "#t") ]
   } else if (t("-?\\d+")) {
     return [p1, { type: "int", value: parseInt(m[1], 10) }]
-  } else if (t("-?\\d+(\\.\\d+e\\d+|\\.\\d+|e\\d+)")) {
+  } else if (t("-?\\d+(?:\\.\\d+e\\d+|\\.\\d+|e\\d+)")) {
     return [p1, { type: "float", value: parseFloat(m[1]) }]
   } else if (t('"(' + chr + '*)"')) {
     return [p1, str(escapedStrBody(1))]
@@ -198,7 +206,7 @@ const parseOne = (s, p0 = 0, end = null) => {                 //  {{{1
     return [p2, block(digitParams(b), [b]), ...more]
   } else if (t("['.]([1-9])")) {
     return [p1, (m[1][0] == "'" ? quot : ident)("__"+m[2]+"__")]
-  } else if (t("('?)([.!])(" + _naiveIdent + ")")) {
+  } else if (t("('?)([.!])(" + _naiveIdent + ")") && isIdent(m[4])) {
     const sw = ident("__swap__"), ca = ident("__call__")
     const vs = [ident(m[4]), sw, ca, ...(m[3] == "!" ? [ca]: [])]
     return [p1, ...(m[2] ? [block([], vs)] : vs)]
@@ -227,11 +235,11 @@ const parseOne = (s, p0 = 0, end = null) => {                 //  {{{1
 
 const parseMany = (s, p, end = null) => {
   const vs = []; let v
-  do {
+  while (p < s.length) {
     [p, ...v] = parseOne(s, p, end)
     if (end && v[0].end) { return [p, vs] }
     vs.push(...v)
-  } while (p < s.length)
+  }
   if (end) {
     throw new _E(`parse error: expected "${end}" at pos ${p}`)
   }
@@ -241,7 +249,8 @@ const parseMany = (s, p, end = null) => {
 const read = s => {
   let p = 0, m
   if (m = /^#!.*\n/u.exec(s)) { p = m[0].length }
-  if (/^[\s,]*$/u.test(s.slice(p))) { return [] }
+  const r = RegExp(_space, "usy"); r.lastIndex = p
+  if (m = r.exec(s)) { p += m[0].length }
   return parseMany(s, p)[1]
 }
 
@@ -258,16 +267,16 @@ const popArgs = (s0, b) => {
 
 const popPush = (f, ...parms) => (c, s0) => {
   const [args, s1] = stack.pop(s0, ...parms)
-  return stack.push(s1, f(...args))
+  return stack.push(s1, ...f(...args))
 }
 
 const opI = op => popPush(
-  (x, y) => ({ type: "int", value: op(x.value, y.value) }),
+  (x, y) => [{ type: "int", value: op(x.value, y.value) }],
   "int", "int"
 )
 
 const opF = op => popPush(
-  (x, y) => ({ type: "float", value: op(x.value, y.value) }),
+  (x, y) => [{ type: "float", value: op(x.value, y.value) }],
   "float", "float"
 )
 
@@ -279,7 +288,7 @@ const call = (c0, s0) => {                                    //  {{{1
   switch (x.type) {
     // str
     case "pair": {
-      const [op, s2] = stack.pop(s1, "kwd")
+      const [[op], s2] = stack.pop(s1, "kwd")
       switch (op) {
         case "key":
           return stack.push(s2, x.key)
@@ -385,34 +394,165 @@ const show = (v) => {                                         //  {{{1
 // TODO
 const modules = {                                             //  {{{1
   __prim__: {
-    __call__: builtin("call", call),
-    // apply, apply-dict if def
-    // defmulti defrecord
-    "__=>__": builtin("=>", (c, s) => popPush(pair, "kwd", "value")),
-    // dict swap
-    // show say ask type callable? function?
-    // module-get module-defs name
-    // not and or
-    // = not= < <= > >=
-    "__int+__"  : builtin("int+"  , opI((x, y) =>            x + y)),
-    "__int-__"  : builtin("int-"  , opI((x, y) =>            x - y)),
-    "__int*__"  : builtin("int*"  , opI((x, y) =>            x * y)),
-    "__div__"   : builtin("div"   , opI((x, y) => Math.floor(x / y))),
-    "__mod__"   : builtin("mod"   , opI((x, y) =>            x % y)),
-    "__float+__": builtin("float+", opF((x, y) =>            x + y)),
-    "__float-__": builtin("float-", opF((x, y) =>            x - y)),
-    "__float*__": builtin("float*", opF((x, y) =>            x * y)),
-    "__float/__": builtin("float/", opF((x, y) =>            x / y)),
-    // chr int->float record->dict record-type
-    // record-type-name record-type-fields
-    // show-stack clear-stack nya
+    ...mkBltn("__call__", call),
+    ...mkBltn("__apply__", (c, s) => {
+      throw "TODO"
+    }),
+    ...mkBltn("__apply-dict__", (c, s) => {
+      throw "TODO"
+    }),
+    ...mkBltn("__if__",
+      popPush((c, tb, fb) => [truthy(c) ? tb : fb],
+      "bool", "value", "value")
+    ),
+    ...mkBltn("__def__", (c, s0) => {
+      const [[k, v], s1] = stack.pop(s0, "kwd", "value")
+      scope.define(c, k.value, v); return s1
+    }),
+    ...mkBltn("__defmulti__", (c, s) => {
+      // throw "TODO"
+      return s
+    }),
+    ...mkBltn("__defrecord__", (c, s) => {
+      throw "TODO"
+    }),
+    ...mkBltn("__=>__",
+      popPush((k, v) => [pair(k, v)], "kwd", "value")
+    ),
+    ...mkBltn("__dict__", (c, s) => {
+      throw "TODO"
+    }),
+    ...mkBltn("__swap__",
+      popPush((x, y) => [y, x], "value", "value")
+    ),
+    ...mkBltn("__show__",
+      popPush((x) => [str(show(x))], "value")
+    ),
+    // TODO
+    ...mkBltn("__say__", (c, s0) => {
+      const [[x], s1] = stack.pop(s0, "str")
+      say(x.value); return s1
+    }),
+    ...mkBltn("__ask__", (c, s) => {
+      throw "TODO"
+    }),
+    ...mkBltn("__type__",
+      popPush(x => [kwd(x.type, "value")], "value")
+    ),
+    ...mkBltn("__callable?__", (c, s) => {
+      throw "TODO"
+    }),
+    ...mkBltn("__function?__", (c, s) => {
+      throw "TODO"
+    }),
+    ...mkBltn("__module-get", (c, s) => {
+      throw "TODO"
+    }),
+    ...mkBltn("__module-defs__", (c, s) => {
+      throw "TODO"
+    }),
+    ...mkBltn("__name__", (c, s) => {
+      throw "TODO"
+    }),
+    ...mkBltn("__not__", (c, s) => {
+      throw "TODO"
+    }),
+    ...mkBltn("__and__", (c, s) => {
+      throw "TODO"
+    }),
+    ...mkBltn("__or__", (c, s) => {
+      throw "TODO"
+    }),
+    ...mkBltn("__=__", (c, s) => {
+      throw "TODO"
+    }),
+    ...mkBltn("__not=__", (c, s) => {
+      throw "TODO"
+    }),
+    ...mkBltn("__<__", (c, s) => {
+      throw "TODO"
+    }),
+    ...mkBltn("__<=__", (c, s) => {
+      throw "TODO"
+    }),
+    ...mkBltn("__>__", (c, s) => {
+      throw "TODO"
+    }),
+    ...mkBltn("__>=__", (c, s) => {
+      throw "TODO"
+    }),
+    ...mkBltn("__int+__"  , opI((x, y) =>  x + y)),
+    ...mkBltn("__int-__"  , opI((x, y) =>  x - y)),
+    ...mkBltn("__int*__"  , opI((x, y) =>  x * y)),
+    ...mkBltn("__div__"   , opI((x, y) => (x / y) | 0)),
+    ...mkBltn("__mod__"   , opI((x, y) =>  x % y)),           //  TODO
+    ...mkBltn("__float+__", opF((x, y) =>  x + y)),
+    ...mkBltn("__float-__", opF((x, y) =>  x - y)),
+    ...mkBltn("__float*__", opF((x, y) =>  x * y)),
+    ...mkBltn("__float/__", opF((x, y) =>  x / y)),
+    ...mkBltn("__chr__", (c, s) => {
+      throw "TODO"
+    }),
+    ...mkBltn("__int->float__", (c, s) => {
+      throw "TODO"
+    }),
+    ...mkBltn("__record->dict__", (c, s) => {
+      throw "TODO"
+    }),
+    ...mkBltn("__record-type__", (c, s) => {
+      throw "TODO"
+    }),
+    ...mkBltn("__record-type-name__", (c, s) => {
+      throw "TODO"
+    }),
+    ...mkBltn("__record-type-fields__", (c, s) => {
+      throw "TODO"
+    }),
+    ...mkBltn("__show-stack__", (c, s) => {
+      throw "TODO"
+    }),
+    ...mkBltn("__clear-stack__", (c, s) => {
+      throw "TODO"
+    }),
+    ...mkBltn("__nya__", (c, s) => {
+      throw "TODO"
+    }),
   },
   __bltn__: {},
   __prld__: {},
   __main__: {},
 }                                                             //  }}}1
 
+const types = [
+  "nil", "bool", "int", "float", "str", "kwd", "pair", "list", "dict",
+  "ident", "quot", "block", "builtin", "multi", "record-type",
+  "record"
+]
+
+for (const t of types) {
+  modules.__bltn__[t+"?"] = builtin(t+"?",
+    popPush(x => [bool(x.type == t)], "value")
+  )
+}
+
+// NB: node.js only
+const evalFile = (file, module) => {
+  const prld = require("fs").readFileSync(file, "utf8")
+  evalText(prld)(scope.new(module))
+}
+
+// TODO
+// NB: node.js only
+const loadPrelude = (file = "lib/prelude.knk") =>
+  evalFile(file, "__prld__")
+
+// NB: node.js only
 const repl = () => {                                          //  {{{1
+  loadPrelude()
+  if (!process.stdin.isTTY) {
+    evalFile("/dev/stdin")                                    //  TODO
+    return
+  }
   const c = scope.new(); let s = stack.empty()
   const rl = require("readline").createInterface({
     input: process.stdin, output: process.stdout, prompt: ">>> "
@@ -432,18 +572,23 @@ const repl = () => {                                          //  {{{1
         }
       }
     }
-    rl.prompt();
-  }).on("close", () => {
-    // process.exit(0)
-  })
+    rl.prompt()
+  }).on("close", () => { process.stdout.write("\n") })
   rl.prompt()
 }                                                             //  }}}1
 
-_mod[_exp] = { KonekoError, read, show, evaluate, evalText, repl }
+// NB: node.js only
+const say = s => process.stdout.write(s + "\n")
 
+_mod[_exp] = {
+  KonekoError, read, show, evaluate, evalText,
+  initContext: scope.new, emptyStack: stack.empty
+}
+
+// NB: node.js only
 if (_req && _mod === _req.main) { repl() }
 
 })(...(typeof module === "undefined" ? [this  , "koneko" , null]
-                                     : [module, "exports", require]));
+                                     : [module, "exports", require]))
 
 // vim: set tw=70 sw=2 sts=2 et fdm=marker :
