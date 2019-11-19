@@ -77,14 +77,11 @@ common deps
 library
   import:              deps
 
-  build-depends:       aeson, bytestring
-
   -- Modules exported by the library.
   exposed-modules:
     Koneko.Bltn
     Koneko.Data
     Koneko.Eval
-    Koneko.JSON
     Koneko.Misc
     Koneko.Prim
     Koneko.Prld
