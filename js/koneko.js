@@ -2,7 +2,7 @@
 //
 //  File        : koneko.js
 //  Maintainer  : Felix C. Stegerman <flx@obfusk.net>
-//  Date        : 2019-11-18
+//  Date        : 2019-11-19
 //
 //  Copyright   : Copyright (C) 2019  Felix C. Stegerman
 //  Version     : v0.0.1
@@ -11,7 +11,7 @@
 //  --                                                          ; }}}1
 
 "use strict";
-((_mod, _exp, _req) => {
+((_mod, _exp, _req, Rx) => {
 
 // TODO:
 //  * multi (arity, name, table)
@@ -88,7 +88,7 @@ const builtin = (name, f) =>
 
 const mkBltn = (name, f) => ({ [name]: builtin(name, f) })
 
-const isIdent = s => RegExp("^"+_naiveIdent+"$", "u").exec(s) &&
+const isIdent = s => Rx("^"+_naiveIdent+"$", "u").exec(s) &&
   !Array.from("'!:"   ).includes(s[0]) &&
   !Array.from(":({["  ).includes(s.slice(-1)) &&
   !Array.from("(){}[]").includes(s) &&
@@ -96,9 +96,10 @@ const isIdent = s => RegExp("^"+_naiveIdent+"$", "u").exec(s) &&
 
 const isInt   = s => /^-?\d+$/u.test(s)
 const isFloat = s => /^-?\d+(?:\.\d+e\d+|\.\d+|e\d+)$/u.test(s)
-const isPrint = s => /^[\p{L}\p{M}\p{N}\p{P}\p{S}\{Zs}]+$/u.test(s)
+const isPrint = s =>
+  Rx("^[\\p{L}\\p{M}\\p{N}\\p{P}\\p{S}\\{Zs}]+$", "u").test(s)
 
-const _naiveIdent = /[\p{L}\p{N}\p{S}\(\)\{\}\[\]@%&*\-_\/?'!:]+/.source
+const _naiveIdent = "[\\p{L}\\p{N}\\p{S}\\(\\)\\{\\}\\[\\]@%&*\\-_\\/?'!:]+"
 const _space      = "(?:[\\s,]|;[^\\n]*(?:\\n|$))+"
 
 const truthy = v =>
@@ -138,7 +139,7 @@ const digitParams = b => {
 const parseOne = (s, p0 = 0, end = null) => {                 //  {{{1
   let m, p1
   const t = pat => {
-    const r = new RegExp("("+pat+")(?:"+sp+"|$)", "usy")
+    const r = new Rx("("+pat+")(?:"+sp+"|$)", "usy")
     r.lastIndex = p0; m = r.exec(s); p1 = r.lastIndex
     return !!m
   }
@@ -147,7 +148,7 @@ const parseOne = (s, p0 = 0, end = null) => {                 //  {{{1
   const chr = hex + '|(\\\\[rnt\\\\"])|([^"])'
   const esc = { "\\r":"\r", "\\n":"\n", "\\t":"\t", "\\\"":"\"", "\\\\":"\\" }
   const escapedStrBody = k => {
-    const l = [], r = RegExp(chr, "usy"); r.lastIndex = p0 + k
+    const l = [], r = Rx(chr, "usy"); r.lastIndex = p0 + k
     const f = w => String.fromCodePoint(parseInt(cm[0].slice(w), 16))
     let cm
     while (cm = r.exec(s)) {
@@ -160,7 +161,7 @@ const parseOne = (s, p0 = 0, end = null) => {                 //  {{{1
     let params = [], p2 = p1
     if (t(pre+"\\["+sp+"((?:"+_naiveIdent+sp+")*?)"+"([.\\]])")) {
       if (m[3] == ".") {
-        params = m[2].split(RegExp(sp, "us")).filter(x => x); p2 = p1
+        params = m[2].split(Rx(sp, "us")).filter(x => x); p2 = p1
       }
     }
     const [p3, vs] = parseMany(s, p2, "]")
@@ -249,7 +250,7 @@ const parseMany = (s, p, end = null) => {
 const read = s => {
   let p = 0, m
   if (m = /^#!.*\n/u.exec(s)) { p = m[0].length }
-  const r = RegExp(_space, "usy"); r.lastIndex = p
+  const r = Rx(_space, "usy"); r.lastIndex = p
   if (m = r.exec(s)) { p += m[0].length }
   return parseMany(s, p)[1]
 }
@@ -331,7 +332,8 @@ const evl = {
     stack.push(s, { ...v, scope: c }),
 }
 
-const evalText = s => evaluate(read(s))
+const evalText = (text, c = undefined, s = undefined) =>
+  evaluate(read(text))(c, s)
 
 // TODO
 const show = (v) => {                                         //  {{{1
@@ -535,32 +537,46 @@ for (const t of types) {
   )
 }
 
-// NB: node.js only
-const evalFile = (file, module) => {
-  const prld = require("fs").readFileSync(file, "utf8")
-  evalText(prld)(scope.new(module))
+// NB: browser only; Promise
+const requestFile = file => new Promise((resolve, reject) => {
+  const r = new XMLHttpRequest()
+  r.addEventListener("load", () => resolve(r.responseText))
+  r.open("GET", file)
+  r.send()
+})
+
+// NB: node.js only; Promise
+const readFile = (file) => new Promise((resolve, reject) => {
+  _req("fs").readFile(file, "utf8", (err, data) => resolve(data))
+});
+
+// NB: Promise
+const evalFile = (file, modOrCtx = undefined, s = undefined) => {
+  const c = typeof modOrCtx === "string" ? scope.new(modOrCtx) : modOrCtx
+  return (_req ? readFile : requestFile)(file).then(
+    text => evalText(text, c, s)
+  )
 }
 
-// TODO
-// NB: node.js only
+// NB: Promise
 const loadPrelude = (file = "lib/prelude.knk") =>
+  modules.__prld__.def ? new Promise((resolve, reject) => resolve()) :
   evalFile(file, "__prld__")
 
 // NB: node.js only
-const repl = () => {                                          //  {{{1
-  loadPrelude()
+const repl = () => loadPrelude().then(() => {                 //  {{{1
   if (!process.stdin.isTTY) {
     evalFile("/dev/stdin")                                    //  TODO
     return
   }
   const c = scope.new(); let s = stack.empty()
-  const rl = require("readline").createInterface({
+  const rl = _req("readline").createInterface({
     input: process.stdin, output: process.stdout, prompt: ">>> "
   })
   rl.on("line", line => {
     if (line) {
       try {
-        s = evalText(line)(c, s)
+        s = evalText(line, c, s)
         if (!stack.null(s) && !",;".includes(line[0])) {
           process.stdout.write(show(stack.head(s)) + "\n")
         }
@@ -575,20 +591,27 @@ const repl = () => {                                          //  {{{1
     rl.prompt()
   }).on("close", () => { process.stdout.write("\n") })
   rl.prompt()
-}                                                             //  }}}1
+})                                                            //  }}}1
 
-// NB: node.js only
-const say = s => process.stdout.write(s + "\n")
+const say = s => _req ? process.stdout.write(s + "\n") :
+  (overrides.say || console.log)(s)
+
+// TODO
+const overrides = {}
 
 _mod[_exp] = {
-  KonekoError, read, show, evaluate, evalText,
-  initContext: scope.new, emptyStack: stack.empty
+  KonekoError, read, show, evaluate, evalText, loadPrelude, overrides,
+  initContext: scope.new, emptyStack: stack.empty,
+  ...(_req ? { repl } : {})
 }
 
 // NB: node.js only
 if (_req && _mod === _req.main) { repl() }
 
-})(...(typeof module === "undefined" ? [this  , "koneko" , null]
-                                     : [module, "exports", require]))
+})(
+  ...(typeof module === "undefined" ?
+    [this  , "koneko" , null   , XRegExp] : // browser
+    [module, "exports", require,  RegExp])  // node.js
+)
 
 // vim: set tw=70 sw=2 sts=2 et fdm=marker :

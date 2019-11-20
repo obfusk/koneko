@@ -1,0 +1,168 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8"/>
+    <!--
+    <meta name="viewport"
+          content="width=device-width, initial-scale=1, shrink-to-fit=no"/>
+    -->
+    <title>koneko</title>
+    <style>
+      input, textarea, button { font-size: 1em; }
+      body          { font-size: 1.4em; text-align: center; }
+      a             { text-decoration: none; color: inherit; }
+      #input *      { vertical-align: middle; }
+      .small        { font-size: 0.7em; }
+      .tiny         { font-size: 0.6em; }
+      .btn {
+        font-size: .875rem;
+        display: inline-block;
+        color: #007bff;
+        border: 1px solid #007bff;
+        border-radius: .2rem;
+        padding: .25rem .5rem;
+        line-height: 1.5;
+      }
+      .btn:hover, .btn:active {
+        color: #fff;
+        background-color: #007bff;
+      }
+      .btn:focus {
+        box-shadow: 0 0 0 3px rgba(0,123,255,.5);
+      }
+    </style>
+    <script src="https://unpkg.com/xregexp@4.2.4/xregexp-all.js"
+      crossorigin="anonymous"
+      integrity="sha384-LV0UOCEA94IWb3mkLRhqknyc9aX1zLa+0YgBIHKVBLiMVFzjhnTbJnKbn+ZTOujJ">
+    </script>
+    <script src="koneko.js"></script>
+    <script>
+      window.addEventListener("load", () => {
+        const elem = id => document.getElementById(id)
+        const [line, cons, st] = ["line", "console", "stack"].map(elem)
+        const history = []; let hist_idx = 0
+        line.value = stack.value = ""; cons.value = ""
+        koneko.loadPrelude().then(() => {
+          const print = text => {
+            cons.value += text + "\n"
+            cons.scrollTop = cons.scrollHeight
+          }
+          koneko.overrides.say = print
+          const c = koneko.initContext(); let s = koneko.emptyStack()
+          const f = () => {
+            const l = line.value
+            hist_idx = 0; line.value = ""
+            if (l) {
+              if (l != history.slice(-1)[0]) { history.push(l) }
+              try {
+                s = koneko.evalText(l, c, s)
+              } catch(e) {
+                if (e instanceof koneko.KonekoError) {
+                  print("*** ERROR: " + e.message)
+                } else {
+                  throw e
+                }
+              }
+              const vs = s.map(koneko.show); vs.reverse()
+              st.value = vs.join("\n")
+            }
+          }
+          const hist_scroll = () => {
+            line.value = history[history.length - hist_idx] || ""
+          }
+          const hist_up = () => {
+            hist_idx = Math.min(hist_idx + 1, history.length)
+            hist_scroll()
+          }
+          const hist_down = () => {
+            hist_idx = Math.max(hist_idx - 1, 0)
+            hist_scroll()
+          }
+          elem("eval").addEventListener("click", f)
+          line.addEventListener("keyup", event => {
+            if (event.key == "Enter" && !event.shiftKey) { f() }
+          })
+          line.addEventListener("keydown", event => {
+            switch (event.key) {
+              case "Enter":
+                if (!event.shiftKey) { event.preventDefault() }
+                break
+              case "Up":
+              case "ArrowUp":
+                hist_up()
+                break
+              case "Down":
+              case "ArrowDown":
+                hist_down()
+                break
+            }
+          })
+        })
+      })
+    </script>
+  </head>
+  <body>
+    <div>
+      <a href="https://github.com/obfusk/koneko"
+        title="&rarr; source @ GitHub">
+        <img src="logo.svg" alt="koneko logo" width="150"/>
+        <br/>
+        koneko - a concatenative not-quite-lisp for kittens
+      </a>
+      <br/>
+      <br/>
+      <span class="small">
+        Koneko (子猫 -- "kitten" in Japanese) is a simple
+        concatenative stack-based programming language with lisp
+        influences.
+        <br/>
+        Welcome to the interactive REPL.  See the
+        <a href="https://github.com/obfusk/koneko#readme" class="btn">
+          &rarr; README @ GitHub
+        </a>
+        for examples and language documentation.
+      </span>
+    </div>
+    <br/>
+    <div id="input">
+      <textarea id="line" rows="1" cols="60" autofocus
+        placeholder="&quot;Hello, World!&quot; say"></textarea>
+      <button id="eval">eval</button>
+    </div>
+    <br/>
+    <div>
+      <label>
+        Stack:
+        <br/>
+        <textarea id="stack" rows="10" cols="80" readonly></textarea>
+      </label>
+    </div>
+    <br/>
+    <div>
+      <label>
+        Console:
+        <br/>
+        <textarea id="console" rows="5" cols="80" readonly></textarea>
+      </label>
+    </div>
+    <br/>
+    <hr/>
+    <footer>
+      <div>
+        <a href="https://www.gnu.org/licenses/gpl-3.0.html">
+          <img alt="GPLv3+"
+               src="https://img.shields.io/badge/license-GPLv3+-blue.svg"/>
+        </a>
+        <a href="https://www.gnu.org/licenses/lgpl-3.0.html">
+          <img alt="LGPLv3+"
+               src="https://img.shields.io/badge/license-LGPLv3+-blue.svg"/>
+        </a>
+        <a href="https://travis-ci.org/obfusk/koneko">
+          <img alt="Build Status"
+               src="https://travis-ci.org/obfusk/m.svg?branch=master"/>
+        </a>
+      </div>
+      <span class="tiny">© 2019 Felix C. Stegerman</span>
+    </footer>
+  </body>
+</html>
