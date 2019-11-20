@@ -2,26 +2,27 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8"/>
-    <!--
     <meta name="viewport"
           content="width=device-width, initial-scale=1, shrink-to-fit=no"/>
-    -->
-    <title>koneko</title>
+    <title>koneko REPL</title>
     <style>
-      input, textarea, button { font-size: 1em; }
-      body          { font-size: 1.4em; text-align: center; }
-      a             { text-decoration: none; color: inherit; }
-      #input *      { vertical-align: middle; }
-      .small        { font-size: 0.7em; }
-      .tiny         { font-size: 0.6em; }
+      html            { font-size: 1rem; }
+      body            { text-align: center; }
+      input, textarea { max-width: 100%; }
+      a               { text-decoration: none; color: inherit; }
+      .middle *       { vertical-align: middle; }
+      .small          { font-size: 0.9rem; }
+      input, textarea, button, .large {
+        font-size: 1.3rem;
+      }
       .btn {
-        font-size: .875rem;
         display: inline-block;
+        font-size: .875rem;
+        line-height: 1.5;
         color: #007bff;
         border: 1px solid #007bff;
         border-radius: .2rem;
         padding: .25rem .5rem;
-        line-height: 1.5;
       }
       .btn:hover, .btn:active {
         color: #fff;
@@ -107,24 +108,25 @@
         title="&rarr; source @ GitHub">
         <img src="logo.svg" alt="koneko logo" width="150"/>
         <br/>
+        <span class="large">
         koneko - a concatenative not-quite-lisp for kittens
+        </span>
       </a>
       <br/>
       <br/>
-      <span class="small">
-        Koneko (子猫 -- "kitten" in Japanese) is a simple
-        concatenative stack-based programming language with lisp
-        influences.
-        <br/>
-        Welcome to the interactive REPL.  See the
-        <a href="https://github.com/obfusk/koneko#readme" class="btn">
-          &rarr; README @ GitHub
-        </a>
-        for examples and language documentation.
-      </span>
+      Koneko (子猫 -- "kitten" in Japanese) is a simple
+      concatenative stack-based programming language with lisp
+      influences.
+      <br/>
+      Examples and language documentation:
+      <a href="https://github.com/obfusk/koneko#readme" class="btn">
+        &rarr; README @ GitHub
+      </a>
+      <br/>
+      <b>NB: work in progress.</b>
     </div>
     <br/>
-    <div id="input">
+    <div class="middle">
       <textarea id="line" rows="1" cols="60" autofocus
         placeholder="&quot;Hello, World!&quot; say"></textarea>
       <button id="eval">eval</button>
@@ -162,7 +164,7 @@
                src="https://travis-ci.org/obfusk/m.svg?branch=master"/>
         </a>
       </div>
-      <span class="tiny">© 2019 Felix C. Stegerman</span>
+      <span class="small">© 2019 Felix C. Stegerman</span>
     </footer>
   </body>
 </html>
