@@ -305,8 +305,10 @@ const pushIdent = v => (c, s) =>
   stack.push(s, scope.lookup(c, v.value))
 
 const popArgs = (s0, b) => {
-  const ps = {}, [vs, s1] = stack.popN(s0, b.params.length)
-  for (let i = 0; i < b.params.length; i++) { ps[b.params[i]] = vs[i] }
+  const ps = new Map(), [vs, s1] = stack.popN(s0, b.params.length)
+  for (let i = 0; i < b.params.length; i++) {
+    ps.set(b.params[i], vs[i])
+  }
   return [ps, s1]
 }
 
@@ -486,9 +488,9 @@ const fromJS = v => {                                         //  {{{1
 
 /* === modules & primitives === */
 
-const modules = new Map(Object.entries({
-  __bltn__: new Map(), __prld__: new Map(), __main__: new Map()
-}))
+const modules = new Map(
+  ["__bltn__", "__prld__", "__main__"].map(k => [k, new Map()])
+)
 
 // TODO
 modules.set("__prim__", new Map([                             //  {{{1
