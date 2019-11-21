@@ -2,7 +2,7 @@
 --
 --  File        : Koneko/Data.hs
 --  Maintainer  : Felix C. Stegerman <flx@obfusk.net>
---  Date        : 2019-11-15
+--  Date        : 2019-11-20
 --
 --  Copyright   : Copyright (C) 2019  Felix C. Stegerman
 --  Version     : v0.0.1
@@ -779,10 +779,7 @@ isCallable = (`elem` callableTypes) . typeOf
 isFunction = (`elem` functionTypes) . typeOf
 
 callableTypes, functionTypes :: [KType]
-callableTypes = [
-    TStr, TPair, TList, TDict, TBlock, TBuiltin, TMulti, TRecordT,
-    TRecord
-  ]
+callableTypes = [TStr, TPair, TList, TDict, TRecord] ++ functionTypes
 functionTypes = [TBlock, TBuiltin, TMulti, TRecordT]
 
 -- "constructors" --
