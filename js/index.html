@@ -50,6 +50,7 @@
           }
           koneko.overrides.say = print
           const c = koneko.initContext(); let s = koneko.emptyStack()
+          s = koneko.evalText(":clear-stack '__clear-stack__ def", c, s)
           const f = () => {
             const l = line.value
             hist_idx = 0; line.value = ""

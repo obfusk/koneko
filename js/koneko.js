@@ -62,11 +62,15 @@ for (const k in E) {
   }
 }
 
+const expect = (x, t) => {
+  if (x.type != t) { throw new KE(...E.Expected(`${t} on stack`)) }
+}
+
 // TODO: inefficient
 const stack = {                                               //  {{{1
   empty: () => [],
   null: s => !s.length,
-  head: s => s.slice(-1)[0],
+  top: s => s.slice(-1)[0],
   push: (s, ...args) => s.concat(args),
   pop: (s0, ...args) => {
     if (s0.length < args.length) { throw new KE(...E.StackUnderflow()) }
@@ -74,14 +78,13 @@ const stack = {                                               //  {{{1
     args.reverse()
     for (const t of args) {
       const x = s1.pop()
-      if (t != "value" && t != x.type) {
-        throw new KE(...E.Expected(`${t} on stack`))
-      }
+      if (t != "_") { expect(x, t) }
       r.unshift(x)
     }
     return [r, s1]
   },
-  popN: (s0, n) => stack.pop(s0, ...Array(n).fill("value")),
+  popN: (s0, n) => stack.pop(s0, ...Array(n).fill("_")),
+  toArray: s => Array.from(s).reverse(),
 }                                                             //  }}}1
 
 // TODO: inefficient
@@ -118,7 +121,7 @@ const str   = s => _tv("str", s)
 const kwd   = s => _tv("kwd", s)
 const pair  = (key, value) => ({ type: "pair", key, value })
 const list  = l => _tv("list", l)
-const dict  = ps => new Map(ps.map(p => [p.key.value, p.value]))
+const dict  = ps => _tv("dict", new Map(ps.map(p => [p.key.value, p.value])))
 const ident = i => _tv("ident", i)
 const quot  = i => _tv("quot", i)
 const block = (params, code, scope = null) =>
@@ -162,6 +165,10 @@ const digitParams = b => {
 const truthy = v =>
   v.type == "nil" || (v.type == "bool" && v.value == false)
 
+const dictToList = d => list(Array.from(d.value.keys()).sort().map(
+  k => pair(kwd(k), d.value.get(k))
+))
+
 /* === parsing === */
 
 const isIdent = s => Rx("^"+_naiveIdent+"$", "u").exec(s) &&
@@ -170,7 +177,7 @@ const isIdent = s => Rx("^"+_naiveIdent+"$", "u").exec(s) &&
   !Array.from("(){}[]").includes(s) &&
   s != "()" && s != "nil" && !isInt(s) && !isFloat(s)
 
-const isInt   = s => /^-?\d+$/u.test(s)
+const isInt   = s => /^(?:-?\d+|0x[0-9a-fA-F]+|0b[01]+)$/u.test(s)
 const isFloat = s => /^-?\d+(?:\.\d+e\d+|\.\d+|e\d+)$/u.test(s)
 const isPrint = s =>
   Rx("^[\\p{L}\\p{M}\\p{N}\\p{P}\\p{S}\\{Zs}]+$", "u").test(s)
@@ -217,6 +224,8 @@ const parseOne = (s, p0 = 0, end = null) => {                 //  {{{1
     return [p1, bool(m[1] == "#t") ]
   } else if (t("-?\\d+")) {
     return [p1, int(parseInt(m[1], 10))]
+  } else if (t("(0x)(" + hd + "+)") || t("(0b)([01]+)")) {
+    return [p1, int(parseInt(m[3], m[2] == "0x" ? 16 : 2))]
   } else if (t("-?\\d+(?:\\.\\d+e\\d+|\\.\\d+|e\\d+)")) {
     return [p1, float(parseFloat(m[1]))]
   } else if (t('"(' + chr + '*)"')) {
@@ -317,6 +326,8 @@ const popPush = (f, ...parms) => (c, s0) => {
   return stack.push(s1, ...f(...args))
 }
 
+const pop2push = f => popPush(f, "_", "_")
+
 const opI = op => popPush(
   (x, y) => [int(op(x.value, y.value))], "int", "int"
 )
@@ -327,7 +338,7 @@ const opF = op => popPush(
 
 // TODO
 const call = (c0, s0) => {                                    //  {{{1
-  const [[x], s1] = stack.pop(s0, "value")
+  const [[x], s1] = stack.pop(s0, "_")
   switch (x.type) {
     // str
     case "pair": {
@@ -364,7 +375,7 @@ const evl = {
   nil: pushSelf, bool: pushSelf, int: pushSelf, float: pushSelf,
   str: pushSelf, kwd: pushSelf,
   list: v => (c, s) => {
-    const l = evaluate(v.value)(c); l.reverse()
+    const l = evaluate(v.value)(c)
     return stack.push(s, list(l))
   },
   ident: v => (c, s) =>
@@ -408,10 +419,9 @@ const show = v => {                                           //  {{{1
       return v.value.length ?
         "( " + v.value.map(show).join(" ") + " )" : "()"
     case "dict": {
-      const f = k =>
-        show(kwd(k.slice(1) /* :key */)) + " " + show(v[k]) + " =>"
-      return v.value.length ?
-        "{ " + Object.keys(v.value).map(f).join(", ") + " }" : "{ }"
+      const f = ([k, x]) => show(kwd(k)) + " " + show(x) + " =>"
+      return v.value.size ?
+        "{ " + Array.from(v.value.entries(), f).join(", ") + " }" : "{ }"
     }
     case "ident":
       return v.value
@@ -468,7 +478,7 @@ const fromJS = v => {                                         //  {{{1
     case "boolean":
       return bool(v)
     case "number":
-      return (v === (v|0)) ? int(v) : float(v)
+      return (v == (v|0)) ? int(v) : float(v)
     case "string":
       return str(v)
     case "object":
@@ -486,6 +496,97 @@ const fromJS = v => {                                         //  {{{1
   }
 }                                                             //  }}}1
 
+/* === eq, cmp === */
+
+// TODO
+const eq = (x, y) => {                                        //  {{{1
+  if (x.type != y.type) { return false }
+  const a = x.value, b = y.value
+  switch (x.type) {
+    case "nil":
+      return true
+    case "float":
+      if (a === b) { return a !== 0 || 1 / a === 1 / b }
+      if (a !== a) { return b !== b }
+      return a == b
+    case "bool":
+    case "int":
+    case "str":
+    case "kwd":
+    case "ident":
+    case "quot":
+      return a == b
+    case "pair":
+      return eq(x.key, y.key) && eq(a, b)
+    case "list":
+      if (a.length != b.length) { return false }
+      for (let i = 0; i < a.length; ++i) {
+        if (!eq(a[i], b[i])) { return false }
+      }
+      return true
+    case "dict": {
+      if (a.size != b.size) { return false }
+      const ka = Array.from(a.keys()).sort()
+      const kb = Array.from(b.keys()).sort()
+      if (!eq(list(ka.map(kwd)), list(kb.map(kwd)))) { return false }
+      for (const k of ka) {
+        if (!eq(a.get(k), b.get(k))) { return false }
+      }
+      return true
+    }
+    case "recordt":
+      throw "TODO"
+    case "record":
+      throw "TODO"
+    default:
+      throw new KE(...E.UncomparableType(x.type))
+  }
+}                                                             //  }}}1
+
+// TODO
+const cmp = (x, y) => {                                       //  {{{1
+  if (x.type != y.type) { return x.type < y.type ? -1 : 1 }
+  const a = x.value, b = y.value
+  switch (x.type) {
+    case "nil":
+      return 0
+    case "float":
+      return eq(x, y) ? 0 : a < b ? -1 : b < a ? 1 : null
+    case "bool":
+    case "int":
+    case "str":
+    case "kwd":
+    case "ident":
+    case "quot":
+      return a == b ? 0 : a < b ? -1 : 1
+    case "pair":
+      return cmp(x.key, y.key) && cmp(a, b)
+    case "list": {
+      const m = Math.max(a.length, b.length)
+      for (let i = 0; i < m; ++i) {
+        if (i >= a.length && i < b.length) { return -1 }
+        if (i < a.length && i >= b.length) { return  1 }
+        const c = cmp(a[i], b[i])
+        if (c != 0) { return c }
+      }
+      return 0
+    }
+    case "dict":
+      return cmp(dictToList(x), dictToList(y))
+    case "recordt":
+      throw "TODO"
+    case "record":
+      throw "TODO"
+    default:
+      throw new KE(...E.UncomparableType(x.type))
+  }
+}                                                             //  }}}1
+
+const cmp_lt  = c => bool(c == -1)
+const cmp_lte = c => bool(c == -1 || c == 0)
+const cmp_gt  = c => bool(c ==  1)
+const cmp_gte = c => bool(c ==  1 || c == 0)
+
 /* === modules & primitives === */
 
 const modules = new Map(
@@ -502,11 +603,10 @@ modules.set("__prim__", new Map([                             //  {{{1
     throw "TODO"
   }),
   mkBltn("__if__",
-    popPush((c, tb, fb) => [truthy(c) ? tb : fb],
-    "bool", "value", "value")
+    popPush((c, tb, fb) => [truthy(c) ? tb : fb], "bool", "_", "_")
   ),
   mkBltn("__def__", (c, s0) => {
-    const [[k, v], s1] = stack.pop(s0, "kwd", "value")
+    const [[k, v], s1] = stack.pop(s0, "kwd", "_")
     scope.define(c, k.value, v); return s1
   }),
   mkBltn("__defmulti__", (c, s) => {
@@ -516,19 +616,13 @@ modules.set("__prim__", new Map([                             //  {{{1
   mkBltn("__defrecord__", (c, s) => {
     throw "TODO"
   }),
-  mkBltn("__=>__",
-    popPush((k, v) => [pair(k, v)], "kwd", "value")
-  ),
-  mkBltn("__dict__", (c, s) => {
-    throw "TODO"
-  }),
-  mkBltn("__swap__",
-    popPush((x, y) => [y, x], "value", "value")
-  ),
-  mkBltn("__show__",
-    popPush(x => [str(show(x))], "value")
-  ),
-  // TODO
+  mkBltn("__=>__", popPush((k, v) => [pair(k, v)], "kwd", "_")),
+  mkBltn("__dict__", popPush(l => {
+    for (const x of l.value) { expect(x, "pair") }
+    return [dict(l.value)]
+  }, "list")),
+  mkBltn("__swap__", pop2push((x, y) => [y, x])),
+  mkBltn("__show__", popPush(x => [str(show(x))], "_")),
   mkBltn("__say__", (c, s0) => {
     const [[x], s1] = stack.pop(s0, "str")
     say(x.value); return s1
@@ -536,51 +630,34 @@ modules.set("__prim__", new Map([                             //  {{{1
   mkBltn("__ask__", (c, s) => {
     throw "TODO"
   }),
-  mkBltn("__type__",
-    popPush(x => [kwd(x.type, "value")], "value")
+  mkBltn("__type__", popPush(x => [kwd(x.type, "_")], "_")),
+  mkBltn("__callable?__",
+    popPush(v => bool(callableTypes.includes(v.type)), "_")
   ),
-  mkBltn("__callable?__", (c, s) => {
-    throw "TODO"
+  mkBltn("__function?__",
+    popPush(v => bool(functionTypes.includes(v.type)), "_")
+  ),
+  mkBltn("__module-get__", (c, s0) => {
+    const [[k, m], s1] = stack.pop(s0, "kwd", "kwd")
+    const mod = getModule(m.value)
+    if (!mod.has(k.value)) { throw new KE(...E.LookupFailed(k.value)) }
+    return stack.push(s1, mod.get(k.value))
   }),
-  mkBltn("__function?__", (c, s) => {
-    throw "TODO"
+  mkBltn("__module-defs__", (c, s0) => {
+    const [[m], s1] = stack.pop(s0, "kwd")
+    const l = Array.from(getModule(m.value).keys()).sort().map(kwd)
+    return stack.push(s1, list(l))
   }),
-  mkBltn("__module-get", (c, s) => {
-    throw "TODO"
-  }),
-  mkBltn("__module-defs__", (c, s) => {
-    throw "TODO"
-  }),
-  mkBltn("__name__", (c, s) => {
-    throw "TODO"
-  }),
-  mkBltn("__not__", (c, s) => {
-    throw "TODO"
-  }),
-  mkBltn("__and__", (c, s) => {
-    throw "TODO"
-  }),
-  mkBltn("__or__", (c, s) => {
-    throw "TODO"
-  }),
-  mkBltn("__=__", (c, s) => {
-    throw "TODO"
-  }),
-  mkBltn("__not=__", (c, s) => {
-    throw "TODO"
-  }),
-  mkBltn("__<__", (c, s) => {
-    throw "TODO"
-  }),
-  mkBltn("__<=__", (c, s) => {
-    throw "TODO"
-  }),
-  mkBltn("__>__", (c, s) => {
-    throw "TODO"
-  }),
-  mkBltn("__>=__", (c, s) => {
-    throw "TODO"
-  }),
+  mkBltn("__name__", (c, s) => stack.push(s, kwd(c.module))),
+  mkBltn("__not__",   popPush(x => [bool(!truthy(x))], "_")),
+  mkBltn("__and__",   pop2push((x, y) => [truthy(x) ? y : x ])),
+  mkBltn("__or__" ,   pop2push((x, y) => [truthy(x) ? x : y ])),
+  mkBltn("__=__",     pop2push((x, y) => [bool( eq(x, y))   ])),
+  mkBltn("__not=__",  pop2push((x, y) => [bool(!eq(x, y))   ])),
+  mkBltn("__<__",     pop2push((x, y) => [cmp_lt (cmp(x, y))])),
+  mkBltn("__<=__",    pop2push((x, y) => [cmp_lte(cmp(x, y))])),
+  mkBltn("__>__",     pop2push((x, y) => [cmp_gt (cmp(x, y))])),
+  mkBltn("__>=__",    pop2push((x, y) => [cmp_gte(cmp(x, y))])),
   mkBltn("__int+__"  , opI((x, y) => x + y)),
   mkBltn("__int-__"  , opI((x, y) => x - y)),
   mkBltn("__int*__"  , opI((x, y) => x * y)),
@@ -593,12 +670,10 @@ modules.set("__prim__", new Map([                             //  {{{1
   mkBltn("__float-__", opF((x, y) => x - y)),
   mkBltn("__float*__", opF((x, y) => x * y)),
   mkBltn("__float/__", opF((x, y) => x / y)),
-  mkBltn("__chr__", (c, s) => {
-    throw "TODO"
-  }),
-  mkBltn("__int->float__", (c, s) => {
-    throw "TODO"
-  }),
+  mkBltn("__chr__", popPush(
+    x => [str(String.fromCodePoint(x.value))], "int"
+  )),
+  mkBltn("__int->float__", popPush(n => [float(n.value)], "int")),
   mkBltn("__record->dict__", (c, s) => {
     throw "TODO"
   }),
@@ -612,15 +687,19 @@ modules.set("__prim__", new Map([                             //  {{{1
     throw "TODO"
   }),
   mkBltn("__show-stack__", (c, s) => {
-    throw "TODO"
+    for (const x of stack.toArray(s)) { say(show(x)) }
+    return s
   }),
-  mkBltn("__clear-stack__", (c, s) => {
-    throw "TODO"
-  }),
+  mkBltn("__clear-stack__", (c, s) => stack.empty()),
   mkBltn("__nya__", (c, s) => {
     throw "TODO"
   }),
 ]))                                                           //  }}}1
+
+const getModule = m => {
+  if (!modules.has(m)) { throw new KE(...E.ModuleNotFound(m)) }
+  return modules.get(m)
+}
 
 const types = [
   "nil", "bool", "int", "float", "str", "kwd", "pair", "list", "dict",
@@ -628,9 +707,13 @@ const types = [
   "record"
 ]
 
+const functionTypes = ["block", "builtin", "multi", "record-type"]
+const callableTypes =
+  ["str", "pair", "list", "dict", "record"].concat(functionTypes)
+
 for (const t of types) {
   modules.get("__bltn__").set(t+"?", builtin(
-    t+"?", popPush(x => [bool(x.type == t)], "value")
+    t+"?", popPush(x => [bool(x.type == t)], "_")
   ))
 }
 
@@ -672,6 +755,10 @@ const repl = () => loadPrelude().then(() => {                 //  {{{1
     return
   }
   const c = scope.new(); let s = stack.empty()
+  s = evalText(
+    ":clear-stack '__clear-stack__ def " +
+    ":show-stack  '__show-stack__  def ", c, s
+  )
   const rl = _req("readline").createInterface({
     input: process.stdin, output: process.stdout, prompt: ">>> "
   })
@@ -680,7 +767,7 @@ const repl = () => loadPrelude().then(() => {                 //  {{{1
       try {
         s = evalText(line, c, s)
         if (!stack.null(s) && !",;".includes(line[0])) {
-          process.stdout.write(show(stack.head(s)) + "\n")
+          process.stdout.write(show(stack.top(s)) + "\n")
         }
       } catch(e) {
         if (e instanceof KonekoError) {
@@ -700,7 +787,6 @@ const repl = () => loadPrelude().then(() => {                 //  {{{1
 const say = s => _req ? process.stdout.write(s + "\n") :
   (overrides.say || console.log)(s)
 
-// TODO
 const overrides = {}
 
 _mod[_exp] = {
