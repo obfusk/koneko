@@ -2,7 +2,7 @@
 //
 //  File        : koneko.js
 //  Maintainer  : Felix C. Stegerman <flx@obfusk.net>
-//  Date        : 2019-11-19
+//  Date        : 2019-11-20
 //
 //  Copyright   : Copyright (C) 2019  Felix C. Stegerman
 //  Version     : v0.0.1
@@ -18,17 +18,49 @@
 //  * record-type (name, fields)
 //  * record (type, values)
 
+/* === error, stack, scope === */
+
 class KonekoError extends Error {
-  constructor(...args) {
-    super(...args)
+  constructor(message, type, info = {}) {
+    super(message)
     if (Error.captureStackTrace) {
       Error.captureStackTrace(this, KonekoError)
     }
     this.name = "KonekoError"
+    this.type = type
+    for (const k in info) { this["info_"+k] = info[k] }
   }
 }
 
-const _E = KonekoError
+const KE = KonekoError
+
+const E = {                                                   //  {{{1
+  ParseError:           msg           => [`parse error: ${msg}`, { msg }],
+  EvalUnexpected:       type          => [`cannot eval: ${type}`, { type }],
+  EvalScopelessBlock:   ()            => ["cannot eval scopeless block", {}],
+  ModuleNotFound:       name          => [`no module named ${name}`, { name }],
+  LookupFailed:         name          => [`name ${name} is not defined`, { name }],
+  StackUnderflow:       ()            => ["stack underflow", {}],
+  Expected:             msg           => [`expected ${msg}`, { msg }],
+  MultiMatchFailed:     (name, sig)   => [`no signature ${sig} for multi ${name}`, {name, sig }],
+  UncomparableType:     type          => [`type ${type} is not comparable`, { type }],
+  UncallableType:       type          => [`type ${type} is not callable`, { type }],
+  UnapplicableType:     (type, op)    => [`type ${type} does not support ${op}`, { type, op }],
+  UnknownField:         (field, type) => [`${t} has no field named ${f}`, { field, type }],
+  EmptyList:            op            => [`${op}: empty list`, { op }],
+  IndexError:           (op, index)   => [`${op}: index ${index} is out of range`, { op, index }],
+  KeyError:             (op, key)     => [`${op}: key ${key} not found`, { op, key }],
+  DivideByZero:         ()            => ["divide by zero", {}],
+  NotImplementedError:  what          => [`not implemented: ${what}`, { what }],
+}                                                             //  }}}1
+
+for (const k in E) {
+  const f = E[k]
+  E[k] = (...args) => {
+    const [msg, info] = f(...args)
+    return [msg, k, info]
+  }
+}
 
 // TODO: inefficient
 const stack = {                                               //  {{{1
@@ -37,13 +69,13 @@ const stack = {                                               //  {{{1
   head: s => s.slice(-1)[0],
   push: (s, ...args) => s.concat(args),
   pop: (s0, ...args) => {
-    if (s0.length < args.length) { throw new _E("stack underflow") }
+    if (s0.length < args.length) { throw new KE(...E.StackUnderflow()) }
     const s1 = s0.slice(), r = []
     args.reverse()
     for (const t of args) {
       const x = s1.pop()
       if (t != "value" && t != x.type) {
-        throw new _E(`expected ${t} on stack`)
+        throw new KE(...E.Expected(`${t} on stack`))
       }
       r.unshift(x)
     }
@@ -55,30 +87,38 @@ const stack = {                                               //  {{{1
 // TODO: inefficient
 const scope = {                                               //  {{{1
   new: (module = "__main__") =>
-    ({ module, parent: null, table: {} }),
+    ({ module, parent: null, table: new Map() }),
   fork: (c, table) => ({ parent: c, table }),
-  define: (c, k, v) => { modules[c.module][k] = v },
+  define: (c, k, v) => { modules.get(c.module).set(k, v) },
   lookup: (c, k) => {
-    if (k in modules.__prim__) { return modules.__prim__[k] }
+    if (modules.get("__prim__").has(k)) {
+      return modules.get("__prim__").get(k)
+    }
     let c_ = c
     while (c_) {
-      if (k in c_.table) { return c_.table[k] }
+      if (c_.table.has(k)) { return c_.table.get(k) }
       c_ = c_.parent
     }
     for (const m of [c.module, "__bltn__", "__prld__"]) {
-      if (k in modules[m]) { return modules[m][k] }
+      if (modules.get(m).has(k)) { return modules.get(m).get(k) }
     }
-    throw new _E(`name ${k} is not defined`)
+    throw new KE(...E.LookupFailed(k))
   },
 }                                                             //  }}}1
 
-const nil   = { type: "nil" }
+/* === values === */
+
 const _tv   = (type, value) => ({ type, value })
+
+const nil   = { type: "nil" }
 const bool  = b => _tv("bool", !!b)
+const int   = i => _tv("int", i)
+const float = f => _tv("float", f)
 const str   = s => _tv("str", s)
 const kwd   = s => _tv("kwd", s)
 const pair  = (key, value) => ({ type: "pair", key, value })
 const list  = l => _tv("list", l)
+const dict  = ps => new Map(ps.map(p => [p.key.value, p.value]))
 const ident = i => _tv("ident", i)
 const quot  = i => _tv("quot", i)
 const block = (params, code, scope = null) =>
@@ -86,24 +126,7 @@ const block = (params, code, scope = null) =>
 const builtin = (name, f) =>
   ({ type: "builtin", prim: true, name, run: f })
 
-const mkBltn = (name, f) => ({ [name]: builtin(name, f) })
-
-const isIdent = s => Rx("^"+_naiveIdent+"$", "u").exec(s) &&
-  !Array.from("'!:"   ).includes(s[0]) &&
-  !Array.from(":({["  ).includes(s.slice(-1)) &&
-  !Array.from("(){}[]").includes(s) &&
-  s != "()" && s != "nil" && !isInt(s) && !isFloat(s)
-
-const isInt   = s => /^-?\d+$/u.test(s)
-const isFloat = s => /^-?\d+(?:\.\d+e\d+|\.\d+|e\d+)$/u.test(s)
-const isPrint = s =>
-  Rx("^[\\p{L}\\p{M}\\p{N}\\p{P}\\p{S}\\{Zs}]+$", "u").test(s)
-
-const _naiveIdent = "[\\p{L}\\p{N}\\p{S}\\(\\)\\{\\}\\[\\]@%&*\\-_\\/?'!:]+"
-const _space      = "(?:[\\s,]|;[^\\n]*(?:\\n|$))+"
-
-const truthy = v =>
-  v.type == "nil" || (v.type == "bool" && v.value == false)
+const mkBltn = (name, f) => [name, builtin(name, f)]
 
 const freeVars = (vs, seen = {}, free = new Set()) => {       //  {{{1
   for (const v of vs) {
@@ -135,6 +158,25 @@ const digitParams = b => {
   }
   return Array.from(Array(n), (_, i) => "__" + (i+1).toString() + "__")
 }
+
+const truthy = v =>
+  v.type == "nil" || (v.type == "bool" && v.value == false)
+
+/* === parsing === */
+
+const isIdent = s => Rx("^"+_naiveIdent+"$", "u").exec(s) &&
+  !Array.from("'!:"   ).includes(s[0]) &&
+  !Array.from(":({["  ).includes(s.slice(-1)) &&
+  !Array.from("(){}[]").includes(s) &&
+  s != "()" && s != "nil" && !isInt(s) && !isFloat(s)
+
+const isInt   = s => /^-?\d+$/u.test(s)
+const isFloat = s => /^-?\d+(?:\.\d+e\d+|\.\d+|e\d+)$/u.test(s)
+const isPrint = s =>
+  Rx("^[\\p{L}\\p{M}\\p{N}\\p{P}\\p{S}\\{Zs}]+$", "u").test(s)
+
+const _naiveIdent = "[\\p{L}\\p{N}\\p{S}\\(\\)\\{\\}\\[\\]@%&*\\-_\\/?'!:]+"
+const _space      = "(?:[\\s,]|;[^\\n]*(?:\\n|$))+"
 
 const parseOne = (s, p0 = 0, end = null) => {                 //  {{{1
   let m, p1
@@ -174,9 +216,9 @@ const parseOne = (s, p0 = 0, end = null) => {                 //  {{{1
   } else if (t("#t") || t("#f")) {
     return [p1, bool(m[1] == "#t") ]
   } else if (t("-?\\d+")) {
-    return [p1, { type: "int", value: parseInt(m[1], 10) }]
+    return [p1, int(parseInt(m[1], 10))]
   } else if (t("-?\\d+(?:\\.\\d+e\\d+|\\.\\d+|e\\d+)")) {
-    return [p1, { type: "float", value: parseFloat(m[1]) }]
+    return [p1, float(parseFloat(m[1]))]
   } else if (t('"(' + chr + '*)"')) {
     return [p1, str(escapedStrBody(1))]
   } else if (t(":(" + _naiveIdent + ")") && isIdent(m[2])) {
@@ -231,7 +273,7 @@ const parseOne = (s, p0 = 0, end = null) => {                 //  {{{1
   else if (t("[)}\\]]") && end == m[1]) {
     return [p1, { end }]
   }
-  throw new _E(`parse error: no match at pos ${p0}`)
+  throw new KE(...E.ParseError(`no match at pos ${p0}`))
 }                                                             //  }}}1
 
 const parseMany = (s, p, end = null) => {
@@ -242,7 +284,7 @@ const parseMany = (s, p, end = null) => {
     vs.push(...v)
   }
   if (end) {
-    throw new _E(`parse error: expected "${end}" at pos ${p}`)
+    throw new KE(...E.ParseError(`expected "${end}" at pos ${p}`))
   }
   return [p, vs]
 }
@@ -254,6 +296,8 @@ const read = s => {
   if (m = r.exec(s)) { p += m[0].length }
   return parseMany(s, p)[1]
 }
+
+/* === evaluation === */
 
 const pushSelf = v => (c, s) => stack.push(s, v)
 
@@ -272,16 +316,12 @@ const popPush = (f, ...parms) => (c, s0) => {
 }
 
 const opI = op => popPush(
-  (x, y) => [{ type: "int", value: op(x.value, y.value) }],
-  "int", "int"
+  (x, y) => [int(op(x.value, y.value))], "int", "int"
 )
 
 const opF = op => popPush(
-  (x, y) => [{ type: "float", value: op(x.value, y.value) }],
-  "float", "float"
+  (x, y) => [float(op(x.value, y.value))], "float", "float"
 )
-
-const lookupFailed = (t, op) => `${t} has no field named ${op}`
 
 // TODO
 const call = (c0, s0) => {                                    //  {{{1
@@ -296,7 +336,7 @@ const call = (c0, s0) => {                                    //  {{{1
         case "value":
           return stack.push(s2, x.value)
         default:
-          throw new _E(lookupFailed(x.type, op))
+          throw new KE(...E.UnknownField(op, x.type))
       }
     }
     // list dict
@@ -309,7 +349,7 @@ const call = (c0, s0) => {                                    //  {{{1
       return x.run(c0, s1)
     // multi recordt record
     default:
-      throw new _E(`type ${x.type} is not callable`)
+      throw new KE(...E.UncallableType(x.type))
   }
 }                                                             //  }}}1
 
@@ -326,7 +366,7 @@ const evl = {
     return stack.push(s, list(l))
   },
   ident: v => (c, s) =>
-    modules.__prim__.__call__.run(c, pushIdent(v)(c, s)),
+    modules.get("__prim__").get("__call__").run(c, pushIdent(v)(c, s)),
   quot: pushIdent,
   block: v => (c, s) =>
     stack.push(s, { ...v, scope: c }),
@@ -335,8 +375,10 @@ const evl = {
 const evalText = (text, c = undefined, s = undefined) =>
   evaluate(read(text))(c, s)
 
+/* === show, toJS, fromJS === */
+
 // TODO
-const show = (v) => {                                         //  {{{1
+const show = v => {                                           //  {{{1
   switch (v.type) {
     case "nil":
       return "nil"
@@ -389,141 +431,194 @@ const show = (v) => {                                         //  {{{1
       return "#<" + (v.prim ? "primitive" : "builtin") + ":" + v.name + ">"
     // multi recordt record
     default:
-      throw new _E(`type ${v.type} is not showable`)
+      throw new Error(`type ${v.type} is not showable`)
   }
 }                                                             //  }}}1
 
 // TODO
-const modules = {                                             //  {{{1
-  __prim__: {
-    ...mkBltn("__call__", call),
-    ...mkBltn("__apply__", (c, s) => {
+const toJS = v => {                                           //  {{{1
+  switch (v.type) {
+    case "nil":
+      return null
+    case "bool":
+    case "int":
+    case "float":
+    case "str":
+    case "kwd":
+      return v.value
+    case "pair":
+      return [v.key.value, toJS(v.value)]
+    case "list":
+      return v.value.map(toJS)
+    case "dict":
+      return new Map(Array.from(dict.entries(),
+        ([k, v]) => [toJS(k), toJS(v)]
+      ))
+    case "record":
       throw "TODO"
-    }),
-    ...mkBltn("__apply-dict__", (c, s) => {
-      throw "TODO"
-    }),
-    ...mkBltn("__if__",
-      popPush((c, tb, fb) => [truthy(c) ? tb : fb],
-      "bool", "value", "value")
-    ),
-    ...mkBltn("__def__", (c, s0) => {
-      const [[k, v], s1] = stack.pop(s0, "kwd", "value")
-      scope.define(c, k.value, v); return s1
-    }),
-    ...mkBltn("__defmulti__", (c, s) => {
-      // throw "TODO"
-      return s
-    }),
-    ...mkBltn("__defrecord__", (c, s) => {
-      throw "TODO"
-    }),
-    ...mkBltn("__=>__",
-      popPush((k, v) => [pair(k, v)], "kwd", "value")
-    ),
-    ...mkBltn("__dict__", (c, s) => {
-      throw "TODO"
-    }),
-    ...mkBltn("__swap__",
-      popPush((x, y) => [y, x], "value", "value")
-    ),
-    ...mkBltn("__show__",
-      popPush((x) => [str(show(x))], "value")
-    ),
-    // TODO
-    ...mkBltn("__say__", (c, s0) => {
-      const [[x], s1] = stack.pop(s0, "str")
-      say(x.value); return s1
-    }),
-    ...mkBltn("__ask__", (c, s) => {
-      throw "TODO"
-    }),
-    ...mkBltn("__type__",
-      popPush(x => [kwd(x.type, "value")], "value")
-    ),
-    ...mkBltn("__callable?__", (c, s) => {
-      throw "TODO"
-    }),
-    ...mkBltn("__function?__", (c, s) => {
-      throw "TODO"
-    }),
-    ...mkBltn("__module-get", (c, s) => {
-      throw "TODO"
-    }),
-    ...mkBltn("__module-defs__", (c, s) => {
-      throw "TODO"
-    }),
-    ...mkBltn("__name__", (c, s) => {
-      throw "TODO"
-    }),
-    ...mkBltn("__not__", (c, s) => {
-      throw "TODO"
-    }),
-    ...mkBltn("__and__", (c, s) => {
-      throw "TODO"
-    }),
-    ...mkBltn("__or__", (c, s) => {
-      throw "TODO"
-    }),
-    ...mkBltn("__=__", (c, s) => {
-      throw "TODO"
-    }),
-    ...mkBltn("__not=__", (c, s) => {
-      throw "TODO"
-    }),
-    ...mkBltn("__<__", (c, s) => {
-      throw "TODO"
-    }),
-    ...mkBltn("__<=__", (c, s) => {
-      throw "TODO"
-    }),
-    ...mkBltn("__>__", (c, s) => {
-      throw "TODO"
-    }),
-    ...mkBltn("__>=__", (c, s) => {
-      throw "TODO"
-    }),
-    ...mkBltn("__int+__"  , opI((x, y) =>  x + y)),
-    ...mkBltn("__int-__"  , opI((x, y) =>  x - y)),
-    ...mkBltn("__int*__"  , opI((x, y) =>  x * y)),
-    ...mkBltn("__div__"   , opI((x, y) => (x / y) | 0)),
-    ...mkBltn("__mod__"   , opI((x, y) =>  x % y)),           //  TODO
-    ...mkBltn("__float+__", opF((x, y) =>  x + y)),
-    ...mkBltn("__float-__", opF((x, y) =>  x - y)),
-    ...mkBltn("__float*__", opF((x, y) =>  x * y)),
-    ...mkBltn("__float/__", opF((x, y) =>  x / y)),
-    ...mkBltn("__chr__", (c, s) => {
-      throw "TODO"
-    }),
-    ...mkBltn("__int->float__", (c, s) => {
-      throw "TODO"
-    }),
-    ...mkBltn("__record->dict__", (c, s) => {
-      throw "TODO"
-    }),
-    ...mkBltn("__record-type__", (c, s) => {
-      throw "TODO"
-    }),
-    ...mkBltn("__record-type-name__", (c, s) => {
-      throw "TODO"
-    }),
-    ...mkBltn("__record-type-fields__", (c, s) => {
-      throw "TODO"
-    }),
-    ...mkBltn("__show-stack__", (c, s) => {
-      throw "TODO"
-    }),
-    ...mkBltn("__clear-stack__", (c, s) => {
-      throw "TODO"
-    }),
-    ...mkBltn("__nya__", (c, s) => {
-      throw "TODO"
-    }),
-  },
-  __bltn__: {},
-  __prld__: {},
-  __main__: {},
+    default:
+      throw new Error(`type ${v.type} is not supported by toJS`)
+  }
 }                                                             //  }}}1
+
+const fromJS = v => {                                         //  {{{1
+  switch (typeof v) {
+    case "boolean":
+      return bool(v)
+    case "number":
+      return (v === (v|0)) ? int(v) : float(v)
+    case "string":
+      return str(v)
+    case "object":
+      if (v === null) {
+        return nil
+      } else if (v instanceof Array) {
+        return list(v.map(fromJS))
+      } else if (v instanceof Map) {
+        return dict(Array.from(v.entries(),
+          ([k, v]) => pair(kwd(k), fromJS(v))
+        ))
+      }
+    default:
+      throw new Error(`fromJS: cannot convert ${v}`)
+  }
+}                                                             //  }}}1
+
+/* === modules & primitives === */
+
+const modules = new Map(Object.entries({
+  __bltn__: new Map(), __prld__: new Map(), __main__: new Map()
+}))
+
+// TODO
+modules.set("__prim__", new Map([                             //  {{{1
+  mkBltn("__call__", call),
+  mkBltn("__apply__", (c, s) => {
+    throw "TODO"
+  }),
+  mkBltn("__apply-dict__", (c, s) => {
+    throw "TODO"
+  }),
+  mkBltn("__if__",
+    popPush((c, tb, fb) => [truthy(c) ? tb : fb],
+    "bool", "value", "value")
+  ),
+  mkBltn("__def__", (c, s0) => {
+    const [[k, v], s1] = stack.pop(s0, "kwd", "value")
+    scope.define(c, k.value, v); return s1
+  }),
+  mkBltn("__defmulti__", (c, s) => {
+    // throw "TODO"
+    return s
+  }),
+  mkBltn("__defrecord__", (c, s) => {
+    throw "TODO"
+  }),
+  mkBltn("__=>__",
+    popPush((k, v) => [pair(k, v)], "kwd", "value")
+  ),
+  mkBltn("__dict__", (c, s) => {
+    throw "TODO"
+  }),
+  mkBltn("__swap__",
+    popPush((x, y) => [y, x], "value", "value")
+  ),
+  mkBltn("__show__",
+    popPush(x => [str(show(x))], "value")
+  ),
+  // TODO
+  mkBltn("__say__", (c, s0) => {
+    const [[x], s1] = stack.pop(s0, "str")
+    say(x.value); return s1
+  }),
+  mkBltn("__ask__", (c, s) => {
+    throw "TODO"
+  }),
+  mkBltn("__type__",
+    popPush(x => [kwd(x.type, "value")], "value")
+  ),
+  mkBltn("__callable?__", (c, s) => {
+    throw "TODO"
+  }),
+  mkBltn("__function?__", (c, s) => {
+    throw "TODO"
+  }),
+  mkBltn("__module-get", (c, s) => {
+    throw "TODO"
+  }),
+  mkBltn("__module-defs__", (c, s) => {
+    throw "TODO"
+  }),
+  mkBltn("__name__", (c, s) => {
+    throw "TODO"
+  }),
+  mkBltn("__not__", (c, s) => {
+    throw "TODO"
+  }),
+  mkBltn("__and__", (c, s) => {
+    throw "TODO"
+  }),
+  mkBltn("__or__", (c, s) => {
+    throw "TODO"
+  }),
+  mkBltn("__=__", (c, s) => {
+    throw "TODO"
+  }),
+  mkBltn("__not=__", (c, s) => {
+    throw "TODO"
+  }),
+  mkBltn("__<__", (c, s) => {
+    throw "TODO"
+  }),
+  mkBltn("__<=__", (c, s) => {
+    throw "TODO"
+  }),
+  mkBltn("__>__", (c, s) => {
+    throw "TODO"
+  }),
+  mkBltn("__>=__", (c, s) => {
+    throw "TODO"
+  }),
+  mkBltn("__int+__"  , opI((x, y) => x + y)),
+  mkBltn("__int-__"  , opI((x, y) => x - y)),
+  mkBltn("__int*__"  , opI((x, y) => x * y)),
+  mkBltn("__div__"   , opI((x, y) => {
+    if (y == 0) { throw new KE(...E.DivideByZero()) }
+    return (x / y) | 0
+  })),
+  mkBltn("__mod__"   , opI((x, y) => x % y)),                //  TODO
+  mkBltn("__float+__", opF((x, y) => x + y)),
+  mkBltn("__float-__", opF((x, y) => x - y)),
+  mkBltn("__float*__", opF((x, y) => x * y)),
+  mkBltn("__float/__", opF((x, y) => x / y)),
+  mkBltn("__chr__", (c, s) => {
+    throw "TODO"
+  }),
+  mkBltn("__int->float__", (c, s) => {
+    throw "TODO"
+  }),
+  mkBltn("__record->dict__", (c, s) => {
+    throw "TODO"
+  }),
+  mkBltn("__record-type__", (c, s) => {
+    throw "TODO"
+  }),
+  mkBltn("__record-type-name__", (c, s) => {
+    throw "TODO"
+  }),
+  mkBltn("__record-type-fields__", (c, s) => {
+    throw "TODO"
+  }),
+  mkBltn("__show-stack__", (c, s) => {
+    throw "TODO"
+  }),
+  mkBltn("__clear-stack__", (c, s) => {
+    throw "TODO"
+  }),
+  mkBltn("__nya__", (c, s) => {
+    throw "TODO"
+  }),
+]))                                                           //  }}}1
 
 const types = [
   "nil", "bool", "int", "float", "str", "kwd", "pair", "list", "dict",
@@ -532,10 +627,12 @@ const types = [
 ]
 
 for (const t of types) {
-  modules.__bltn__[t+"?"] = builtin(t+"?",
-    popPush(x => [bool(x.type == t)], "value")
-  )
+  modules.get("__bltn__").set(t+"?", builtin(
+    t+"?", popPush(x => [bool(x.type == t)], "value")
+  ))
 }
+
+/* === files === */
 
 // NB: browser only; Promise
 const requestFile = file => new Promise((resolve, reject) => {
@@ -546,7 +643,7 @@ const requestFile = file => new Promise((resolve, reject) => {
 })
 
 // NB: node.js only; Promise
-const readFile = (file) => new Promise((resolve, reject) => {
+const readFile = file => new Promise((resolve, reject) => {
   _req("fs").readFile(file, "utf8", (err, data) => resolve(data))
 });
 
@@ -560,8 +657,11 @@ const evalFile = (file, modOrCtx = undefined, s = undefined) => {
 
 // NB: Promise
 const loadPrelude = (file = "lib/prelude.knk") =>
-  modules.__prld__.def ? new Promise((resolve, reject) => resolve()) :
-  evalFile(file, "__prld__")
+  modules.get("__prld__").get("def") ?
+    new Promise((resolve, reject) => resolve()) :
+    evalFile(file, "__prld__")
+
+/* === repl === */
 
 // NB: node.js only
 const repl = () => loadPrelude().then(() => {                 //  {{{1
@@ -592,6 +692,8 @@ const repl = () => loadPrelude().then(() => {                 //  {{{1
   }).on("close", () => { process.stdout.write("\n") })
   rl.prompt()
 })                                                            //  }}}1
+
+/* === exports & overrides === */
 
 const say = s => _req ? process.stdout.write(s + "\n") :
   (overrides.say || console.log)(s)
