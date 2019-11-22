@@ -13,11 +13,6 @@
 "use strict";
 ((_mod, _exp, _req, Rx) => {
 
-// TODO:
-//  * multi (arity, name, table)
-//  * record-type (name, fields)
-//  * record (type, values)
-
 /* === error, stack, scope === */
 
 class KonekoError extends Error {
@@ -62,8 +57,9 @@ for (const k in E) {
   }
 }
 
-const expect = (x, t) => {
-  if (x.type != t) { throw new KE(...E.Expected(`${t} on stack`)) }
+const expect = (x, t, msg = `${t} on stack`) => {
+  if (x.type != t) { throw new KE(...E.Expected(msg)) }
+  return x
 }
 
 // TODO: inefficient
@@ -93,7 +89,7 @@ const scope = {                                               //  {{{1
     ({ module, parent: null, table: new Map() }),
   fork: (c, table) => ({ module: c.module, parent: c, table }),
   define: (c, k, v) => { modules.get(c.module).set(k, v) },
-  lookup: (c, k) => {
+  lookup: (c, k, err = true) => {
     if (modules.get("__prim__").has(k)) {
       return modules.get("__prim__").get(k)
     }
@@ -105,6 +101,7 @@ const scope = {                                               //  {{{1
     for (const m of [c.module, "__bltn__", "__prld__"]) {
       if (modules.get(m).has(k)) { return modules.get(m).get(k) }
     }
+    if (!err) { return null }
     throw new KE(...E.LookupFailed(k))
   },
 }                                                             //  }}}1
@@ -124,10 +121,24 @@ const list  = l => _tv("list", l)
 const dict  = ps => _tv("dict", new Map(ps.map(p => [p.key.value, p.value])))
 const ident = i => _tv("ident", i)
 const quot  = i => _tv("quot", i)
+
 const block = (params, code, scope = null) =>
   ({ type: "block", params, code, scope })
-const builtin = (name, f) =>
-  ({ type: "builtin", prim: true, name, run: f })
+const builtin = (name, run, prim = true) =>
+  ({ type: "builtin", prim, name, run })
+const multi = (arity, name, table) =>
+  ({ type: "multi", arity, name, table })
+const record_type = (name, fields) =>
+  ({ type: "record-type", name, fields })
+
+const record = (rectype, values) => {
+  if (values.length != rectype.fields.length) {
+    throw new KE(...E.Expected(
+      `${rectype.fields.length} arg(s) for record ${rectype.name}`
+    ))
+  }
+  return { type: "record", rectype, values }
+}
 
 const mkBltn = (name, f) => [name, builtin(name, f)]
 
@@ -360,7 +371,17 @@ const call = (c0, s0) => {                                    //  {{{1
     }
     case "builtin":
       return x.run(c0, s1)
-    // multi recordt record
+    case "multi":
+      const sig = stack.popN(s1, x.arity)[0].map(
+        v => v.type == "record" ? v.rectype.name : v.type
+      )
+      const b = x.table.get(sig.join("###")) ||
+                x.table.get(sig.map(_ => "_").join("###"))
+      if (!b) {
+        throw new KE(...E.MultiMatchFailed(x.name, show(list(sig.map(kwd)))))
+      }
+      return call(c0, stack.push(s1, b))
+    // recordt record
     default:
       throw new KE(...E.UncallableType(x.type))
   }
@@ -605,9 +626,25 @@ modules.set("__prim__", new Map([                             //  {{{1
     const [[k, v], s1] = stack.pop(s0, "kwd", "_")
     scope.define(c, k.value, v); return s1
   }),
-  mkBltn("__defmulti__", (c, s) => {
-    // throw "TODO"
-    return s
+  mkBltn("__defmulti__", (c, s0) => {
+    const [[k, sig, b], s1] = stack.pop(s0, "kwd", "list", "block")
+    for (const x of sig.value) { expect(x, "kwd") }
+    const sig_ = sig.value.map(
+      k =>  k.value == "_" || types.includes(k.value) ? k.value :
+              show(expect(scope.lookup(c, k.value), "record-type"))
+    )
+    let m = scope.lookup(c, k.value, false)
+    if (m) {
+      expect(m, "multi", `${k.value} to be a multi`)
+      if (m.arity != sig_.length) {
+        throw new KE(...E.Expected(`multi ${m.name} to have arity ${m.arity}`))
+      }
+    } else {
+      m = multi(sig_.length, k.value, new Map())
+      scope.define(c, k.value, m)
+    }
+    m.table.set(sig_.join("###"), b)
+    return s1
   }),
   mkBltn("__defrecord__", (c, s) => {
     throw "TODO"
@@ -751,8 +788,8 @@ const loadPrelude = (fname = "lib/prelude.knk") =>
 /* === output === */
 
 // NB: node.js only
-const putOut = s => process.stdout.write(s + "\n")
-const putErr = s => process.stderr.write(s + "\n")
+const putOut = (s = "") => process.stdout.write(s + "\n")
+const putErr = (s = "") => process.stderr.write(s + "\n")
 
 /* === repl === */
 
