@@ -2,7 +2,7 @@
 //
 //  File        : koneko.js
 //  Maintainer  : Felix C. Stegerman <flx@obfusk.net>
-//  Date        : 2019-11-20
+//  Date        : 2019-11-22
 //
 //  Copyright   : Copyright (C) 2019  Felix C. Stegerman
 //  Version     : v0.0.1
@@ -46,7 +46,7 @@ const E = {                                                   //  {{{1
   UncomparableType:     type          => [`type ${type} is not comparable`, { type }],
   UncallableType:       type          => [`type ${type} is not callable`, { type }],
   UnapplicableType:     (type, op)    => [`type ${type} does not support ${op}`, { type, op }],
-  UnknownField:         (field, type) => [`${t} has no field named ${f}`, { field, type }],
+  UnknownField:         (field, type) => [`${type} has no field named ${field}`, { field, type }],
   EmptyList:            op            => [`${op}: empty list`, { op }],
   IndexError:           (op, index)   => [`${op}: index ${index} is out of range`, { op, index }],
   KeyError:             (op, key)     => [`${op}: key ${key} not found`, { op, key }],
@@ -91,7 +91,7 @@ const stack = {                                               //  {{{1
 const scope = {                                               //  {{{1
   new: (module = "__main__") =>
     ({ module, parent: null, table: new Map() }),
-  fork: (c, table) => ({ parent: c, table }),
+  fork: (c, table) => ({ module: c.module, parent: c, table }),
   define: (c, k, v) => { modules.get(c.module).set(k, v) },
   lookup: (c, k) => {
     if (modules.get("__prim__").has(k)) {
@@ -163,7 +163,7 @@ const digitParams = b => {
 }
 
 const truthy = v =>
-  v.type == "nil" || (v.type == "bool" && v.value == false)
+  !(v.type == "nil" || (v.type == "bool" && v.value == false))
 
 const dictToList = d => list(Array.from(d.value.keys()).sort().map(
   k => pair(kwd(k), d.value.get(k))
@@ -180,7 +180,7 @@ const isIdent = s => Rx("^"+_naiveIdent+"$", "u").exec(s) &&
 const isInt   = s => /^(?:-?\d+|0x[0-9a-fA-F]+|0b[01]+)$/u.test(s)
 const isFloat = s => /^-?\d+(?:\.\d+e\d+|\.\d+|e\d+)$/u.test(s)
 const isPrint = s =>
-  Rx("^[\\p{L}\\p{M}\\p{N}\\p{P}\\p{S}\\{Zs}]+$", "u").test(s)
+  Rx("^[\\p{L}\\p{M}\\p{N}\\p{P}\\p{S}\\p{Zs}]+$", "u").test(s)
 
 const _naiveIdent = "[\\p{L}\\p{N}\\p{S}\\(\\)\\{\\}\\[\\]@%&*\\-_\\/?'!:]+"
 const _space      = "(?:[\\s,]|;[^\\n]*(?:\\n|$))+"
@@ -260,7 +260,7 @@ const parseOne = (s, p0 = 0, end = null) => {                 //  {{{1
     return [p1, (m[1][0] == "'" ? quot : ident)("__"+m[2]+"__")]
   } else if (t("('?)([.!])(" + _naiveIdent + ")") && isIdent(m[4])) {
     const sw = ident("__swap__"), ca = ident("__call__")
-    const vs = [ident(m[4]), sw, ca, ...(m[3] == "!" ? [ca]: [])]
+    const vs = [kwd(m[4]), sw, ca, ...(m[3] == "!" ? [ca]: [])]
     return [p1, ...(m[2] ? [block([], vs)] : vs)]
   } else if (t("\\{")) {
     const [p2, vs] = parseMany(s, p1, "}")
@@ -343,13 +343,13 @@ const call = (c0, s0) => {                                    //  {{{1
     // str
     case "pair": {
       const [[op], s2] = stack.pop(s1, "kwd")
-      switch (op) {
+      switch (op.value) {
         case "key":
           return stack.push(s2, x.key)
         case "value":
           return stack.push(s2, x.value)
         default:
-          throw new KE(...E.UnknownField(op, x.type))
+          throw new KE(...E.UnknownField(op.value, x.type))
       }
     }
     // list dict
@@ -374,15 +374,10 @@ const evaluate = code => (c = scope.new(), s = stack.empty()) => {
 const evl = {
   nil: pushSelf, bool: pushSelf, int: pushSelf, float: pushSelf,
   str: pushSelf, kwd: pushSelf,
-  list: v => (c, s) => {
-    const l = evaluate(v.value)(c)
-    return stack.push(s, list(l))
-  },
-  ident: v => (c, s) =>
-    modules.get("__prim__").get("__call__").run(c, pushIdent(v)(c, s)),
+  list: v => (c, s) => stack.push(s, list(evaluate(v.value)(c))),
+  ident: v => (c, s) => call(c, pushIdent(v)(c, s)),
   quot: pushIdent,
-  block: v => (c, s) =>
-    stack.push(s, { ...v, scope: c }),
+  block: v => (c, s) => stack.push(s, { ...v, scope: c }),
 }
 
 const evalText = (text, c = undefined, s = undefined) =>
@@ -602,9 +597,10 @@ modules.set("__prim__", new Map([                             //  {{{1
   mkBltn("__apply-dict__", (c, s) => {
     throw "TODO"
   }),
-  mkBltn("__if__",
-    popPush((c, tb, fb) => [truthy(c) ? tb : fb], "bool", "_", "_")
-  ),
+  mkBltn("__if__", (c, s0) => {
+    const [[b, tb, fb], s1] = stack.pop(s0, "bool", "_", "_")
+    return call(c, stack.push(s1, truthy(b) ? tb : fb))
+  }),
   mkBltn("__def__", (c, s0) => {
     const [[k, v], s1] = stack.pop(s0, "kwd", "_")
     scope.define(c, k.value, v); return s1
@@ -720,83 +716,288 @@ for (const t of types) {
 /* === files === */
 
 // NB: browser only; Promise
-const requestFile = file => new Promise((resolve, reject) => {
+const requestFile = fname => new Promise((resolve, reject) => {
   const r = new XMLHttpRequest()
   r.addEventListener("load", () => resolve(r.responseText))
-  r.open("GET", file)
+  r.open("GET", fname)
   r.send()
 })
 
 // NB: node.js only; Promise
-const readFile = file => new Promise((resolve, reject) => {
-  _req("fs").readFile(file, "utf8", (err, data) => resolve(data))
+const readFile = fname => new Promise((resolve, reject) => {
+  _req("fs").readFile(fname, "utf8", (err, data) => resolve(data))
 });
 
+// NB: node.js only; Promise
+// TODO
+const fileLines = fname => readFile(fname).then(
+  text => text.split("\n").map((line, i) => [i+1, line])
+)
+
 // NB: Promise
-const evalFile = (file, modOrCtx = undefined, s = undefined) => {
+const evalFile = (fname, modOrCtx = undefined, s = undefined) => {
   const c = typeof modOrCtx === "string" ? scope.new(modOrCtx) : modOrCtx
-  return (_req ? readFile : requestFile)(file).then(
+  return (_req ? readFile : requestFile)(fname).then(
     text => evalText(text, c, s)
   )
 }
 
 // NB: Promise
-const loadPrelude = (file = "lib/prelude.knk") =>
+const loadPrelude = (fname = "lib/prelude.knk") =>
   modules.get("__prld__").get("def") ?
     new Promise((resolve, reject) => resolve()) :
-    evalFile(file, "__prld__")
+    evalFile(fname, "__prld__")
+
+/* === output === */
+
+// NB: node.js only
+const putOut = s => process.stdout.write(s + "\n")
+const putErr = s => process.stderr.write(s + "\n")
 
 /* === repl === */
 
 // NB: node.js only
-const repl = () => loadPrelude().then(() => {                 //  {{{1
+
+const repl_init = (c, s) => evalText(
+  ":clear-stack '__clear-stack__ def " +
+  ":show-stack  '__show-stack__  def ", c, s
+)
+
+const repl_process_line = (line, c, s, stdout, stderr) => {     // {{{1
+  if (line) {
+    try {
+      s = evalText(line, c, s)
+      if (!stack.null(s) && !",;".includes(line[0])) {
+        stdout.write(show(stack.top(s)) + "\n")
+      }
+    } catch(e) {
+      if (e instanceof KonekoError) {
+        stderr.write("*** ERROR: " + e.message + "\n")
+      } else {
+        throw e
+      }
+    }
+  }
+  return s
+}                                                             //  }}}1
+
+const repl = () => {                                          //  {{{1
   if (!process.stdin.isTTY) {
     evalFile("/dev/stdin")                                    //  TODO
     return
   }
-  const c = scope.new(); let s = stack.empty()
-  s = evalText(
-    ":clear-stack '__clear-stack__ def " +
-    ":show-stack  '__show-stack__  def ", c, s
-  )
+  const c = scope.new(); let s = repl_init(c, stack.empty())
   const rl = _req("readline").createInterface({
     input: process.stdin, output: process.stdout, prompt: ">>> "
   })
   rl.on("line", line => {
-    if (line) {
-      try {
-        s = evalText(line, c, s)
-        if (!stack.null(s) && !",;".includes(line[0])) {
-          process.stdout.write(show(stack.top(s)) + "\n")
-        }
-      } catch(e) {
-        if (e instanceof KonekoError) {
-          process.stderr.write("*** ERROR: " + e.message + "\n")
-        } else {
-          throw e
-        }
+    s = repl_process_line(line, c, s, process.stdout, process.stderr)
+    rl.prompt()
+  }).on("close", () => { putOut() })
+  rl.prompt()
+}                                                             //  }}}1
+
+/* === doctest === */
+
+// NB: node.js only
+
+// NB: Promise
+const doctest = (files, verbose = false) =>
+  testFiles(files, verbose).then(([t,o,fail]) => fail == 0)
+
+const doctest_ = (files, verbose = false) =>
+  doctest(files, verbose).then(ok => ok || process.exit(1))
+
+// NB: Promise
+const testFiles = (files, verbose = false) => {               //  {{{1
+  let total = 0, ok = 0, fail = 0
+  const nl = fname => fileLines(fname).then(lines => [fname, lines])
+  return Promise.all(files.map(nl)).then(fs => {
+    for (const [fname, lines] of fs) {
+      const md      = /\.md$/u.test(fname)
+      const test    = md ? testMarkdownFile : testKonekoFile
+      putOut(`=== Testing ${fname} (${md ? "markdown" : "koneko"}) ===`)
+      const [t,o,f] = test(fname, lines, verbose)
+      total += t; ok += o; fail += f
+      putOut()
+    }
+    putOut("=== Summary ===")
+    putOut(`Files: ${files.length}.`)
+    printTestSummary(total, ok, fail)
+    return [total, ok, fail]
+  })
+}                                                             //  }}}1
+
+const blocksToExamples = (fname, blocks) =>
+  blocks.map(ls => exampleGroup(fname, ls)).filter(es => es.length)
+
+const exampleGroup = (fname, lines) => {                      //  {{{1
+  const es = []
+  let m, e, in_e = false, prefix
+  for (const [lineno, l] of lines) {
+    if (m = /^(\s*)>>> (.*)$/u.exec(l)) {
+      if (in_e) { es.push(e) } else { in_e = true }
+      prefix  = m[1]
+      e       = { fname, lineno, input: m[2], output: [] }
+    } else if (in_e) {
+      if (!l.startsWith(prefix) || l.length <= prefix.length) {
+        es.push(e); in_e = false
+      } else if ((m = /^(\s*)\.\.\. (.*)$/u.exec(l)) && m[1] == prefix) {
+        e.input += m[2]
+      } else {
+        e.output.push(l.slice(prefix.length))
       }
     }
-    rl.prompt()
-  }).on("close", () => { process.stdout.write("\n") })
-  rl.prompt()
-})                                                            //  }}}1
+  }
+  if (in_e) { es.push(e) }
+  return es
+}                                                             //  }}}1
+
+const knkCommentBlocks = lines => {                           //  {{{1
+  const bs = []
+  let m, b, in_b = false, prefix
+  for (const [ln, l] of lines) {
+    if (m = /^(\s*;)(.*)$/u.exec(l)) {
+      if (!in_b) {
+        b = []; in_b = true; prefix = m[1]
+      } else if (prefix != m[1]) {
+        bs.push(b); b = []; prefix = m[1]
+      }
+      b.push([ln, m[2]])
+    } else if (in_b) {
+      bs.push(b); in_b = false
+    }
+  }
+  if (in_b) { bs.push(b) }
+  return bs
+}                                                             //  }}}1
+
+const mdCodeBlocks = lines => {                               //  {{{1
+  const bs = []
+  let b, in_b = false
+  for (const [ln, l] of lines) {
+    if (!in_b && RegExp("^```koneko$").test(l)) {
+      b = []; in_b = true
+    } else if (in_b) {
+      if (RegExp("^```$").test(l)) {
+        bs.push(b); in_b = false
+      } else {
+        b.push([ln, l])
+      }
+    }
+  }
+  return bs
+}                                                             //  }}}1
+
+const testExamples = (es, verbose = false) => {               //  {{{1
+  let total = 0, ok = 0, fail = 0
+  for (const g of es) {
+    const [t,o,f] = testExampleGroup(g)
+    total += t; ok += o; fail += f
+  }
+  if (verbose) {
+    putOut("=== Summary ===")
+    printTestSummary(total, ok, fail)
+  }
+  return [total, ok, fail]
+}                                                             //  }}}1
+
+const testExampleGroup = (g, verbose = false) => {            //  {{{1
+  const wr = l => ({ write: s => l.push(s.slice(0,-1)) })
+  modules.set("__main__", new Map())                          //  TODO
+  const c = scope.new(); let s = repl_init(c, stack.empty())
+  let ok = 0, fail = 0
+  for (const e of g) {
+    const out = [], err = []
+    overrides.say = s => out.push(s)
+    s = repl_process_line(e.input, c, s, wr(out), wr(err))
+    if (compareExampleOutput(e.output, out, err)) {
+      ok +=1
+      if (verbose) { printSucc(e) }
+    } else {
+      fail +=1
+      printFail(e, out, err)
+      break
+    }
+  }
+  if (verbose) { printTTPF(total, ok, fail) }
+  return [g.length, ok, fail]
+}                                                             //  }}}1
+
+const _testFile = f => (fname, lines, verbose = false) =>
+  testExamples(blocksToExamples(fname, f(lines)), verbose)
+
+const testKonekoFile    = _testFile(knkCommentBlocks)
+const testMarkdownFile  = _testFile(mdCodeBlocks)
+
+const compareExampleOutput = (exp, got, err) => {
+  // NB: can't == arrays :(
+  const exp_ = exp.map(l => l == "<BLANKLINE>" ? "" : l).join("\n")
+  const got_ = got.join("\n"), err_ = err.join("\n")
+  return !err.length ? exp_ == got_ : !got.length && exp_ == err_ &&
+    /^\*\*\* ERROR: /u.test(err[0])
+}
+
+const printTestSummary = (total, ok, fail) => {
+  printTTPF(total, ok, fail)
+  putOut(`Test ${fail == 0 ? "passed" : "failed"}.`)
+}
+
+const printTTPF = (total, ok, fail) =>
+  putOut(`Total: ${total}, Tried: ${ok + fail}, Passed: ${ok}, Failed: ${fail}.`)
+
+const printSucc = ex => {
+  putOut("Trying:\n  " + ex.input)
+  putOut("Expecting:")
+  for (const l of ex.output) { putOut("  " + l) }
+  putOut("ok")
+}
+
+const printFail = (ex, out, err) => {                         //  {{{1
+  putErr(`File ${ex.fname}, line ${ex.lineno}`)
+  putErr("Failed example:\n  " + ex.input)
+  putErr("Expected:")
+  for (const l of ex.output) { putErr("  " + l) }
+  putErr("Got:")
+  for (const l of out) { putErr("  " + l) }
+  if (err.length) {
+    putErr("Errors:")
+    for (const l of err) { putErr("  " + l) }
+  }
+}                                                             //  }}}1
+
+/* === main === */
+
+// NB: node.js only
+
+// TODO: use args
+const main = () => loadPrelude().then(() => {
+  const args = process.argv.slice(2)
+  if (args.includes("--doctest")) {
+    const files = args.filter(a => !a.startsWith("-"))
+    doctest_(files, args.includes("-v")).catch(e => {
+      console.error(e); process.exit(1)
+    })
+  } else {
+    repl()
+  }
+})
 
 /* === exports & overrides === */
 
-const say = s => _req ? process.stdout.write(s + "\n") :
-  (overrides.say || console.log)(s)
+const say = s => (overrides.say || (_req ? putOut : console.log))(s)
 
 const overrides = {}
 
 _mod[_exp] = {
-  KonekoError, read, show, evaluate, evalText, loadPrelude, overrides,
+  KonekoError, read, evaluate, evalText, show, toJS, fromJS,
+  loadPrelude, overrides,
   initContext: scope.new, emptyStack: stack.empty,
-  ...(_req ? { repl } : {})
+  ...(_req ? { repl, doctest, doctest_ } : {})
 }
 
 // NB: node.js only
-if (_req && _mod === _req.main) { repl() }
+if (_req && _mod === _req.main) { main() }
 
 })(
   ...(typeof module === "undefined" ?
