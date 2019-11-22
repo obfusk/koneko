@@ -62,7 +62,9 @@ const expect = (x, t, msg = `${t} on stack`) => {
   return x
 }
 
-// TODO: inefficient
+const nilToDef = (x, d, t) => x.type == "nil" ? d : expect(x, t).value
+
+// TODO: inefficient implementation
 const stack = {                                               //  {{{1
   empty: () => [],
   null: s => !s.length,
@@ -80,16 +82,16 @@ const stack = {                                               //  {{{1
     return [r, s1]
   },
   popN: (s0, n) => stack.pop(s0, ...Array(n).fill("_")),
-  toArray: s => Array.from(s).reverse(),
+  toArray: s => [...s].reverse(),
 }                                                             //  }}}1
 
-// TODO: inefficient
+// TODO: inefficient implementation
 const scope = {                                               //  {{{1
   new: (module = "__main__") =>
     ({ module, parent: null, table: new Map() }),
   fork: (c, table) => ({ module: c.module, parent: c, table }),
   define: (c, k, v) => { modules.get(c.module).set(k, v) },
-  lookup: (c, k, err = true) => {
+  lookup: (c, k, d = undefined) => {
     if (modules.get("__prim__").has(k)) {
       return modules.get("__prim__").get(k)
     }
@@ -101,7 +103,7 @@ const scope = {                                               //  {{{1
     for (const m of [c.module, "__bltn__", "__prld__"]) {
       if (modules.get(m).has(k)) { return modules.get(m).get(k) }
     }
-    if (!err) { return null }
+    if (d !== undefined) { return d }
     throw new KE(...E.LookupFailed(k))
   },
 }                                                             //  }}}1
@@ -114,7 +116,8 @@ const nil   = { type: "nil" }
 const bool  = b => _tv("bool", !!b)
 const int   = i => _tv("int", i)
 const float = f => _tv("float", f)
-const str   = s => _tv("str", s)
+const str   = s => str_([...s])
+const str_  = s => ({ type: "str", list: s })
 const kwd   = s => _tv("kwd", s)
 const pair  = (key, value) => ({ type: "pair", key, value })
 const list  = l => _tv("list", l)
@@ -140,7 +143,13 @@ const record = (rectype, values) => {
   return { type: "record", rectype, values }
 }
 
-const mkBltn = (name, f) => [name, builtin(name, f)]
+const T = bool(true), F = bool(false)
+
+const mkBltn    = (name, f) => [name, builtin(name, f)]
+const mkBltnPP  = (name, f, ...xs) => mkBltn(name, popPush(f, ...xs))
+
+const builtinPP = (name, g = x => x) => (f, ...xs) =>
+  g(builtin(name, popPush(f, ...xs)))
 
 const freeVars = (vs, seen = {}, free = new Set()) => {       //  {{{1
   for (const v of vs) {
@@ -176,16 +185,16 @@ const digitParams = b => {
 const truthy = v =>
   !(v.type == "nil" || (v.type == "bool" && v.value == false))
 
-const dictToList = d => list(Array.from(d.value.keys()).sort().map(
+const dictToList = d => list([...d.value.keys()].sort().map(
   k => pair(kwd(k), d.value.get(k))
 ))
 
 /* === parsing === */
 
 const isIdent = s => Rx("^"+_naiveIdent+"$", "u").exec(s) &&
-  !Array.from("'!:"   ).includes(s[0]) &&
-  !Array.from(":({["  ).includes(s.slice(-1)) &&
-  !Array.from("(){}[]").includes(s) &&
+  ![..."'!:"   ].includes(s[0]) &&
+  ![...":({["  ].includes(s.slice(-1)) &&
+  ![..."(){}[]"].includes(s) &&
   s != "()" && s != "nil" && !isInt(s) && !isFloat(s)
 
 const isInt   = s => /^(?:-?\d+|0x[0-9a-fA-F]+|0b[01]+)$/u.test(s)
@@ -214,7 +223,7 @@ const parseOne = (s, p0 = 0, end = null) => {                 //  {{{1
     while (cm = r.exec(s)) {
       l.push(cm[1] || cm[2] || cm[3] ? f(2) : cm[4] ? esc[cm[4]] : cm[5])
     }
-    return l.join("")
+    return l
   }
   // TODO: only match actual idents
   const parseBlock = (pre = "") => {
@@ -240,11 +249,11 @@ const parseOne = (s, p0 = 0, end = null) => {                 //  {{{1
   } else if (t("-?\\d+(?:\\.\\d+e\\d+|\\.\\d+|e\\d+)")) {
     return [p1, float(parseFloat(m[1]))]
   } else if (t('"(' + chr + '*)"')) {
-    return [p1, str(escapedStrBody(1))]
+    return [p1, str_(escapedStrBody(1))]
   } else if (t(":(" + _naiveIdent + ")") && isIdent(m[2])) {
     return [p1, kwd(m[2])]
   } else if (t(':"(' + chr + '*)"')) {
-    return [p1, kwd(escapedStrBody(2))]
+    return [p1, kwd(escapedStrBody(2).join(""))]
   }
   // values
   else if (t("\\(\\)")) {
@@ -319,10 +328,9 @@ const read = s => {
 
 /* === evaluation === */
 
-const pushSelf = v => (c, s) => stack.push(s, v)
-
+const pushSelf  = v => (c, s) => [false, stack.push(s, v)]
 const pushIdent = v => (c, s) =>
-  stack.push(s, scope.lookup(c, v.value))
+  [false, stack.push(s, scope.lookup(c, v.value))]
 
 const popArgs = (s0, b) => {
   const ps = new Map(), [vs, s1] = stack.popN(s0, b.params.length)
@@ -347,23 +355,120 @@ const opF = op => popPush(
   (x, y) => [float(op(x.value, y.value))], "float", "float"
 )
 
+const debug = (c, f) => {
+  if (eq(scope.lookup(c, "__debug__", F), T)) { f() }
+}
+
 // TODO
 const call = (c0, s0) => {                                    //  {{{1
-  const [[x], s1] = stack.pop(s0, "_")
+  debug(c0, () => putErr("*** call ***"))
+  const [[x], s1] = stack.pop(s0, "_"), xv = x.value
+  const popOp = () => {
+    const [[k], s2] = stack.pop(s1, "kwd")
+    const r = (...xs) => stack.push(s2, ...xs)
+    return [k.value, x.type + "." + k.value, r]
+  }
+  const mem = (i, l = xv.length) => 0 <= i && i < l
   switch (x.type) {
-    // str
-    case "pair": {
-      const [[op], s2] = stack.pop(s1, "kwd")
-      switch (op.value) {
-        case "key":
-          return stack.push(s2, x.key)
-        case "value":
-          return stack.push(s2, x.value)
+    case "str": {
+      // TODO: inefficient implementation
+      const xl = x.list
+      const [opv, op, r] = popOp(), p = builtinPP(op, r)
+      switch (opv) {
+        case "ord":
+          if (xl.length != 1) {
+            throw new KE(...E.Expected("str of length 1 on stack"))
+          }
+          return r(int(xl[0].codePointAt(0)))
+        case "append":
+          return p(v => [str_(v.list.concat(xl))], "str")
+        case "slice":
+          return p((i, j, step) => {
+            const i_ = nilToDef(i, 0        , "int")
+            const j_ = nilToDef(j, xl.length, "int")
+            if (step.value != 1) {
+              throw new KE(...E.NotImplementedError(`${op}: step other than 1`))
+            }
+            return [str_(xl.slice(i_, j_ < 0 ? xl.length + j_ : j_))]
+          } , "_", "_", "int")
+        case "empty?":
+          return r(bool(!xl.length))
+        case "len":
+          return r(int(xl.length))
+        case "get":
+          return p(i => {
+            if (!mem(i.value, xl.length)) {
+              throw new KE(...E.IndexError(op, i.value))
+            }
+            return [xl[i.value]]
+          }, "int")
+        case "member?":
+          return p(i => [bool(mem(i.value, xl.length))], "int")
+        case "elem?":
+          return p(y =>
+            [bool(xl.join("").includes(y.list.join("")))], "str"
+          )
         default:
-          throw new KE(...E.UnknownField(op.value, x.type))
+          throw new KE(...E.UnknownField(op, x.type))
       }
     }
-    // list dict
+    case "pair": {
+      const [opv, op, r] = popOp()
+      switch (opv) {
+        case "key":
+          return r(x.key)
+        case "value":
+          return r(xv)
+        default:
+          throw new KE(...E.UnknownField(op, x.type))
+      }
+    }
+    case "list": {
+      // TODO: inefficient implementation
+      const [opv, op, r] = popOp(), p = builtinPP(op, r)
+      const g = () => { if (!xv.length) { throw new KE(...E.EmptyList(op)) } }
+      switch (opv) {
+        case "head":
+          g(); return r(xv[0])
+        case "tail":
+          g(); return r(list(xv.slice(1)))
+        case "uncons":
+          g(); return r(xv[0], list(xv.slice(1)))
+        case "cons":
+          return p(v => [list([v].concat(xv))], "_")
+        case "sort":
+          return r(list(xv.slice().sort(cmp)))
+        case "append":
+          return p(v => [list(v.value.concat(xv))], "list")
+        case "slice":
+          return p((i, j, step) => {
+            const i_ = nilToDef(i, 0        , "int")
+            const j_ = nilToDef(j, xv.length, "int")
+            if (step.value != 1) {
+              throw new KE(...E.NotImplementedError(`${op}: step other than 1`))
+            }
+            return [list(xv.slice(i_, j_ < 0 ? xv.length + j_ : j_))]
+          } , "_", "_", "int")
+        case "empty?":
+          return r(bool(!xv.length))
+        case "len":
+          return r(int(xv.length))
+        case "get":
+          return p(i => {
+            if (!mem(i.value)) {
+              throw new KE(...E.IndexError(op, i.value))
+            }
+            return [xv[i.value]]
+          }, "int")
+        case "member?":
+          return p(i => [bool(mem(i.value))], "int")
+        case "elem?":
+          return p(y => [bool(xv.find(v => eq(v, y)))], "_")
+        default:
+          throw new KE(...E.UnknownField(op, x.type))
+      }
+    }
+    // dict
     case "block": {
       const [ps, s2] = popArgs(s1, x)
       const c1 = x.params.length ? scope.fork(x.scope, ps) : x.scope
@@ -371,7 +476,7 @@ const call = (c0, s0) => {                                    //  {{{1
     }
     case "builtin":
       return x.run(c0, s1)
-    case "multi":
+    case "multi": {
       const sig = stack.popN(s1, x.arity)[0].map(
         v => v.type == "record" ? v.rectype.name : v.type
       )
@@ -381,6 +486,7 @@ const call = (c0, s0) => {                                    //  {{{1
         throw new KE(...E.MultiMatchFailed(x.name, show(list(sig.map(kwd)))))
       }
       return call(c0, stack.push(s1, b))
+    }
     // recordt record
     default:
       throw new KE(...E.UncallableType(x.type))
@@ -388,17 +494,27 @@ const call = (c0, s0) => {                                    //  {{{1
 }                                                             //  }}}1
 
 const evaluate = code => (c = scope.new(), s = stack.empty()) => {
-  for (const x of code) { s = evl[x.type](x)(c, s) }
+  for (const x of code) {
+    debug(c, () => {
+      putErr(`==> eval ${show(x)}`)
+      putErr("--> " + s.map(show).join(" "))
+    })
+    const [deferred, s_] = evl[x.type](x)(c, s); s = s_
+    debug(c, () => putErr("<-- " + s.map(show).join(" ")))
+    if (deferred) { s = call(c, s) }
+  }
   return s
 }
 
 const evl = {
   nil: pushSelf, bool: pushSelf, int: pushSelf, float: pushSelf,
   str: pushSelf, kwd: pushSelf,
-  list: v => (c, s) => stack.push(s, list(evaluate(v.value)(c))),
-  ident: v => (c, s) => call(c, pushIdent(v)(c, s)),
+  list: v => (c, s) =>
+    [false, stack.push(s, list(evaluate(v.value)(c)))],
+  ident: v => (c, s) => [true, pushIdent(v)(c, s)[1]],
   quot: pushIdent,
-  block: v => (c, s) => stack.push(s, { ...v, scope: c }),
+  block: v => (c, s) =>
+    [false, stack.push(s, { ...v, scope: c })],
 }
 
 const evalText = (text, c = undefined, s = undefined) =>
@@ -425,7 +541,7 @@ const show = v => {                                           //  {{{1
       const p = (pre, w, n) => pre + n.toString(16).padStart(w, '0')
       const e = { "=\r":"\\r", "=\n":"\\n", "=\t":"\\t", "=\"":"\\\"",
                   "=\\":"\\\\" }
-      return '"' + Array.from(v.value).map(f).join("") + '"'
+      return '"' + v.list.map(f).join("") + '"'
     }
     case "kwd":
       return ":" + (isIdent(v.value) ? v.value : show(str(v.value)))
@@ -457,7 +573,9 @@ const show = v => {                                           //  {{{1
     }
     case "builtin":
       return "#<" + (v.prim ? "primitive" : "builtin") + ":" + v.name + ">"
-    // multi recordt record
+    case "multi":
+      return "#<multi:" + v.arity + ":" + v.name + ">"
+    // recordt record
     default:
       throw new Error(`type ${v.type} is not showable`)
   }
@@ -471,9 +589,10 @@ const toJS = v => {                                           //  {{{1
     case "bool":
     case "int":
     case "float":
-    case "str":
     case "kwd":
       return v.value
+    case "str":
+      return v.list.join("")
     case "pair":
       return [v.key.value, toJS(v.value)]
     case "list":
@@ -527,23 +646,20 @@ const eq = (x, y) => {                                        //  {{{1
       return a == b
     case "bool":
     case "int":
-    case "str":
     case "kwd":
     case "ident":
     case "quot":
       return a == b
+    case "str":
+      return eqArray(x.list, y.list, (a, b) => a == b)
     case "pair":
       return eq(x.key, y.key) && eq(a, b)
     case "list":
-      if (a.length != b.length) { return false }
-      for (let i = 0; i < a.length; ++i) {
-        if (!eq(a[i], b[i])) { return false }
-      }
-      return true
+      return eqArray(a, b, eq)
     case "dict": {
       if (a.size != b.size) { return false }
-      const ka = Array.from(a.keys()).sort()
-      const kb = Array.from(b.keys()).sort()
+      const ka = [...a.keys()].sort()
+      const kb = [...b.keys()].sort()
       if (!eq(list(ka.map(kwd)), list(kb.map(kwd)))) { return false }
       for (const k of ka) {
         if (!eq(a.get(k), b.get(k))) { return false }
@@ -570,23 +686,16 @@ const cmp = (x, y) => {                                       //  {{{1
       return eq(x, y) ? 0 : a < b ? -1 : b < a ? 1 : null
     case "bool":
     case "int":
-    case "str":
     case "kwd":
     case "ident":
     case "quot":
-      return a == b ? 0 : a < b ? -1 : 1
+      return cmpPrim(a, b)
+    case "str":
+      return cmpArray(x.list, y.list, cmpPrim)
     case "pair":
       return cmp(x.key, y.key) && cmp(a, b)
-    case "list": {
-      const m = Math.max(a.length, b.length)
-      for (let i = 0; i < m; ++i) {
-        if (i >= a.length && i < b.length) { return -1 }
-        if (i < a.length && i >= b.length) { return  1 }
-        const c = cmp(a[i], b[i])
-        if (c != 0) { return c }
-      }
-      return 0
-    }
+    case "list":
+      return cmpArray(a, b, cmp)
     case "dict":
       return cmp(dictToList(x), dictToList(y))
     case "recordt":
@@ -597,6 +706,27 @@ const cmp = (x, y) => {                                       //  {{{1
       throw new KE(...E.UncomparableType(x.type))
   }
 }                                                             //  }}}1
+
+const eqArray = (x, y, eq) => {
+  if (a.length != b.length) { return false }
+  for (let i = 0; i < a.length; ++i) {
+    if (!eq(a[i], b[i])) { return false }
+  }
+  return true
+}
+
+const cmpArray = (x, y, cmp) => {
+  const m = Math.max(x.length, y.length)
+  for (let i = 0; i < m; ++i) {
+    if (i >= x.length && i < y.length) { return -1 }
+    if (i < x.length && i >= y.length) { return  1 }
+    const c = cmp(x[i], y[i])
+    if (c != 0) { return c }
+  }
+  return 0
+}
+
+const cmpPrim = (a, b) => a == b ? 0 : a < b ? -1 : 1
 
 const cmp_lt  = c => bool(c == -1)
 const cmp_lte = c => bool(c == -1 || c == 0)
@@ -633,7 +763,7 @@ modules.set("__prim__", new Map([                             //  {{{1
       k =>  k.value == "_" || types.includes(k.value) ? k.value :
               show(expect(scope.lookup(c, k.value), "record-type"))
     )
-    let m = scope.lookup(c, k.value, false)
+    let m = scope.lookup(c, k.value, null)
     if (m) {
       expect(m, "multi", `${k.value} to be a multi`)
       if (m.arity != sig_.length) {
@@ -649,26 +779,26 @@ modules.set("__prim__", new Map([                             //  {{{1
   mkBltn("__defrecord__", (c, s) => {
     throw "TODO"
   }),
-  mkBltn("__=>__", popPush((k, v) => [pair(k, v)], "kwd", "_")),
-  mkBltn("__dict__", popPush(l => {
+  mkBltnPP("__=>__", (k, v) => [pair(k, v)], "kwd", "_"),
+  mkBltnPP("__dict__", l => {
     for (const x of l.value) { expect(x, "pair") }
     return [dict(l.value)]
-  }, "list")),
+  }, "list"),
   mkBltn("__swap__", pop2push((x, y) => [y, x])),
-  mkBltn("__show__", popPush(x => [str(show(x))], "_")),
+  mkBltnPP("__show__", x => [str(show(x))], "_"),
   mkBltn("__say__", (c, s0) => {
     const [[x], s1] = stack.pop(s0, "str")
-    say(x.value); return s1
+    say(x.list.join("")); return s1
   }),
   mkBltn("__ask__", (c, s) => {
     throw "TODO"
   }),
-  mkBltn("__type__", popPush(x => [kwd(x.type, "_")], "_")),
-  mkBltn("__callable?__",
-    popPush(v => bool(callableTypes.includes(v.type)), "_")
+  mkBltnPP("__type__", x => [kwd(x.type, "_")], "_"),
+  mkBltnPP("__callable?__",
+    v => bool(callableTypes.includes(v.type)), "_"
   ),
-  mkBltn("__function?__",
-    popPush(v => bool(functionTypes.includes(v.type)), "_")
+  mkBltnPP("__function?__",
+    v => bool(functionTypes.includes(v.type)), "_"
   ),
   mkBltn("__module-get__", (c, s0) => {
     const [[k, m], s1] = stack.pop(s0, "kwd", "kwd")
@@ -678,7 +808,7 @@ modules.set("__prim__", new Map([                             //  {{{1
   }),
   mkBltn("__module-defs__", (c, s0) => {
     const [[m], s1] = stack.pop(s0, "kwd")
-    const l = Array.from(getModule(m.value).keys()).sort().map(kwd)
+    const l = [...getModule(m.value).keys()].sort().map(kwd)
     return stack.push(s1, list(l))
   }),
   mkBltn("__name__", (c, s) => stack.push(s, kwd(c.module))),
@@ -703,10 +833,10 @@ modules.set("__prim__", new Map([                             //  {{{1
   mkBltn("__float-__", opF((x, y) => x - y)),
   mkBltn("__float*__", opF((x, y) => x * y)),
   mkBltn("__float/__", opF((x, y) => x / y)),
-  mkBltn("__chr__", popPush(
+  mkBltnPP("__chr__",
     x => [str(String.fromCodePoint(x.value))], "int"
-  )),
-  mkBltn("__int->float__", popPush(n => [float(n.value)], "int")),
+  ),
+  mkBltnPP("__int->float__", n => [float(n.value)], "int"),
   mkBltn("__record->dict__", (c, s) => {
     throw "TODO"
   }),
@@ -746,7 +876,7 @@ const callableTypes =
 
 for (const t of types) {
   modules.get("__bltn__").set(t+"?", builtin(
-    t+"?", popPush(x => [bool(x.type == t)], "_")
+    t+"?", popPush(x => [bool(x.type == t)], "_"), false
   ))
 }
 
@@ -795,9 +925,8 @@ const putErr = (s = "") => process.stderr.write(s + "\n")
 
 // NB: node.js only
 
-const repl_init = (c, s) => evalText(
-  ":clear-stack '__clear-stack__ def " +
-  ":show-stack  '__show-stack__  def ", c, s
+const repl_init = c => ["clear-stack", "show-stack"].forEach(x =>
+  scope.define(c, x, scope.lookup(c, "__" + x + "__"))
 )
 
 const repl_process_line = (line, c, s, stdout, stderr) => {     // {{{1
@@ -818,12 +947,13 @@ const repl_process_line = (line, c, s, stdout, stderr) => {     // {{{1
   return s
 }                                                             //  }}}1
 
-const repl = () => {                                          //  {{{1
+const repl = (verbose = false) => {                           //  {{{1
   if (!process.stdin.isTTY) {
     evalFile("/dev/stdin")                                    //  TODO
     return
   }
-  const c = scope.new(); let s = repl_init(c, stack.empty())
+  const c = scope.new(); let s = stack.empty(); repl_init(c)
+  if (verbose) { scope.define(c, "__debug__", T) }
   const rl = _req("readline").createInterface({
     input: process.stdin, output: process.stdout, prompt: ">>> "
   })
@@ -929,7 +1059,7 @@ const mdCodeBlocks = lines => {                               //  {{{1
 const testExamples = (es, verbose = false) => {               //  {{{1
   let total = 0, ok = 0, fail = 0
   for (const g of es) {
-    const [t,o,f] = testExampleGroup(g)
+    const [t,o,f] = testExampleGroup(g, verbose)
     total += t; ok += o; fail += f
   }
   if (verbose) {
@@ -942,7 +1072,7 @@ const testExamples = (es, verbose = false) => {               //  {{{1
 const testExampleGroup = (g, verbose = false) => {            //  {{{1
   const wr = l => ({ write: s => l.push(s.slice(0,-1)) })
   modules.set("__main__", new Map())                          //  TODO
-  const c = scope.new(); let s = repl_init(c, stack.empty())
+  const c = scope.new(); let s = stack.empty(); repl_init(c)
   let ok = 0, fail = 0
   for (const e of g) {
     const out = [], err = []
@@ -957,7 +1087,7 @@ const testExampleGroup = (g, verbose = false) => {            //  {{{1
       break
     }
   }
-  if (verbose) { printTTPF(total, ok, fail) }
+  if (verbose) { printTTPF(g.length, ok, fail) }
   return [g.length, ok, fail]
 }                                                             //  }}}1
 
@@ -1016,7 +1146,7 @@ const main = () => loadPrelude().then(() => {
       console.error(e); process.exit(1)
     })
   } else {
-    repl()
+    repl(args.includes("-v"))
   }
 })
 
