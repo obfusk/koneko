@@ -2,7 +2,7 @@
 //
 //  File        : koneko.js
 //  Maintainer  : Felix C. Stegerman <flx@obfusk.net>
-//  Date        : 2019-11-22
+//  Date        : 2019-11-23
 //
 //  Copyright   : Copyright (C) 2019  Felix C. Stegerman
 //  Version     : v0.0.1
@@ -118,7 +118,7 @@ const _tv   = (type, value) => ({ type, value })
 
 const nil   = { type: "nil" }
 const bool  = b => _tv("bool", !!b)
-const int   = i => _tv("int", i)
+const int   = i => _tv("int", i|0)
 const float = f => _tv("float", f)
 const str   = s => str_([...s])
 const str_  = s => ({ type: "str", list: s })
@@ -187,11 +187,15 @@ const digitParams = b => {
   return Array.from(Array(n), (_, i) => "__" + (i+1).toString() + "__")
 }
 
-const truthy = v =>
-  !(v.type == "nil" || (v.type == "bool" && v.value == false))
+const truthy = x =>
+  !(x.type == "nil" || (x.type == "bool" && x.value == false))
 
 const dictToList = d => list([...d.value.keys()].sort().map(
   k => pair(kwd(k), d.value.get(k))
+))
+
+const recordToDict = r => dict(zip(r.rectype.fields, r.values).map(
+  ([k, v]) => pair(kwd(k), v)
 ))
 
 /* === parsing === */
@@ -333,9 +337,9 @@ const read = s => {
 
 /* === evaluation === */
 
-const pushSelf  = v => (c, s) => [false, stack.push(s, v)]
-const pushIdent = v => (c, s) =>
-  [false, stack.push(s, scope.lookup(c, v.value))]
+const pushSelf  = x => (c, s) => [false, stack.push(s, x)]
+const pushIdent = x => (c, s) =>
+  [false, stack.push(s, scope.lookup(c, x.value))]
 
 const popArgs = (s0, params) => {
   const [vs, s1] = stack.popN(s0, params.length)
@@ -385,9 +389,7 @@ const debug = (c, f) => {
 
 class Eval {
   constructor(code, c, s) {
-    this.code   = code
-    this.scope  = c
-    this.stack  = s
+    this.code = code; this.scope = c; this.stack = s
   }
 }
 
@@ -413,7 +415,7 @@ const call = (c0, s0, tailPos = false) => {                   //  {{{1
           }
           return r(int(xl[0].codePointAt(0)))
         case "append":
-          return p(v => [str_(v.list.concat(xl))], "str")
+          return p(y => [str_(y.list.concat(xl))], "str")
         case "slice":
           return p((i, j, step) => {
             const i_ = nilToDef(i, 0        , "int")
@@ -467,11 +469,11 @@ const call = (c0, s0, tailPos = false) => {                   //  {{{1
         case "uncons":
           g(); return r(xv[0], list(xv.slice(1)))
         case "cons":
-          return p(v => [list([v].concat(xv))], "_")
+          return p(y => [list([y].concat(xv))], "_")
         case "sort":
           return r(list(xv.slice().sort(cmp)))
         case "append":
-          return p(v => [list(v.value.concat(xv))], "list")
+          return p(y => [list(y.value.concat(xv))], "list")
         case "slice":
           return p((i, j, step) => {
             const i_ = nilToDef(i, 0        , "int")
@@ -495,7 +497,7 @@ const call = (c0, s0, tailPos = false) => {                   //  {{{1
         case "member?":
           return p(i => [bool(mem(i.value))], "int")
         case "elem?":
-          return p(y => [bool(xv.find(v => eq(v, y)))], "_")
+          return p(y => [bool(xv.find(z => eq(z, y)))], "_")
         default:
           throw new KE(...E.UnknownField(op, x.type))
       }
@@ -662,13 +664,10 @@ const evaluate = code0 =>                                     //  {{{1
 
 const evl = {
   nil: pushSelf, bool: pushSelf, int: pushSelf, float: pushSelf,
-  str: pushSelf, kwd: pushSelf,
-  list: v => (c, s) =>
-    [false, stack.push(s, list(evaluate(v.value)(c)))],
-  ident: v => (c, s) => [true, pushIdent(v)(c, s)[1]],
-  quot: pushIdent,
-  block: v => (c, s) =>
-    [false, stack.push(s, { ...v, scope: c })],
+  str: pushSelf, kwd: pushSelf, quot: pushIdent,
+  list:  x => (c, s) => [false, stack.push(s, list(evaluate(x.value)(c)))],
+  ident: x => (c, s) => [true , pushIdent(x)(c, s)[1]],
+  block: x => (c, s) => [false, stack.push(s, { ...x, scope: c })],
 }
 
 const evalText = (text, c = undefined, s = undefined) =>
@@ -676,17 +675,16 @@ const evalText = (text, c = undefined, s = undefined) =>
 
 /* === show, toJS, fromJS === */
 
-// TODO
-const show = v => {                                           //  {{{1
-  switch (v.type) {
+const show = x => {                                           //  {{{1
+  switch (x.type) {
     case "nil":
       return "nil"
     case "bool":
-      return v.value ? "#t" : "#f"
+      return x.value ? "#t" : "#f"
     case "int":
-      return v.value.toString()
+      return x.value.toString()
     case "float": {
-      const s = v.value.toString()
+      const s = x.value.toString()
       return s.includes(".") ? s : s + ".0"
     }
     case "str": {
@@ -695,100 +693,104 @@ const show = v => {                                           //  {{{1
       const p = (pre, w, n) => pre + n.toString(16).padStart(w, '0')
       const e = { "=\r":"\\r", "=\n":"\\n", "=\t":"\\t", "=\"":"\\\"",
                   "=\\":"\\\\" }
-      return '"' + v.list.map(f).join("") + '"'
+      return '"' + x.list.map(f).join("") + '"'
     }
     case "kwd":
-      return ":" + (isIdent(v.value) ? v.value : show(str(v.value)))
+      return ":" + (isIdent(x.value) ? x.value : show(str(x.value)))
     case "pair":
-      return show(v.key) + " " + show(v.value) + " =>"
+      return show(x.key) + " " + show(x.value) + " =>"
     case "list":
-      return v.value.length ?
-        "( " + v.value.map(show).join(" ") + " )" : "()"
+      return x.value.length ?
+        "( " + x.value.map(show).join(" ") + " )" : "()"
     case "dict": {
-      const f = ([k, x]) => show(kwd(k)) + " " + show(x) + " =>"
-      return v.value.size ?
-        "{ " + Array.from(v.value.entries(), f).join(", ") + " }" : "{ }"
+      const f = ([k, v]) => show(kwd(k)) + " " + show(v) + " =>"
+      return x.value.size ?
+        "{ " + Array.from(x.value.entries(), f).join(", ") + " }" : "{ }"
     }
     case "ident":
-      return v.value
+      return x.value
     case "quot":
-      return "'" + v.value
+      return "'" + x.value
     case "block": {
       const f = xs => xs.map(show).join(" ")
-      if (!v.params.length && !v.code.length) {
+      if (!x.params.length && !x.code.length) {
         return "[ ]"
-      } else if (!v.params.length) {
-        return "[ " + f(v.code) + " ]"
-      } else if (!v.code.length) {
-        return "[ " + v.params.join(" ") + " . ]"
+      } else if (!x.params.length) {
+        return "[ " + f(x.code) + " ]"
+      } else if (!x.code.length) {
+        return "[ " + x.params.join(" ") + " . ]"
       } else {
-        return "[ " + v.params.join(" ") + " . " + f(v.code) + " ]"
+        return "[ " + x.params.join(" ") + " . " + f(x.code) + " ]"
       }
     }
     case "builtin":
-      return "#<" + (v.prim ? "primitive" : "builtin") + ":" + v.name + ">"
+      return "#<" + (x.prim ? "primitive" : "builtin") + ":" + x.name + ">"
     case "multi":
-      return "#<multi:" + v.arity + ":" + v.name + ">"
+      return "#<multi:" + x.arity + ":" + x.name + ">"
     case "record-type":
-      return "#<record-type:" + v.name + "(" + v.fields.join("#") + ")>"
+      return "#<record-type:" + x.name + "(" + x.fields.join("#") + ")>"
     case "record": {
-      const flds = zip(v.rectype.fields, v.values).map(
+      const flds = zip(x.rectype.fields, x.values).map(
         ([k, v]) => show(pair(kwd(k), v))
       )
-      return v.rectype.name + "{ " + flds.join(", ") + " }"
+      return x.rectype.name + "{ " + flds.join(", ") + " }"
     }
     default:
-      throw new Error(`type ${v.type} is not showable`)
+      throw new Error(`type ${x.type} is not showable`)
   }
 }                                                             //  }}}1
 
-// TODO
-const toJS = v => {                                           //  {{{1
-  switch (v.type) {
+const toJS = x => {                                           //  {{{1
+  switch (x.type) {
     case "nil":
       return null
     case "bool":
     case "int":
     case "float":
     case "kwd":
-      return v.value
+      return x.value
     case "str":
-      return v.list.join("")
+      return x.list.join("")
     case "pair":
-      return [v.key.value, toJS(v.value)]
+      return [x.key.value, toJS(x.value)]
     case "list":
-      return v.value.map(toJS)
+      return x.value.map(toJS)
     case "dict":
-      return new Map(Array.from(dict.entries(),
-        ([k, v]) => [toJS(k), toJS(v)]
+      return new Map(Array.from(x.value.entries(),
+        ([k, v]) => [k, toJS(v)]
       ))
-    case "record":
-      throw "TODO: toJS record"
+    case "record": {
+      const o = { __koneko_type__: x.rectype.name }
+      for (const [k, v] of zip(x.rectype.fields, x.values)) {
+        o[k] = toJS(v)
+      }
+      return o
+    }
     default:
-      throw new Error(`type ${v.type} is not supported by toJS`)
+      throw new Error(`fromJS: cannot convert ${x.type}`)
   }
 }                                                             //  }}}1
 
-const fromJS = v => {                                         //  {{{1
-  switch (typeof v) {
+const fromJS = x => {                                         //  {{{1
+  switch (typeof x) {
     case "boolean":
-      return bool(v)
+      return bool(x)
     case "number":
-      return (v == (v|0)) ? int(v) : float(v)
+      return (x == (x|0)) ? int(x) : float(x)
     case "string":
-      return str(v)
+      return str(x)
     case "object":
-      if (v === null) {
+      if (x === null) {
         return nil
-      } else if (v instanceof Array) {
-        return list(v.map(fromJS))
-      } else if (v instanceof Map) {
-        return dict(Array.from(v.entries(),
+      } else if (x instanceof Array) {
+        return list(x.map(fromJS))
+      } else if (x instanceof Map) {
+        return dict(Array.from(x.entries(),
           ([k, v]) => pair(kwd(k), fromJS(v))
         ))
       }
     default:
-      throw new Error(`fromJS: cannot convert ${v}`)
+      throw new Error(`fromJS: cannot convert ${x}`)
   }
 }                                                             //  }}}1
 
@@ -830,7 +832,7 @@ const eq = (x, y) => {                                        //  {{{1
     case "record-type":
       return x.name == y.name && eqArray(x.fields, y.fields, eqPrim)
     case "record":
-      throw "TODO: eq record"
+      return eq(x.rectype, y.rectype) && eqArray(x.values, y.values)
     default:
       throw new KE(...E.UncomparableType(x.type))
   }
@@ -860,9 +862,12 @@ const cmp = (x, y) => {                                       //  {{{1
     case "dict":
       return cmp(dictToList(x), dictToList(y))
     case "record-type":
-      throw "TODO: cmp record-type"
-    case "record":
-      throw "TODO: cmp record"
+      return cmpArray([x.name].concat(x.fields),
+                      [y.name].concat(y.fields), cmpPrim)
+    case "record": {
+      const c = cmp(x.rectype, y.rectype)
+      return c != 0 ? c : cmp(recordToDict(x), recordToDict(y))
+    }
     default:
       throw new KE(...E.UncomparableType(x.type))
   }
@@ -959,10 +964,10 @@ modules.set("__prim__", new Map([                             //  {{{1
   }),
   mkBltnPP("__type__", x => [kwd(x.type, "_")], "_"),
   mkBltnPP("__callable?__",
-    v => [bool(callableTypes.includes(v.type))], "_"
+    x => [bool(callableTypes.includes(x.type))], "_"
   ),
   mkBltnPP("__function?__",
-    v => [bool(functionTypes.includes(v.type))], "_"
+    x => [bool(functionTypes.includes(x.type))], "_"
   ),
   mkBltn("__module-get__", (c, s0) => {
     const [[k, m], s1] = stack.pop(s0, "kwd", "kwd")
@@ -1000,14 +1005,10 @@ modules.set("__prim__", new Map([                             //  {{{1
   mkBltnPP("__chr__",
     x => [str(String.fromCodePoint(x.value))], "int"
   ),
-  mkBltnPP("__int->float__", n => [float(n.value)], "int"),
-  mkBltnPP("__record->dict__", x =>
-    [dict(zip(x.rectype.fields, x.values).map(
-      ([k, v]) => pair(kwd(k), v)
-    ))]
-  , "record"),
-  mkBltnPP("__record-type__", x => [x.rectype], "record"),
-  mkBltnPP("__record-type-name__", x => [kwd(x.name)], "record-type"),
+  mkBltnPP("__int->float__"       , n => [float(n.value)] , "int"),
+  mkBltnPP("__record->dict__"     , x => [recordToDict(x)], "record"),
+  mkBltnPP("__record-type__"      , x => [x.rectype]      , "record"),
+  mkBltnPP("__record-type-name__" , x => [kwd(x.name)]    , "record-type"),
   mkBltnPP("__record-type-fields__",
     x => [list(x.fields.map(kwd))], "record-type"
   ),
@@ -1016,9 +1017,7 @@ modules.set("__prim__", new Map([                             //  {{{1
     return s
   }),
   mkBltn("__clear-stack__", (c, s) => stack.empty()),
-  mkBltn("__nya__", (c, s) => {
-    throw "TODO: nya"
-  }),
+  mkBltn("__nya__", (c, s) => { nya(); return s }),
 ]))                                                           //  }}}1
 
 const getModule = m => {
@@ -1085,8 +1084,8 @@ const loadPrelude = (fname = "lib/prelude.knk") =>
 /* === output === */
 
 // NB: node.js only
-const putOut = (s = "") => process.stdout.write(s + "\n")
-const putErr = (s = "") => process.stderr.write(s + "\n")
+const putOut = (s = "", end = "\n") => process.stdout.write(s + end)
+const putErr = (s = "", end = "\n") => process.stderr.write(s + end)
 
 /* === repl === */
 
@@ -1324,6 +1323,17 @@ const main = () => loadPrelude().then(() => {
 /* === exports & overrides === */
 
 const say = s => (overrides.say || (_req ? putOut : console.log))(s)
+
+// TODO
+const nya = () => {
+  if (overrides.nya) {
+    overrides.nya()
+  } else if (_req) {
+    putOut(_req("fs").readFileSync("nya/tabby.cat", "utf8"), "")
+  } else {
+    throw new KE(...E.NotImplementedError("nya"))
+  }
+}
 
 const overrides = {}
 

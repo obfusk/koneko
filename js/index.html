@@ -49,6 +49,7 @@
             cons.scrollTop = cons.scrollHeight
           }
           koneko.overrides.say = print
+          koneko.overrides.nya = () => { window.open("nya/tabby.png") }
           const c = koneko.initContext(); let s = koneko.emptyStack()
           s = koneko.evalText(":clear-stack '__clear-stack__ def", c, s)
           const f = () => {
