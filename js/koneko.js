@@ -359,8 +359,16 @@ const debug = (c, f) => {
   if (eq(scope.lookup(c, "__debug__", F), T)) { f() }
 }
 
+class Eval {
+  constructor(code, c, s) {
+    this.code   = code
+    this.scope  = c
+    this.stack  = s
+  }
+}
+
 // TODO
-const call = (c0, s0) => {                                    //  {{{1
+const call = (c0, s0, tailPos = false) => {                   //  {{{1
   debug(c0, () => putErr("*** call ***"))
   const [[x], s1] = stack.pop(s0, "_"), xv = x.value
   const popOp = () => {
@@ -472,7 +480,8 @@ const call = (c0, s0) => {                                    //  {{{1
     case "block": {
       const [ps, s2] = popArgs(s1, x)
       const c1 = x.params.length ? scope.fork(x.scope, ps) : x.scope
-      return evaluate(x.code)(c1, s2)
+      return tailPos ? new Eval(x.code, c1, s2)
+                     : evaluate(x.code)(c1, s2)
     }
     case "builtin":
       return x.run(c0, s1)
@@ -493,15 +502,24 @@ const call = (c0, s0) => {                                    //  {{{1
   }
 }                                                             //  }}}1
 
-const evaluate = code => (c = scope.new(), s = stack.empty()) => {
-  for (const x of code) {
+const evaluate = code0 => (c = scope.new(), s = stack.empty()) => {
+  let code = code0
+  for (let i = 0; i < code.length; ++i) {
+    const x = code[i]
     debug(c, () => {
       putErr(`==> eval ${show(x)}`)
       putErr("--> " + s.map(show).join(" "))
     })
     const [deferred, s_] = evl[x.type](x)(c, s); s = s_
     debug(c, () => putErr("<-- " + s.map(show).join(" ")))
-    if (deferred) { s = call(c, s) }
+    if (deferred) {
+      const tailPos = i == code.length - 1
+      s = call(c, s, tailPos)
+      if (tailPos && s instanceof Eval) {
+        debug(c, () => putErr("*** tail call ***"))
+        code = s.code; c = s.scope; s = s.stack; i = -1
+      }
+    }
   }
   return s
 }
