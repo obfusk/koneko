@@ -121,7 +121,8 @@ const str_  = s => ({ type: "str", list: s })
 const kwd   = s => _tv("kwd", s)
 const pair  = (key, value) => ({ type: "pair", key, value })
 const list  = l => _tv("list", l)
-const dict  = ps => _tv("dict", new Map(ps.map(p => [p.key.value, p.value])))
+const dict  = ps => dict_(new Map(ps.map(p => [p.key.value, p.value])))
+const dict_ = m => _tv("dict", m)
 const ident = i => _tv("ident", i)
 const quot  = i => _tv("quot", i)
 
@@ -476,7 +477,35 @@ const call = (c0, s0, tailPos = false) => {                   //  {{{1
           throw new KE(...E.UnknownField(op, x.type))
       }
     }
-    // TODO: dict
+    case "dict": {
+      // TODO: inefficient implementation
+      const [opv, op, r] = popOp(), p = builtinPP(op, r)
+      switch (opv) {
+        case "keys":
+          return r([...xv.keys()].map(kwd))
+        case "values":
+          return r([...xv.values()])
+        case "pairs":
+          return r([...xv.entries()].map(([k, v]) => pair(kwd(k, v))))
+        case "merge":
+          return p(y => [dict_(new Map([...y.value, ...xv]))], "dict")
+        case "empty?":
+          return r(bool(!xv.size))
+        case "len":
+          return r(int(xv.size))
+        case "get":
+          return p(k => {
+            if (!xv.has(k.value)) {
+              throw new KE(...E.KeyError(op, k.value))
+            }
+            return [xv.get(k.value)]
+          }, "kwd")
+        case "member":
+          return p(k => [bool(xv.has(k.value))], "kwd")
+        default:
+          throw new KE(...E.UnknownField(op, x.type))
+      }
+    }
     case "block": {
       const [ps, s2] = popArgs(s1, x)
       const c1 = x.params.length ? scope.fork(x.scope, ps) : x.scope
@@ -639,7 +668,7 @@ const toJS = v => {                                           //  {{{1
         ([k, v]) => [toJS(k), toJS(v)]
       ))
     case "record":
-      throw "TODO"
+      throw "TODO: toJS record"
     default:
       throw new Error(`type ${v.type} is not supported by toJS`)
   }
@@ -706,7 +735,7 @@ const eq = (x, y) => {                                        //  {{{1
     case "record-type":
       return x.name == y.name && eqArray(x.fields, y.fields, eqPrim)
     case "record":
-      throw "TODO"
+      throw "TODO: eq record"
     default:
       throw new KE(...E.UncomparableType(x.type))
   }
@@ -736,9 +765,9 @@ const cmp = (x, y) => {                                       //  {{{1
     case "dict":
       return cmp(dictToList(x), dictToList(y))
     case "record-type":
-      throw "TODO"
+      throw "TODO: cmp record-type"
     case "record":
-      throw "TODO"
+      throw "TODO: cmp record"
     default:
       throw new KE(...E.UncomparableType(x.type))
   }
@@ -781,10 +810,10 @@ const modules = new Map(
 modules.set("__prim__", new Map([                             //  {{{1
   mkBltn("__call__", call),
   mkBltn("__apply__", (c, s) => {
-    throw "TODO"
+    throw "TODO: apply"
   }),
   mkBltn("__apply-dict__", (c, s) => {
-    throw "TODO"
+    throw "TODO: apply-dict"
   }),
   mkBltn("__if__", (c, s0) => {
     const [[b, tb, fb], s1] = stack.pop(s0, "bool", "_", "_")
@@ -897,7 +926,7 @@ modules.set("__prim__", new Map([                             //  {{{1
   }),
   mkBltn("__clear-stack__", (c, s) => stack.empty()),
   mkBltn("__nya__", (c, s) => {
-    throw "TODO"
+    throw "TODO: nya"
   }),
 ]))                                                           //  }}}1
 
