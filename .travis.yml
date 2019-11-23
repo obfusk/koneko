@@ -58,7 +58,7 @@ script: |
     cabal v2-run doctests   # nicer output than v2-test
     cabal v2-run koneko -- --doctest lib/*.knk README.md
 
-    node js/koneko.js --doctest lib/*.knk README.md
+    node js/koneko --doctest lib/*.knk README.md
   )
 
 cache:

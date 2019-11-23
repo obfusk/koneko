@@ -791,7 +791,7 @@ modules.set("__prim__", new Map([                             //  {{{1
     say(x.list.join("")); return s1
   }),
   mkBltn("__ask__", (c, s) => {
-    throw "TODO"
+    throw new KE(...E.NotImplementedError("ask"))
   }),
   mkBltnPP("__type__", x => [kwd(x.type, "_")], "_"),
   mkBltnPP("__callable?__",
@@ -1137,16 +1137,20 @@ const printFail = (ex, out, err) => {                         //  {{{1
 
 // NB: node.js only
 
-// TODO: use args
+// TODO: use args; --eval, --interactive, ...
 const main = () => loadPrelude().then(() => {
-  const args = process.argv.slice(2)
-  if (args.includes("--doctest")) {
-    const files = args.filter(a => !a.startsWith("-"))
-    doctest_(files, args.includes("-v")).catch(e => {
+  const argv    = process.argv.slice(2)
+  const opts    = argv.filter(a =>  a.startsWith("-"))
+  const args    = argv.filter(a => !a.startsWith("-"))
+  const verbose = opts.includes("-v")
+  if (opts.includes("--doctest")) {
+    doctest_(args, verbose).catch(e => {
       console.error(e); process.exit(1)
     })
+  } else if (args.length) {
+    evalFile(args[0])
   } else {
-    repl(args.includes("-v"))
+    repl(verbose)
   }
 })
 
