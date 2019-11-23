@@ -476,7 +476,7 @@ const call = (c0, s0, tailPos = false) => {                   //  {{{1
           throw new KE(...E.UnknownField(op, x.type))
       }
     }
-    // dict
+    // TODO: dict
     case "block": {
       const [ps, s2] = popArgs(s1, x)
       const c1 = x.params.length ? scope.fork(x.scope, ps) : x.scope
@@ -496,33 +496,45 @@ const call = (c0, s0, tailPos = false) => {                   //  {{{1
       }
       return call(c0, stack.push(s1, b))
     }
-    // recordt record
+    case "record-type": {
+      const [l, s2] = stack.popN(s1, x.fields.length)
+      return stack.push(s2, record(x, l))
+    }
+    case "record": {
+      const [[k], s2] = stack.pop(s1, "kwd")
+      const i = x.rectype.fields.indexOf(k.value)
+      if (i == -1) {
+        throw new KE(...E.UnknownField(k.value, x.rectype.name))
+      }
+      return stack.push(s2, x.values[i])
+    }
     default:
       throw new KE(...E.UncallableType(x.type))
   }
 }                                                             //  }}}1
 
-const evaluate = code0 => (c = scope.new(), s = stack.empty()) => {
-  let code = code0
-  for (let i = 0; i < code.length; ++i) {
-    const x = code[i]
-    debug(c, () => {
-      putErr(`==> eval ${show(x)}`)
-      putErr("--> " + s.map(show).join(" "))
-    })
-    const [deferred, s_] = evl[x.type](x)(c, s); s = s_
-    debug(c, () => putErr("<-- " + s.map(show).join(" ")))
-    if (deferred) {
-      const tailPos = i == code.length - 1
-      s = call(c, s, tailPos)
-      if (tailPos && s instanceof Eval) {
-        debug(c, () => putErr("*** tail call ***"))
-        code = s.code; c = s.scope; s = s.stack; i = -1
+const evaluate = code0 =>                                     //  {{{1
+  (c = scope.new(), s = stack.empty()) => {
+    let code = code0
+    for (let i = 0; i < code.length; ++i) {
+      const x = code[i]
+      debug(c, () => {
+        putErr(`==> eval ${show(x)}`)
+        putErr("--> " + s.map(show).join(" "))
+      })
+      const [deferred, s_] = evl[x.type](x)(c, s); s = s_
+      debug(c, () => putErr("<-- " + s.map(show).join(" ")))
+      if (deferred) {
+        const tailPos = i == code.length - 1
+        s = call(c, s, tailPos)
+        if (tailPos && s instanceof Eval) {
+          debug(c, () => putErr("*** tail call ***"))
+          code = s.code; c = s.scope; s = s.stack; i = -1
+        }
       }
     }
-  }
-  return s
-}
+    return s
+  }                                                           //  }}}1
 
 const evl = {
   nil: pushSelf, bool: pushSelf, int: pushSelf, float: pushSelf,
@@ -593,7 +605,14 @@ const show = v => {                                           //  {{{1
       return "#<" + (v.prim ? "primitive" : "builtin") + ":" + v.name + ">"
     case "multi":
       return "#<multi:" + v.arity + ":" + v.name + ">"
-    // recordt record
+    case "record-type":
+      return "#<record-type:" + v.name + "(" + v.fields.join("#") + ")>"
+    case "record": {
+      const flds = zip(v.rectype.fields, v.values).map(
+        ([k, v]) => show(pair(kwd(k), v))
+      )
+      return v.rectype.name + "{ " + flds.join(", ") + " }"
+    }
     default:
       throw new Error(`type ${v.type} is not showable`)
   }
@@ -669,7 +688,7 @@ const eq = (x, y) => {                                        //  {{{1
     case "quot":
       return a == b
     case "str":
-      return eqArray(x.list, y.list, (a, b) => a == b)
+      return eqArray(x.list, y.list, eqPrim)
     case "pair":
       return eq(x.key, y.key) && eq(a, b)
     case "list":
@@ -684,8 +703,8 @@ const eq = (x, y) => {                                        //  {{{1
       }
       return true
     }
-    case "recordt":
-      throw "TODO"
+    case "record-type":
+      return x.name == y.name && eqArray(x.fields, y.fields, eqPrim)
     case "record":
       throw "TODO"
     default:
@@ -716,7 +735,7 @@ const cmp = (x, y) => {                                       //  {{{1
       return cmpArray(a, b, cmp)
     case "dict":
       return cmp(dictToList(x), dictToList(y))
-    case "recordt":
+    case "record-type":
       throw "TODO"
     case "record":
       throw "TODO"
@@ -744,6 +763,7 @@ const cmpArray = (x, y, cmp) => {
   return 0
 }
 
+const eqPrim  = (a, b) => a == b
 const cmpPrim = (a, b) => a == b ? 0 : a < b ? -1 : 1
 
 const cmp_lt  = c => bool(c == -1)
@@ -794,8 +814,17 @@ modules.set("__prim__", new Map([                             //  {{{1
     m.table.set(sig_.join("###"), b)
     return s1
   }),
-  mkBltn("__defrecord__", (c, s) => {
-    throw "TODO"
+  mkBltn("__defrecord__", (c, s0) => {
+    const [[k, fs], s1] = stack.pop(s0, "kwd", "list")
+    for (const x of fs.value) { expect(x, "kwd") }
+    const name = k.value, pred = name + "?"
+    const r = record_type(name, fs.value.map(x => x.value))
+    const p = builtinPP(c.module + ":" + pred)(
+      x => [x.type == "record" && eq(x.rectype, r)], "_"
+    )
+    scope.define(c, name, r)
+    scope.define(c, pred, p)
+    return s1
   }),
   mkBltnPP("__=>__", (k, v) => [pair(k, v)], "kwd", "_"),
   mkBltnPP("__dict__", l => {
@@ -804,19 +833,16 @@ modules.set("__prim__", new Map([                             //  {{{1
   }, "list"),
   mkBltn("__swap__", pop2push((x, y) => [y, x])),
   mkBltnPP("__show__", x => [str(show(x))], "_"),
-  mkBltn("__say__", (c, s0) => {
-    const [[x], s1] = stack.pop(s0, "str")
-    say(x.list.join("")); return s1
-  }),
+  mkBltnPP("__say__", x => { say(x.list.join("")); return [] }, "str"),
   mkBltn("__ask__", (c, s) => {
     throw new KE(...E.NotImplementedError("ask"))
   }),
   mkBltnPP("__type__", x => [kwd(x.type, "_")], "_"),
   mkBltnPP("__callable?__",
-    v => bool(callableTypes.includes(v.type)), "_"
+    v => [bool(callableTypes.includes(v.type))], "_"
   ),
   mkBltnPP("__function?__",
-    v => bool(functionTypes.includes(v.type)), "_"
+    v => [bool(functionTypes.includes(v.type))], "_"
   ),
   mkBltn("__module-get__", (c, s0) => {
     const [[k, m], s1] = stack.pop(s0, "kwd", "kwd")
@@ -858,15 +884,11 @@ modules.set("__prim__", new Map([                             //  {{{1
   mkBltn("__record->dict__", (c, s) => {
     throw "TODO"
   }),
-  mkBltn("__record-type__", (c, s) => {
-    throw "TODO"
-  }),
-  mkBltn("__record-type-name__", (c, s) => {
-    throw "TODO"
-  }),
-  mkBltn("__record-type-fields__", (c, s) => {
-    throw "TODO"
-  }),
+  mkBltnPP("__record-type__", x => [x.rectype], "record"),
+  mkBltnPP("__record-type-name__", x => [kwd(x.name)], "record-type"),
+  mkBltnPP("__record-type-fields__",
+    x => [list(x.fields.map(kwd))], "record-type"
+  ),
   mkBltn("__show-stack__", (c, s) => {
     for (const x of stack.toArray(s)) { say(show(x)) }
     return s
@@ -897,6 +919,11 @@ for (const t of types) {
     t+"?", popPush(x => [bool(x.type == t)], "_"), false
   ))
 }
+
+/* === miscellaneous === */
+
+// TODO
+const zip = (xs, ys) => xs.map((x, i) => [x, ys[i]])
 
 /* === files === */
 
