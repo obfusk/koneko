@@ -2,7 +2,7 @@
 
     File        : README.md
     Maintainer  : Felix C. Stegerman <flx@obfusk.net>
-    Date        : 2019-11-15
+    Date        : 2019-11-22
 
     Copyright   : Copyright (C) 2019  Felix C. Stegerman
     Version     : v0.0.1
@@ -23,13 +23,16 @@
 
 ## Description
 
-NB: work in progress.
+**NB: work in progress.**
 
 Koneko (子猫 -- "kitten" in Japanese) is a simple concatenative
 stack-based programming language with lisp influences.  It is intended
 to combine the elegance of the (point-free) "concatenation is
 composition" model with the elegance of lisp-like languages (esp.
 anonymous functions with named parameters).
+
+**&rarr; Try koneko in your browser with the JavaScript
+[REPL](https://koneko.dev).**
 
 ### Properties
 
