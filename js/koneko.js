@@ -36,7 +36,7 @@ const E = {                                                   //  {{{1
   ModuleNotFound:       name          => [`no module named ${name}`, { name }],
   LookupFailed:         name          => [`name ${name} is not defined`, { name }],
   StackUnderflow:       ()            => ["stack underflow", {}],
-  Expected:             msg           => [`expected ${msg}`, { msg }],
+  Expected:             (msg, u = "") => [`${u}expected ${msg}`, { msg, un: !!u }],
   MultiMatchFailed:     (name, sig)   => [`no signature ${sig} for multi ${name}`, {name, sig }],
   UncomparableType:     type          => [`type ${type} is not comparable`, { type }],
   UncallableType:       type          => [`type ${type} is not callable`, { type }],
@@ -61,6 +61,9 @@ const expect = (x, t, msg = `${t} on stack`) => {
   if (x.type != t) { throw new KE(...E.Expected(msg)) }
   return x
 }
+
+const applyMissing = (x, op) =>
+  `block to have parameter named ${x} for ${op}`
 
 const nilToDef = (x, d, t) => x.type == "nil" ? d : expect(x, t).value
 
@@ -89,7 +92,8 @@ const stack = {                                               //  {{{1
 const scope = {                                               //  {{{1
   new: (module = "__main__") =>
     ({ module, parent: null, table: new Map() }),
-  fork: (c, table) => ({ module: c.module, parent: c, table }),
+  fork: (c, table) =>
+    table.size ? { module: c.module, parent: c, table } : c,
   define: (c, k, v) => { modules.get(c.module).set(k, v) },
   lookup: (c, k, d = undefined) => {
     if (modules.get("__prim__").has(k)) {
@@ -294,9 +298,9 @@ const parseOne = (s, p0 = 0, end = null) => {                 //  {{{1
     const [p2, vs] = parseMany(s, p1, curly ? "}" : ")")
     const l = list(vs), q = quot(m[2])
     if (curly) {
-      return [p2, l, q, ident("__apply__")]
-    } else {
       return [p2, l, ident("__dict__"), q, ident("__apply-dict__")]
+    } else {
+      return [p2, l, q, ident("__apply__")]
     }
   }
   // end of nested
@@ -333,12 +337,9 @@ const pushSelf  = v => (c, s) => [false, stack.push(s, v)]
 const pushIdent = v => (c, s) =>
   [false, stack.push(s, scope.lookup(c, v.value))]
 
-const popArgs = (s0, b) => {
-  const ps = new Map(), [vs, s1] = stack.popN(s0, b.params.length)
-  for (let i = 0; i < b.params.length; i++) {
-    ps.set(b.params[i], vs[i])
-  }
-  return [ps, s1]
+const popArgs = (s0, params) => {
+  const [vs, s1] = stack.popN(s0, params.length)
+  return [zip(params, vs), s1]
 }
 
 const popPush = (f, ...parms) => (c, s0) => {
@@ -355,6 +356,28 @@ const opI = op => popPush(
 const opF = op => popPush(
   (x, y) => [float(op(x.value, y.value))], "float", "float"
 )
+
+const partitionSpecial = (params, cur = null) => {            //  {{{1
+  const sparms = [], sparms_ = [], nparms = []
+  for (const p of params) {
+    if (["&", "&&"].includes(p)) {
+      sparms.push(p); if (cur && p != cur) { sparms_.push(p) }
+    } else {
+      nparms.push(p)
+    }
+  }
+  return cur ? [sparms, sparms_, nparms] : [sparms, nparms]
+}                                                             //  }}}1
+
+const dictLookup = (op, d, ks) => ks.map(k => {
+  if (!d.has(k)) { throw new KE(...E.KeyError(op, k)) }
+  return d.get(k)
+})
+
+const dictWithout = (d, ks) =>
+  dict_(new Map([...d.value.entries()].filter(
+    ([k, v]) => !ks.includes(k)
+  )))
 
 const debug = (c, f) => {
   if (eq(scope.lookup(c, "__debug__", F), T)) { f() }
@@ -507,8 +530,10 @@ const call = (c0, s0, tailPos = false) => {                   //  {{{1
       }
     }
     case "block": {
-      const [ps, s2] = popArgs(s1, x)
-      const c1 = x.params.length ? scope.fork(x.scope, ps) : x.scope
+      const [sparms, nparms] = partitionSpecial(x.params)
+      const [ps, s2] = popArgs(s1, nparms)
+      const as = new Map(ps.concat(sparms.map(p => [p, nil])))
+      const c1 = scope.fork(x.scope, as)
       return tailPos ? new Eval(x.code, c1, s2)
                      : evaluate(x.code)(c1, s2)
     }
@@ -516,7 +541,7 @@ const call = (c0, s0, tailPos = false) => {                   //  {{{1
       return x.run(c0, s1)
     case "multi": {
       const sig = stack.popN(s1, x.arity)[0].map(
-        v => v.type == "record" ? v.rectype.name : v.type
+        v => v.type == "record" ? show(v.rectype) : v.type
       )
       const b = x.table.get(sig.join("###")) ||
                 x.table.get(sig.map(_ => "_").join("###"))
@@ -539,6 +564,76 @@ const call = (c0, s0, tailPos = false) => {                   //  {{{1
     }
     default:
       throw new KE(...E.UncallableType(x.type))
+  }
+}                                                             //  }}}1
+
+// TODO
+const apply = (c0, s0) => {                                   //  {{{1
+  debug(c0, () => putErr("*** apply ***"))
+  const [[x], s1] = stack.pop(s0, "_"), xv = x.value
+  switch (x.type) {
+    case "block": {
+      const [sparms, sparms_, nparms] = partitionSpecial(x.params, "&")
+      const [[l], s2] = stack.pop(s1, "list")
+      if (l.value.length < nparms.length) {
+        throw new KE(...E.Expected(`${nparms.length} arg(s) for apply`))
+      }
+      if (l.value.length > nparms.length && !sparms.includes("&")) {
+        throw new KE(...E.Expected(applyMissing("&", "apply")))
+      }
+      const l1 = l.value.slice(0, nparms.length)
+      const l2 = l.value.slice(nparms.length)
+      const as = new Map(zip(nparms, l1).concat(sparms_.map(p => [p, nil]))
+                                        .concat([["&", list(l2)]]))
+      const c1 = scope.fork(x.scope, as)
+      const s3 = evaluate(x.code)(c1, stack.empty())
+      return stack.push(s2, ...s3)
+    }
+    case "multi":
+      throw new KE(...E.NotImplementedError("apply multi"))
+    case "record-type": {
+      const [[l], s2] = stack.pop(s1, "list")
+      return stack.push(s2, record(x, l.value))
+    }
+    default:
+      throw new KE(...E.UnapplicableType(x.type, "apply"))
+  }
+}                                                             //  }}}1
+
+// TODO
+const apply_dict = (c0, s0) => {                              //  {{{1
+  debug(c0, () => putErr("*** apply-dict ***"))
+  const [[x], s1] = stack.pop(s0, "_"), xv = x.value
+  switch (x.type) {
+    case "block": {
+      const [sparms, sparms_, nparms] = partitionSpecial(x.params, "&&")
+      const [[d], s2] = stack.pop(s1, "dict")
+      if (!sparms.includes("&&")) {
+        throw new KE(...E.Expected(applyMissing("&&", "apply-dict")))
+      }
+      const vs = dictLookup("apply-dict", d.value, nparms)
+      const d_ = dictWithout(d, nparms)
+      const as = new Map(zip(nparms, vs).concat(sparms_.map(p => [p, nil]))
+                                        .concat([["&&", d_]]))
+      const c1 = scope.fork(x.scope, as)
+      const s3 = evaluate(x.code)(c1, stack.empty())
+      return stack.push(s2, ...s3)
+    }
+    case "multi":
+      throw new KE(...E.NotImplementedError("apply-dict multi"))
+    case "record-type": {
+      const [[d], s2] = stack.pop(s1, "dict")
+      const uf = [...d.value.keys()].filter(k => !x.fields.includes(k))
+      if (uf.length) {
+        throw new KE(...E.Expected(
+          `key(s) ${uf.join(", ")} for record ${x.name}`, "un"
+        ))
+      }
+      const l = dictLookup("record-type.apply-dict", d.value, x.fields)
+      return stack.push(s2, record(x, l))
+    }
+    default:
+      throw new KE(...E.UnapplicableType(x.type, "apply-dict"))
   }
 }                                                             //  }}}1
 
@@ -595,7 +690,7 @@ const show = v => {                                           //  {{{1
       return s.includes(".") ? s : s + ".0"
     }
     case "str": {
-      const f = c => e["="+c] || isPrint(c) ? c : h(c.codePointAt(0))
+      const f = c => e["="+c] || (isPrint(c) ? c : h(c.codePointAt(0)))
       const h = n => n <= 0xffff ? p("\\u", 4, n) : p("\\U", 8, n)
       const p = (pre, w, n) => pre + n.toString(16).padStart(w, '0')
       const e = { "=\r":"\\r", "=\n":"\\n", "=\t":"\\t", "=\"":"\\\"",
@@ -774,9 +869,9 @@ const cmp = (x, y) => {                                       //  {{{1
 }                                                             //  }}}1
 
 const eqArray = (x, y, eq) => {
-  if (a.length != b.length) { return false }
-  for (let i = 0; i < a.length; ++i) {
-    if (!eq(a[i], b[i])) { return false }
+  if (x.length != y.length) { return false }
+  for (let i = 0; i < x.length; ++i) {
+    if (!eq(x[i], y[i])) { return false }
   }
   return true
 }
@@ -809,14 +904,10 @@ const modules = new Map(
 // TODO
 modules.set("__prim__", new Map([                             //  {{{1
   mkBltn("__call__", call),
-  mkBltn("__apply__", (c, s) => {
-    throw "TODO: apply"
-  }),
-  mkBltn("__apply-dict__", (c, s) => {
-    throw "TODO: apply-dict"
-  }),
+  mkBltn("__apply__", apply),
+  mkBltn("__apply-dict__", apply_dict),
   mkBltn("__if__", (c, s0) => {
-    const [[b, tb, fb], s1] = stack.pop(s0, "bool", "_", "_")
+    const [[b, tb, fb], s1] = stack.popN(s0, 3)
     return call(c, stack.push(s1, truthy(b) ? tb : fb))
   }),
   mkBltn("__def__", (c, s0) => {
@@ -849,7 +940,7 @@ modules.set("__prim__", new Map([                             //  {{{1
     const name = k.value, pred = name + "?"
     const r = record_type(name, fs.value.map(x => x.value))
     const p = builtinPP(c.module + ":" + pred)(
-      x => [x.type == "record" && eq(x.rectype, r)], "_"
+      x => [bool(x.type == "record" && eq(x.rectype, r))], "_"
     )
     scope.define(c, name, r)
     scope.define(c, pred, p)
