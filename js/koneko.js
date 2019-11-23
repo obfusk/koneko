@@ -881,9 +881,11 @@ modules.set("__prim__", new Map([                             //  {{{1
     x => [str(String.fromCodePoint(x.value))], "int"
   ),
   mkBltnPP("__int->float__", n => [float(n.value)], "int"),
-  mkBltn("__record->dict__", (c, s) => {
-    throw "TODO"
-  }),
+  mkBltnPP("__record->dict__", x =>
+    [dict(zip(x.rectype.fields, x.values).map(
+      ([k, v]) => pair(kwd(k), v)
+    ))]
+  , "record"),
   mkBltnPP("__record-type__", x => [x.rectype], "record"),
   mkBltnPP("__record-type-name__", x => [kwd(x.name)], "record-type"),
   mkBltnPP("__record-type-fields__",
@@ -1115,7 +1117,7 @@ const testExamples = (es, verbose = false) => {               //  {{{1
 }                                                             //  }}}1
 
 const testExampleGroup = (g, verbose = false) => {            //  {{{1
-  const wr = l => ({ write: s => l.push(s.slice(0,-1)) })
+  const wr = l => ({ write: s => l.push(s.slice(0, -1)) })
   modules.set("__main__", new Map())                          //  TODO
   const c = scope.new(); let s = stack.empty(); repl_init(c)
   let ok = 0, fail = 0
