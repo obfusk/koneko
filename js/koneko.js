@@ -2,7 +2,7 @@
 //
 //  File        : koneko.js
 //  Maintainer  : Felix C. Stegerman <flx@obfusk.net>
-//  Date        : 2019-11-23
+//  Date        : 2019-11-24
 //
 //  Copyright   : Copyright (C) 2019  Felix C. Stegerman
 //  Version     : v0.0.1
@@ -685,7 +685,7 @@ const show = x => {                                           //  {{{1
       return x.value.toString()
     case "float": {
       const s = x.value.toString()
-      return s.includes(".") ? s : s + ".0"
+      return isInt(s) ? s + ".0" : s
     }
     case "str": {
       const f = c => e["="+c] || (isPrint(c) ? c : h(c.codePointAt(0)))

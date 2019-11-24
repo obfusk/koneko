@@ -2,7 +2,7 @@
 
     File        : README.md
     Maintainer  : Felix C. Stegerman <flx@obfusk.net>
-    Date        : 2019-11-22
+    Date        : 2019-11-24
 
     Copyright   : Copyright (C) 2019  Felix C. Stegerman
     Version     : v0.0.1
@@ -857,6 +857,11 @@ nil
 3
 >>> [ 3 + ] mycall
 6
+```
+
+```koneko
+>>> "" 0.0 0.0 / show ![ '1 ++ ] 10 times " batman!" ++ say
+NaNNaNNaNNaNNaNNaNNaNNaNNaNNaN batman!
 ```
 
 <!-- [ ] <==> [ drop () ] if empty? -->
