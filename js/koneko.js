@@ -796,7 +796,6 @@ const fromJS = x => {                                         //  {{{1
 
 /* === eq, cmp === */
 
-// TODO
 const eq = (x, y) => {                                        //  {{{1
   if (x.type != y.type) { return false }
   const a = x.value, b = y.value
@@ -838,7 +837,6 @@ const eq = (x, y) => {                                        //  {{{1
   }
 }                                                             //  }}}1
 
-// TODO
 const cmp = (x, y) => {                                       //  {{{1
   if (x.type != y.type) { return x.type < y.type ? -1 : 1 }
   const a = x.value, b = y.value
@@ -906,7 +904,6 @@ const modules = new Map(
   ["__bltn__", "__prld__", "__main__"].map(k => [k, new Map()])
 )
 
-// TODO
 modules.set("__prim__", new Map([                             //  {{{1
   mkBltn("__call__", call),
   mkBltn("__apply__", apply),
