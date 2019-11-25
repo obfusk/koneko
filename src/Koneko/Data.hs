@@ -58,21 +58,20 @@ module Koneko.Data (
   Identifier, Module, Evaluator, Args, KException(..), stackExpected,
   applyMissing, expected, unexpected, Kwd(..), Ident, unIdent, ident,
   List(..), Dict(..), Block(..), Builtin(..), Multi(..), RecordT(..),
-  Record, recType, recValues, record, Scope, Context, ctxScope,
-  Pair(..), KPrim(..), KValue(..), KType(..), Stack, freeVars,
-  escapeFrom, escapeTo, ToVal, toVal, FromVal, fromVal, toVals,
-  fromVals, maybeToVal, maybeToNil, eitherToVal, eitherToNil,
+  Record, recType, recValues, record, Scope, modName, Context,
+  ctxScope, Pair(..), KPrim(..), KValue(..), KType(..), Stack,
+  freeVars, escapeFrom, escapeTo, ToVal, toVal, FromVal, fromVal,
+  toVals, fromVals, maybeToVal, maybeToNil, eitherToVal, eitherToNil,
   emptyStack, push', push, rpush, rpush1, pop, pop2, pop3, pop',
   pop2', pop3', popN', pop1push, pop2push, pop1push1, pop2push1,
   primModule, bltnModule, prldModule, mainModule, initMainContext,
-  forkContext, forkScope, defineIn, scopeModuleName, lookup,
-  lookupModule', moduleKeys, typeNames, typeOf, typeToKwd, typeToStr,
-  isNil, isBool, isInt, isFloat, isStr, isKwd, isPair, isList, isDict,
-  isIdent, isQuot, isBlock, isBuiltin, isMulti, isRecordT, isRecord,
-  isCallable, isFunction, nil, false, true, bool, int, float, str,
-  kwd, pair, list, dict, block, dictLookup, mkPrim, mkBltn, defPrim,
-  defMulti, truthy, retOrThrow, recordTypeSig, underscored,
-  digitParams
+  forkContext, forkScope, defineIn, lookup, lookupModule', moduleKeys,
+  typeNames, typeOf, typeToKwd, typeToStr, isNil, isBool, isInt,
+  isFloat, isStr, isKwd, isPair, isList, isDict, isIdent, isQuot,
+  isBlock, isBuiltin, isMulti, isRecordT, isRecord, isCallable,
+  isFunction, nil, false, true, bool, int, float, str, kwd, pair,
+  list, dict, block, dictLookup, mkPrim, mkBltn, defPrim, defMulti,
+  truthy, retOrThrow, recordTypeSig, underscored, digitParams
 ) where
 
 import Control.DeepSeq (deepseq, NFData(..))
@@ -208,13 +207,14 @@ record recType@RecordT{..} recValues
                 " arg(s) for record " ++ T.unpack recName
 
 data Scope = Scope {
-  parent  :: Either Identifier Scope,
+  modName :: Identifier,
+  parent  :: Maybe Scope,
   table   :: ScopeLookupTable
 }
 
 -- TODO
 instance NFData Scope where
-  rnf Scope{..} = parent `deepseq` ()
+  rnf Scope{..} = (modName, parent) `deepseq` ()
 
 data Context = Context {
   modules   :: HashTable Identifier Module,
@@ -642,18 +642,18 @@ initMainContext = do
 
 -- TODO: error if already exists
 forkContext :: Identifier -> Context -> IO Context
-forkContext modName c = do
+forkContext m c = do
   newMod <- HT.new
-  HT.insert (modules c) modName newMod
-  return c { ctxScope = _newScope modName }
+  HT.insert (modules c) m newMod
+  return c { ctxScope = _newScope m }
 
 _newScope :: Identifier -> Scope
-_newScope m = Scope { parent = Left m, table = H.empty }
+_newScope m = Scope m Nothing H.empty
 
 forkScope :: Args -> Context -> Scope -> Context
 forkScope [] c s  = c { ctxScope = s }
-forkScope l  c s  = c { ctxScope = Scope { parent = Right s,
-                                           table  = H.fromList l } }
+forkScope l  c s  = c { ctxScope = s { parent = Just s,
+                                       table  = H.fromList l } }
 
 -- TODO: error if already exists (or prim, etc.)
 -- throws ModuleNotFound
@@ -662,10 +662,7 @@ defineIn c k v = do curMod <- scopeModule c; HT.insert curMod k v
 
 -- throws ModuleNotFound
 scopeModule :: Context -> IO Module
-scopeModule c = getModule c $ scopeModuleName c
-
-scopeModuleName :: Context -> Identifier
-scopeModuleName = let f s = either id f $ parent s in f . ctxScope
+scopeModule c = getModule c $ modName $ ctxScope c
 
 -- Prim -> Scope* -> Module -> Prel -> Bltn
 -- throws ModuleNotFound
@@ -674,7 +671,7 @@ lookup c k = M.firstJust [lookupPrim, lookupScope $ ctxScope c,
                           lookupPrel, lookupBltn]
   where
     lookupScope s = maybe (f s) (return . Just) $ H.lookup k $ table s
-    f s           = either look lookupScope $ parent s
+    f s           = maybe (look $ modName s) lookupScope $ parent s
     lookupPrim    = look primModule
     lookupBltn    = look bltnModule
     lookupPrel    = look prldModule
@@ -682,7 +679,7 @@ lookup c k = M.firstJust [lookupPrim, lookupScope $ ctxScope c,
 
 -- throws ModuleNotFound
 lookupModule :: Context -> Identifier -> Identifier -> IO (Maybe KValue)
-lookupModule c k modName = getModule c modName >>= flip HT.lookup k
+lookupModule c k m = getModule c m >>= flip HT.lookup k
 
 -- throws ModuleNotFound or LookupFailed
 lookupModule' :: Context -> Identifier -> Identifier -> IO KValue
@@ -696,9 +693,9 @@ moduleKeys c m = getModule c m >>= (map fst <$>) <$> HT.toList
 
 -- throws ModuleNotFound
 getModule :: Context -> Identifier -> IO Module
-getModule c modName = HT.lookup (modules c) modName >>= maybe err return
+getModule c m = HT.lookup (modules c) m >>= maybe err return
   where
-    err = throwIO $ ModuleNotFound $ T.unpack modName
+    err = throwIO $ ModuleNotFound $ T.unpack m
 
 -- type predicates --
 

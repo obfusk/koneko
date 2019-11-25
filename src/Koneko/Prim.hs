@@ -93,7 +93,7 @@ defrecord = mkPrim "defrecord" $ \c s -> do
     defPred c t p = defineIn c p $ f $ pop1push1 $ \case
         KRecord r -> recType r == t; _ -> False
       where
-        f = KBuiltin . mkBltn (scopeModuleName c <> ":" <> p)
+        f = KBuiltin . mkBltn (modName (ctxScope c) <> ":" <> p)
 
 mkPair = mkPrim "=>" $ pop2push1 Pair
 
@@ -134,7 +134,7 @@ moduleDefs = mkPrim "module-defs" $ \c s -> do
   sort . map kwd <$> moduleKeys c m >>= rpush1 s'
 
 moduleName = mkPrim "name" $ \c s ->
-  rpush1 s $ kwd $ scopeModuleName c
+  rpush1 s $ kwd $ modName $ ctxScope c
 
 -- primitives: Eq, Ord --
 
