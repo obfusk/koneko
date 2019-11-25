@@ -2,7 +2,7 @@
 --
 --  File        : Koneko/Prim.hs
 --  Maintainer  : Felix C. Stegerman <flx@obfusk.net>
---  Date        : 2019-11-15
+--  Date        : 2019-11-25
 --
 --  Copyright   : Copyright (C) 2019  Felix C. Stegerman
 --  Version     : v0.0.1
@@ -80,7 +80,8 @@ defmulti = mkPrim "defmulti" $ \c s -> do
     f c k | k == "_" || k `elem` typeNames = return k
           | otherwise = lookup c k >>= \case
               Just (KRecordT t) -> return $ recordTypeSig t
-              _                 -> throwIO $ LookupFailed $ T.unpack k
+              Just _  -> throwIO $ expected $ T.unpack k ++ " to be a record-type"
+              _       -> throwIO $ LookupFailed $ T.unpack k
 
 -- TODO
 defrecord = mkPrim "defrecord" $ \c s -> do

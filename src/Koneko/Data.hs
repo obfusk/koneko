@@ -2,7 +2,7 @@
 --
 --  File        : Koneko/Data.hs
 --  Maintainer  : Felix C. Stegerman <flx@obfusk.net>
---  Date        : 2019-11-20
+--  Date        : 2019-11-25
 --
 --  Copyright   : Copyright (C) 2019  Felix C. Stegerman
 --  Version     : v0.0.1
@@ -56,23 +56,23 @@
 
 module Koneko.Data (
   Identifier, Module, Evaluator, Args, KException(..), stackExpected,
-  applyExpected, applyUnexpected, applyMissing, multiExpected,
-  Kwd(..), Ident, unIdent, ident, List(..), Dict(..), Block(..),
-  Builtin(..), Multi(..), RecordT(..), Record, recType, recValues,
-  record, Scope, Context, ctxScope, Pair(..), KPrim(..), KValue(..),
-  KType(..), Stack, freeVars, escapeFrom, escapeTo, ToVal, toVal,
-  FromVal, fromVal, toVals, fromVals, maybeToVal, maybeToNil,
-  eitherToVal, eitherToNil, emptyStack, push', push, rpush, rpush1,
-  pop, pop2, pop3, pop', pop2', pop3', popN', pop1push, pop2push,
-  pop1push1, pop2push1, primModule, bltnModule, prldModule,
-  mainModule, initMainContext, forkContext, forkScope, defineIn,
-  scopeModuleName, lookup, lookupModule', moduleKeys, typeNames,
-  typeOf, typeToKwd, typeToStr, isNil, isBool, isInt, isFloat, isStr,
-  isKwd, isPair, isList, isDict, isIdent, isQuot, isBlock, isBuiltin,
-  isMulti, isRecordT, isRecord, isCallable, isFunction, nil, false,
-  true, bool, int, float, str, kwd, pair, list, dict, block,
-  dictLookup, mkPrim, mkBltn, defPrim, defMulti, truthy, retOrThrow,
-  recordTypeSig, underscored, digitParams
+  applyMissing, expected, unexpected, Kwd(..), Ident, unIdent, ident,
+  List(..), Dict(..), Block(..), Builtin(..), Multi(..), RecordT(..),
+  Record, recType, recValues, record, Scope, Context, ctxScope,
+  Pair(..), KPrim(..), KValue(..), KType(..), Stack, freeVars,
+  escapeFrom, escapeTo, ToVal, toVal, FromVal, fromVal, toVals,
+  fromVals, maybeToVal, maybeToNil, eitherToVal, eitherToNil,
+  emptyStack, push', push, rpush, rpush1, pop, pop2, pop3, pop',
+  pop2', pop3', popN', pop1push, pop2push, pop1push1, pop2push1,
+  primModule, bltnModule, prldModule, mainModule, initMainContext,
+  forkContext, forkScope, defineIn, scopeModuleName, lookup,
+  lookupModule', moduleKeys, typeNames, typeOf, typeToKwd, typeToStr,
+  isNil, isBool, isInt, isFloat, isStr, isKwd, isPair, isList, isDict,
+  isIdent, isQuot, isBlock, isBuiltin, isMulti, isRecordT, isRecord,
+  isCallable, isFunction, nil, false, true, bool, int, float, str,
+  kwd, pair, list, dict, block, dictLookup, mkPrim, mkBltn, defPrim,
+  defMulti, truthy, retOrThrow, recordTypeSig, underscored,
+  digitParams
 ) where
 
 import Control.DeepSeq (deepseq, NFData(..))
@@ -139,18 +139,15 @@ instance Exception KException
 
 data EExpected
   = StackExpected !String
-  | ApplyExpected !String
   | ApplyMissing !Bool
-  | MultiExpected !String
+  | OtherExpected !String
 
-stackExpected, applyExpected, applyUnexpected, multiExpected
-  :: String -> KException
+stackExpected, expected, unexpected :: String -> KException
 applyMissing :: Bool -> KException
-stackExpected   = Expected . StackExpected
-applyExpected   = Expected . ApplyExpected . ("expected " ++)
-applyUnexpected = Expected . ApplyExpected . ("unexpected " ++)
-applyMissing    = Expected . ApplyMissing
-multiExpected   = Expected . MultiExpected
+stackExpected = Expected . StackExpected
+applyMissing  = Expected . ApplyMissing
+expected      = Expected . OtherExpected . ("expected " ++)
+unexpected    = Expected . OtherExpected . ("unexpected " ++)
 
 -- TODO: intern?!
 newtype Kwd = Kwd { unKwd :: Identifier }
@@ -207,7 +204,7 @@ data Record = Record {
 record :: RecordT -> [KValue] -> Either KException Record
 record recType@RecordT{..} recValues
   | length recFields == length recValues = Right Record{..}
-  | otherwise = Left $ applyExpected $ (show $ length recFields) ++
+  | otherwise = Left $ expected $ (show $ length recFields) ++
                 " arg(s) for record " ++ T.unpack recName
 
 data Scope = Scope {
@@ -307,12 +304,11 @@ instance Show KException where
 
 instance Show EExpected where
   show (StackExpected t)    = "expected " ++ t ++ " on stack"
-  show (ApplyExpected msg)  = msg
   show (ApplyMissing b)
       = "expected block to have parameter named " ++ x ++ " for " ++ op
     where
       (x, op) = if b then ("&&", "apply-dict") else ("&", "apply")
-  show (MultiExpected msg)  = "expected " ++ msg
+  show (OtherExpected msg)  = msg
 
 instance Show Kwd where
   show (Kwd s) = ":" ++ if M.isIdent s then T.unpack s else show s
@@ -849,7 +845,7 @@ defMulti c mn sig b = do
       HT.insert mltTable sig b
     f _ = err $ T.unpack mn ++ " to be a multi"
     ma  = length sig
-    err = throwIO . multiExpected
+    err = throwIO . expected
 
 truthy :: KValue -> Bool
 truthy (KPrim KNil)           = False

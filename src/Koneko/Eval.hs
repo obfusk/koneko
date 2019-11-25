@@ -2,7 +2,7 @@
 --
 --  File        : Koneko/Eval.hs
 --  Maintainer  : Felix C. Stegerman <flx@obfusk.net>
---  Date        : 2019-11-15
+--  Date        : 2019-11-25
 --
 --  Copyright   : Copyright (C) 2019  Felix C. Stegerman
 --  Version     : v0.0.1
@@ -292,7 +292,7 @@ callBlock Block{..} c s0 = do
 applyBlock :: Block -> Evaluator
 applyBlock Block{..} c s0 = do
     sc <- getScope blkScope; (l, s1) <- pop' s0; let ll = length l
-    when (ll < lnp) $ throwIO $ applyExpected $ show lnp ++ " arg(s) for apply"
+    when (ll < lnp) $ throwIO $ expected $ show lnp ++ " arg(s) for apply"
     when (ll > lnp && "&" `notElem` sparms) $ throwIO $ applyMissing False
     let (l1, l2)  = splitAt lnp l
         args      = zip nparms l1 ++ map (,nil) sparms' ++ [("&", list l2)]
@@ -329,8 +329,8 @@ applyRecordT t _ s = do
 apply_dictRecordT :: RecordT -> Evaluator
 apply_dictRecordT t@RecordT{..} _ s = do
   (d@(Dict h), s') <- pop' s; let uf = H.keys h \\ recFields
-  unless (null uf) $ throwIO $
-    applyUnexpected $ "key(s) " ++ (T.unpack $ T.intercalate ", " uf)
+  unless (null uf) $ throwIO $ unexpected $
+    "key(s) " ++ (T.unpack $ T.intercalate ", " uf)
     ++ " for record " ++ T.unpack recName
   let l = dictLookup "record-type.apply-dict" d recFields
   _pushRec s' $ record t =<< l
