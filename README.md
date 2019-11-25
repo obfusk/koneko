@@ -2,7 +2,7 @@
 
     File        : README.md
     Maintainer  : Felix C. Stegerman <flx@obfusk.net>
-    Date        : 2019-11-24
+    Date        : 2019-11-25
 
     Copyright   : Copyright (C) 2019  Felix C. Stegerman
     Version     : v0.0.1
@@ -65,7 +65,7 @@ anonymous functions with named parameters).
 ## Hello World
 
 ```bash
-$ koneko -e '"Hello, World!" say'
+$ koneko -e '"Hello, World!" say!'
 hello, World!
 ```
 
@@ -73,7 +73,7 @@ hello, World!
 
 ```bash
 $ koneko
->>> "Hello, World!" say
+>>> "Hello, World!" say!
 Hello, World!
 >>> ^D
 ```
@@ -166,16 +166,20 @@ between the names of "functions", "variables", and "operators".
 
 Functions with names starting with:
 
+* `~` ...
+* `^` ...
 * `&` can be `apply`d to a variable number of arguments;
-* `&&` can be `apply-dict`ed to a dict;
 * a number (e.g. `2dip`) perform an operation on that number of their
   arguments.
 
 Functions with names ending with:
 
+* `!` (e.g. `say!`) are impure (i.e. they perform I/O);
 * `?` (e.g. `nil?`) are predicates (i.e. functions that return a bool);
-* `^` return `nil` instead of an "expected" error (e.g. `head` will
-  fail for an empty list, whereas `head^` will return `nil`).
+* `^` (e.g. `head^`) are partial functions (i.e. they are only defined
+  for a subset of the values of the type(s) of their argument(s); e.g.
+  `head^` will fail for an empty list, whereas `head` will return
+  `nil`).
 
 Combinators with names ending with:
 
@@ -316,7 +320,7 @@ NB: list literals have the head on the left.
 >>> len
 4
 >>> ,drop
->>> 2 get
+>>> 2 get^
 :foo
 
 >>> { x: 42, :y 99 1 + => }       ; dict: key/value map (curly brackets)
@@ -325,7 +329,7 @@ NB: list literals have the head on the left.
 >>> len
 2
 >>> ,drop
->>> :x get
+>>> :x get^
 42
 ```
 
@@ -399,7 +403,7 @@ before the list it is applied to.  It can push any number of return
 values on to the stack as usual.
 
 ```koneko
->>> , :foo [ x y . ( 'x 'y ) show say ] def   ; normal block
+>>> , :foo [ x y . ( 'x 'y ) show say! ] def  ; normal block
 >>> :x :y foo                                 ; normal call
 ( :x :y )
 >>> ( :x :y ) 'foo apply                      ; apply
@@ -415,7 +419,7 @@ normal parameters of the block.  The parameter `&` is set to a
 (possibly empty) list of the remaining elements/arguments.
 
 ```koneko
->>> , :foo [ x & . ( 'x '& ) show say ] def   ; block with &
+>>> , :foo [ x & . ( 'x '& ) show say! ] def  ; block with &
 >>> :x foo                                    ; normal call
 ( :x nil )
 >>> ( :x :y :z ) 'foo apply                   ; apply
@@ -432,12 +436,12 @@ key/value pairs (the ones not used to provide values for the normal
 parameters).
 
 ```koneko
->>> , :foo [ x && . ( 'x '&& ) show say ] def ; block with &&
->>> :x foo                                    ; normal call
+>>> , :foo [ x && . ( 'x '&& ) show say! ] def  ; block with &&
+>>> :x foo                                      ; normal call
 ( :x nil )
->>> { :x 1 =>, :y 2 => } 'foo apply-dict      ; apply-dict
+>>> { :x 1 =>, :y 2 => } 'foo apply-dict        ; apply-dict
 ( 1 { :y 2 => } )
->>> foo{ x: 1, y: 2 }                         ; sugar
+>>> foo{ x: 1, y: 2 }                           ; sugar
 ( 1 { :y 2 => } )
 ```
 
@@ -608,7 +612,7 @@ nil
 >>> "foo" show
 "\"foo\""
 
->>> , "Hello!" say              ; print line
+>>> , "Hello!" say!             ; print line
 Hello!
 
 >>> () type                     ; get type as keyword
@@ -642,7 +646,7 @@ Hello!
 ```
 
 ```
->>> "What's your name? " ask    ; print prompt and read line
+>>> "What's your name? " ask!   ; print prompt and read line
 What's your name? Foo
 "Foo"
 ```
@@ -723,19 +727,19 @@ examples.
 #t
 >>> ( :x :y :z ) len
 3
->>> ( :a :b :c ) 1 get
+>>> ( :a :b :c ) 1 get^
 :b
 
->>> ( 1 2 ) head                  ; lists
+>>> ( 1 2 ) head^                 ; lists
 1
->>> ( 1 2 3 ) tail
+>>> ( 1 2 3 ) tail^
 ( 2 3 )
->>> () head^
+>>> () head
 nil
 ```
 
 ```koneko
->>> , ( 1 2 3 ) uncons show-stack ; lists
+>>> , ( 1 2 3 ) uncons^ show-stack  ; lists
 ( 2 3 )
 1
 >>> cons
@@ -748,7 +752,7 @@ nil
 ```
 
 ```koneko
->>> , [ "Hi!" say ] 3 times       ; miscellaneous
+>>> , [ "Hi!" say! ] 3 times      ; miscellaneous
 Hi!
 Hi!
 Hi!
@@ -824,7 +828,7 @@ NB: work in progress.
 ```
 
 ```koneko
->>> , :mymap [ f . dup empty? [ ] [ uncons 'f dip 'f mymap cons ] if ] def
+>>> , :mymap [ f . dup empty? [ ] [ uncons^ 'f dip 'f mymap cons ] if ] def
 >>> ( 1 2 3 ) [ dup * ] mymap
 ( 1 4 9 )
 ```
@@ -836,10 +840,10 @@ NB: work in progress.
 >>> Customer( ( Order( 42 ) ) )
 Customer{ :orders ( Order{ :price 42 => } ) => }
 >>> ,dup
->>> ( '.orders [ 0 get^ ] '.price ) maybe
+>>> ( '.orders [ 0 get ] '.price ) maybe
 42
 >>> ,drop
->>> ( '.orders [ 1 get^ ] '.price ) maybe
+>>> ( '.orders [ 1 get ] '.price ) maybe
 nil
 ```
 
@@ -860,7 +864,7 @@ nil
 ```
 
 ```koneko
->>> "" 0.0 0.0 / show ![ '1 ++ ] 10 times " batman!" ++ say
+>>> "" 0.0 0.0 / show ![ '1 ++ ] 10 times " batman!" ++ say!
 NaNNaNNaNNaNNaNNaNNaNNaNNaNNaN batman!
 ```
 

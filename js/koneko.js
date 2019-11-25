@@ -2,7 +2,7 @@
 //
 //  File        : koneko.js
 //  Maintainer  : Felix C. Stegerman <flx@obfusk.net>
-//  Date        : 2019-11-24
+//  Date        : 2019-11-25
 //
 //  Copyright   : Copyright (C) 2019  Felix C. Stegerman
 //  Version     : v0.0.1
@@ -90,11 +90,13 @@ const stack = {                                               //  {{{1
 
 // TODO: inefficient implementation
 const scope = {                                               //  {{{1
-  new: (module = "__main__") =>
-    ({ module, parent: null, table: new Map() }),
+  new: (module = "__main__") => {
+    if (!modules.has(module)) { modules.set(module, new Map()) }
+    return { module, parent: null, table: new Map() }
+  },
   fork: (c, table) =>
     table.size ? { module: c.module, parent: c, table } : c,
-  define: (c, k, v) => { modules.get(c.module).set(k, v) },
+  define: (c, k, v) => modules.get(c.module).set(k, v),
   lookup: (c, k, d = undefined) => {
     if (modules.get("__prim__").has(k)) {
       return modules.get("__prim__").get(k)
@@ -105,7 +107,8 @@ const scope = {                                               //  {{{1
       c_ = c_.parent
     }
     for (const m of [c.module, "__bltn__", "__prld__"]) {
-      if (modules.get(m).has(k)) { return modules.get(m).get(k) }
+      const mod = modules.get(m)
+      if (mod && mod.has(k)) { return mod.get(k) }
     }
     if (d !== undefined) { return d }
     throw new KE(...E.LookupFailed(k))
@@ -200,28 +203,30 @@ const recordToDict = r => dict(zip(r.rectype.fields, r.values).map(
 
 /* === parsing === */
 
-const isIdent = s => Rx("^"+_naiveIdent+"$", "u").exec(s) &&
-  ![..."'!:"   ].includes(s[0]) &&
-  ![...":({["  ].includes(s.slice(-1)) &&
-  ![..."(){}[]"].includes(s) &&
-  s != "()" && s != "nil" && !isInt(s) && !isFloat(s)
+const isIdent = s => Rx("^"+_idt+"$", "u").test(s)
+const isInt   = s => Rx("^"+_int+"$", "u").test(s)
+const isFloat = s => Rx("^"+_flt+"$", "u").test(s)
 
-const isInt   = s => /^(?:-?\d+|0x[0-9a-fA-F]+|0b[01]+)$/u.test(s)
-const isFloat = s => /^-?\d+(?:\.\d+e\d+|\.\d+|e\d+)$/u.test(s)
 const isPrint = s =>
   Rx("^[\\p{L}\\p{M}\\p{N}\\p{P}\\p{S}\\p{Zs}]+$", "u").test(s)
 
-const _naiveIdent = "[\\p{L}\\p{N}\\p{S}\\(\\)\\{\\}\\[\\]@%&*\\-_\\/?'!:]+"
-const _space      = "(?:[\\s,]|;[^\\n]*(?:\\n|$))+"
+const _int      = "(?:-?\\d+|0x[0-9a-fA-F]+|0b[01]+)"
+const _flt      = "(?:-?\\d+(?:\\.\\d+e\\d+|\\.\\d+|e\\d+))"
+const _spc      = "(?:[\\s,]|;[^\\n]*(?:\\n|$))+"
+
+const _naiveId  = "[\\p{L}\\p{N}\\p{S}\\(\\)\\{\\}\\[\\]@%&*\\-_\\/?'!:]+"
+const _badId    = "['!:]|(?:[^\\s,]+[:({\\]]|[(){}\\[\\]]|\\(\\)|nil|"+
+                  _int+"|"+_flt+")(?:"+_spc+"|$)"
+const _idt      = "(?:(?!"+_badId+")"+_naiveId+")"
 
 const parseOne = (s, p0 = 0, end = null) => {                 //  {{{1
   let m, p1
   const t = pat => {
-    const r = new Rx("("+pat+")(?:"+sp+"|$)", "usy")
+    const r = new Rx("("+pat+")(?:"+_spc+"|$)", "usy")
     r.lastIndex = p0; m = r.exec(s); p1 = r.lastIndex
     return !!m
   }
-  const sp  = _space, hd = "[0-9a-fA-F]"
+  const hd  = "[0-9a-fA-F]"
   const hex = '(\\\\x'+hd+'{2})|(\\\\u'+hd+'{4})|(\\\\U'+hd+'{8})'
   const chr = hex + '|(\\\\[rnt\\\\"])|([^"])'
   const esc = { "\\r":"\r", "\\n":"\n", "\\t":"\t", "\\\"":"\"", "\\\\":"\\" }
@@ -234,12 +239,11 @@ const parseOne = (s, p0 = 0, end = null) => {                 //  {{{1
     }
     return l
   }
-  // TODO: only match actual idents
   const parseBlock = (pre = "") => {
     let params = [], p2 = p1
-    if (t(pre+"\\["+sp+"((?:"+_naiveIdent+sp+")*?)"+"([.\\]])")) {
+    if (t(pre+"\\["+_spc+"((?:"+_idt+_spc+")*?)"+"([.\\]])")) {
       if (m[3] == ".") {
-        params = m[2].split(Rx(sp, "us")).filter(x => x); p2 = p1
+        params = m[2].split(Rx(_spc, "us")).filter(x => x); p2 = p1
       }
     }
     const [p3, vs] = parseMany(s, p2, "]")
@@ -259,7 +263,7 @@ const parseOne = (s, p0 = 0, end = null) => {                 //  {{{1
     return [p1, float(parseFloat(m[1]))]
   } else if (t('"(' + chr + '*)"')) {
     return [p1, str_(escapedStrBody(1))]
-  } else if (t(":(" + _naiveIdent + ")") && isIdent(m[2])) {
+  } else if (t(":(" + _idt + ")")) {
     return [p1, kwd(m[2])]
   } else if (t(':"(' + chr + '*)"')) {
     return [p1, kwd(escapedStrBody(2).join(""))]
@@ -270,9 +274,9 @@ const parseOne = (s, p0 = 0, end = null) => {                 //  {{{1
   } else if (t("\\(")) {
     const [p2, vs] = parseMany(s, p1, ")")
     return [p2, list(vs)]
-  } else if (t(_naiveIdent) && isIdent(m[1])) {
+  } else if (t(_idt)) {
     return [p1, ident(m[1])]
-  } else if (t("'(" + _naiveIdent + ")") && isIdent(m[2])) {
+  } else if (t("'(" + _idt + ")")) {
     return [p1, quot(m[2])]
   } else if (t("\\[")) {
     return parseBlock()
@@ -287,17 +291,17 @@ const parseOne = (s, p0 = 0, end = null) => {                 //  {{{1
     return [p2, block(digitParams(b), [b]), ...more]
   } else if (t("['.]([1-9])")) {
     return [p1, (m[1][0] == "'" ? quot : ident)("__"+m[2]+"__")]
-  } else if (t("('?)([.!])(" + _naiveIdent + ")") && isIdent(m[4])) {
+  } else if (t("('?)([.!])(" + _idt + ")")) {
     const sw = ident("__swap__"), ca = ident("__call__")
     const vs = [kwd(m[4]), sw, ca, ...(m[3] == "!" ? [ca]: [])]
     return [p1, ...(m[2] ? [block([], vs)] : vs)]
   } else if (t("\\{")) {
     const [p2, vs] = parseMany(s, p1, "}")
     return [p2, list(vs), ident("__dict__")]
-  } else if (t("(" + _naiveIdent + "):") && isIdent(m[2])) {
+  } else if (t("(" + _naiveId + "):") && isIdent(m[2])) {
     const [p2, ...v] = parseOne(s, p1)
     return [p2, kwd(m[2]), ...v, ident("__=>__")]
-  } else if (t("(" + _naiveIdent + ")([({])") && isIdent(m[2])) {
+  } else if (t("(" + _naiveId + ")([({])") && isIdent(m[2])) {
     const curly = m[3] == "{"
     const [p2, vs] = parseMany(s, p1, curly ? "}" : ")")
     const l = list(vs), q = quot(m[2])
@@ -330,7 +334,7 @@ const parseMany = (s, p, end = null) => {
 const read = s => {
   let p = 0, m
   if (m = /^#!.*\n/u.exec(s)) { p = m[0].length }
-  const r = Rx(_space, "usy"); r.lastIndex = p
+  const r = Rx(_spc, "usy"); r.lastIndex = p
   if (m = r.exec(s)) { p += m[0].length }
   return parseMany(s, p)[1]
 }
@@ -429,7 +433,7 @@ const call = (c0, s0, tailPos = false) => {                   //  {{{1
           return r(bool(!xl.length))
         case "len":
           return r(int(xl.length))
-        case "get":
+        case "get^":
           return p(i => {
             if (!mem(i.value, xl.length)) {
               throw new KE(...E.IndexError(op, i.value))
@@ -462,11 +466,11 @@ const call = (c0, s0, tailPos = false) => {                   //  {{{1
       const [opv, op, r] = popOp(), p = builtinPP(op, r)
       const g = () => { if (!xv.length) { throw new KE(...E.EmptyList(op)) } }
       switch (opv) {
-        case "head":
+        case "head^":
           g(); return r(xv[0])
-        case "tail":
+        case "tail^":
           g(); return r(list(xv.slice(1)))
-        case "uncons":
+        case "uncons^":
           g(); return r(xv[0], list(xv.slice(1)))
         case "cons":
           return p(y => [list([y].concat(xv))], "_")
@@ -487,7 +491,7 @@ const call = (c0, s0, tailPos = false) => {                   //  {{{1
           return r(bool(!xv.length))
         case "len":
           return r(int(xv.length))
-        case "get":
+        case "get^":
           return p(i => {
             if (!mem(i.value)) {
               throw new KE(...E.IndexError(op, i.value))
@@ -518,7 +522,7 @@ const call = (c0, s0, tailPos = false) => {                   //  {{{1
           return r(bool(!xv.size))
         case "len":
           return r(int(xv.size))
-        case "get":
+        case "get^":
           return p(k => {
             if (!xv.has(k.value)) {
               throw new KE(...E.KeyError(op, k.value))
@@ -955,9 +959,9 @@ modules.set("__prim__", new Map([                             //  {{{1
   }, "list"),
   mkBltn("__swap__", pop2push((x, y) => [y, x])),
   mkBltnPP("__show__", x => [str(show(x))], "_"),
-  mkBltnPP("__say__", x => { say(x.list.join("")); return [] }, "str"),
-  mkBltn("__ask__", (c, s) => {
-    throw new KE(...E.NotImplementedError("ask"))
+  mkBltnPP("__say!__", x => { say(x.list.join("")); return [] }, "str"),
+  mkBltn("__ask!__", (c, s) => {
+    throw new KE(...E.NotImplementedError("__ask!__"))
   }),
   mkBltnPP("__type__", x => [kwd(x.type, "_")], "_"),
   mkBltnPP("__callable?__",
@@ -965,6 +969,13 @@ modules.set("__prim__", new Map([                             //  {{{1
   ),
   mkBltnPP("__function?__",
     x => [bool(functionTypes.includes(x.type))], "_"
+  ),
+  mkBltn("__defmodule__", (c, s0) => {
+    const [[k, b], s1] = stack.pop(s0, "kwd", "block")
+    return call(c, stack.push(s1, { ...b, scope: scope.new(k.value) }))
+  }),
+  mkBltn("__modules__", (c, s0) =>
+    stack.push(s0, list([...modules.keys()].sort().map(kwd)))
   ),
   mkBltn("__module-get__", (c, s0) => {
     const [[k, m], s1] = stack.pop(s0, "kwd", "kwd")
@@ -1014,7 +1025,7 @@ modules.set("__prim__", new Map([                             //  {{{1
     return s
   }),
   mkBltn("__clear-stack__", (c, s) => stack.empty()),
-  mkBltn("__nya__", (c, s) => { nya(); return s }),
+  mkBltn("__nya!__", (c, s) => { nya(); return s }),
 ]))                                                           //  }}}1
 
 const getModule = m => {
@@ -1065,8 +1076,7 @@ const fileLines = fname => readFile(fname).then(
 )
 
 // NB: Promise
-const evalFile = (fname, modOrCtx = undefined, s = undefined) => {
-  const c = typeof modOrCtx === "string" ? scope.new(modOrCtx) : modOrCtx
+const evalFile = (fname, c = undefined, s = undefined) => {
   return (_req ? readFile : requestFile)(fname).then(
     text => evalText(text, c, s)
   )
@@ -1075,8 +1085,7 @@ const evalFile = (fname, modOrCtx = undefined, s = undefined) => {
 // NB: Promise
 const loadPrelude = (fname = "lib/prelude.knk") =>
   modules.get("__prld__").get("def") ?
-    new Promise((resolve, reject) => resolve()) :
-    evalFile(fname, "__prld__")
+    new Promise((resolve, reject) => resolve()) : evalFile(fname)
 
 /* === output === */
 
@@ -1328,7 +1337,7 @@ const nya = () => {
   } else if (_req) {
     putOut(_req("fs").readFileSync("nya/tabby.cat", "utf8"), "")
   } else {
-    throw new KE(...E.NotImplementedError("nya"))
+    throw new KE(...E.NotImplementedError("__nya__"))
   }
 }
 

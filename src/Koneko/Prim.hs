@@ -37,15 +37,15 @@ import Koneko.Misc (prompt')
 import Paths_koneko (getDataFileName)
 
 -- TODO
-initCtx :: Context -> Evaluator -> Evaluator -> Evaluator -> IO Context
+initCtx :: Context -> Evaluator -> Evaluator -> Evaluator -> IO ()
 initCtx ctxMain call apply apply_dict = do
-  ctxPrim <- forkContext primModule ctxMain
-  traverse_ (defPrim ctxPrim) [
+  ctx <- forkContext primModule ctxMain
+  traverse_ (defPrim ctx) [
       mkPrim "call" call, mkPrim "apply" apply,
       mkPrim "apply-dict" apply_dict, if_ call,
       def, defmulti, defrecord, mkPair, mkDict, swap,
       show_, say, ask, type_, callable, function,
-      moduleGet, moduleDefs, moduleName,
+      defmodule call, modules, moduleGet, moduleDefs, moduleName,
       not_, and_, or_,
       comp "=" (==), comp "not=" (/=), comp "<" (<),
       comp "<=" (<=), comp ">" (>), comp ">=" (>=),
@@ -58,7 +58,6 @@ initCtx ctxMain call apply apply_dict = do
       showStack, clearStack, nya
       -- ...
     ]
-  return ctxPrim
 
 -- primitives: important --
 
@@ -111,10 +110,10 @@ show_, say, ask, type_, callable, function :: Builtin
 show_ = mkPrim "show" $ pop1push1 $ T.pack . (show :: KValue -> String)
 
 -- NB: uses stdio
-say = mkPrim "say" $ \_ s -> do (x, s') <- pop' s; s' <$ T.putStrLn x
+say = mkPrim "say!" $ \_ s -> do (x, s') <- pop' s; s' <$ T.putStrLn x
 
 -- NB: uses stdio
-ask = mkPrim "ask" $ \_ s -> do
+ask = mkPrim "ask!" $ \_ s -> do
   (x, s') <- pop' s; maybeToNil <$> prompt' x >>= rpush1 s'
 
 type_     = mkPrim "type"       $ pop1push1 $ typeToKwd . typeOf
@@ -123,7 +122,15 @@ function  = mkPrim "function?"  $ pop1push1 isFunction
 
 -- primitives: modules --
 
-moduleGet, moduleDefs, moduleName :: Builtin
+defmodule :: Evaluator -> Builtin
+modules, moduleGet, moduleDefs, moduleName :: Builtin
+
+defmodule call = mkPrim "defmodule" $ \c s -> do
+  ((Kwd m, b), s') <- pop2' s; c' <- forkContext m c
+  call c $ push s' $ KBlock b { blkScope = Just $ ctxScope c' }
+
+modules = mkPrim "modules" $ \c s -> do
+  sort . map kwd <$> moduleNames c >>= rpush1 s
 
 moduleGet = mkPrim "module-get" $ \c s -> do
   ((Kwd k, Kwd m), s') <- pop2' s
@@ -208,7 +215,7 @@ clearStack = mkPrim "clear-stack" $ \_ _ -> return emptyStack
 -- nya --
 
 nya :: Builtin
-nya = mkPrim "nya" $ \_ s -> s <$ do
+nya = mkPrim "nya!" $ \_ s -> s <$ do
   nyaD  <- getDataFileName "nya"
   cats  <- filter (isSuffixOf ".cat") <$> listDirectory nyaD
   unless (null cats) $ do

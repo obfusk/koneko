@@ -24,7 +24,7 @@
 -- >>> ctx <- initContext
 -- >>> ev x = eval x ctx []
 --
--- >>> ev [str "Hello, World!", KIdent $ id "say"]
+-- >>> ev [str "Hello, World!", KIdent $ id "say!"]
 -- Hello, World!
 -- []
 -- >>> ev [int 1, int 2, KIdent $ id "-"]
@@ -32,7 +32,7 @@
 --
 -- >>> ev x = evalText "" x ctx []
 --
--- >>> ev "\"Hello, World!\" say"
+-- >>> ev "\"Hello, World!\" say!"
 -- Hello, World!
 -- []
 -- >>> ev "1 2 +"
@@ -165,7 +165,7 @@ callStr x _ s = do
                     rpush1 s2 $ slice T.take T.drop i' j' step lx x
     "empty?"  ->  p $ T.null x
     "len"     ->  p $ lengthT x
-    "get"     ->  pr $ \_ s1 -> do
+    "get^"    ->  pr $ \_ s1 -> do
                     (i, s2) <- pop' s1
                     let err = throwIO $ IndexError (T.unpack o) i
                     maybe err (rpush1 s2) $ indexT x i
@@ -188,9 +188,9 @@ callList (List l) _ s = do
   let o = "list." <> op; p = rpush1 s'; pr = p . mkOp o
       g = when (null l) $ throwIO $ EmptyList $ T.unpack o
   case op of
-    "head"    ->  g >> p (head l)                             -- safe!
-    "tail"    ->  g >> p (tail l)                             -- safe!
-    "uncons"  ->  g >> rpush s' [head l, list $ tail l]       -- safe!
+    "head^"   ->  g >> p (head l)                             -- safe!
+    "tail^"   ->  g >> p (tail l)                             -- safe!
+    "uncons^" ->  g >> rpush s' [head l, list $ tail l]       -- safe!
     "cons"    ->  pr $ pop1push1 (:l)
     "sort"    ->  p $ sort l
     "append"  ->  pr $ pop1push1 (++ l)
@@ -202,7 +202,7 @@ callList (List l) _ s = do
                     rpush1 s2 $ slice take drop i' j' step ll l
     "empty?"  ->  p $ null l
     "len"     ->  p $ len l
-    "get"     ->  pr $ \_ s1 -> do
+    "get^"    ->  pr $ \_ s1 -> do
                     (i, s2) <- pop' s1
                     let err = throwIO $ IndexError (T.unpack o) i
                     maybe err (rpush1 s2) $ atMay l $ fromInteger i
@@ -224,7 +224,7 @@ callDict (Dict h) _ s = do
                     rpush1 s2 $ Dict $ H.union h h2
     "empty?"  ->  p $ H.null h
     "len"     ->  p $ toInteger $ H.size h
-    "get"     ->  pr $ \_ s1 -> do
+    "get^"    ->  pr $ \_ s1 -> do
                     (Kwd k, s2) <- pop' s1
                     let err = throwIO $ KeyError (T.unpack o) (T.unpack k)
                     maybe err (rpush1 s2) $ H.lookup k h
@@ -342,12 +342,11 @@ _pushRec s r = retOrThrow r >>= rpush1 s . KRecord
 
 initContext :: IO Context
 initContext = do
-  ctx     <- initMainContext
-  ctxPrim <- Prim.initCtx ctx call apply apply_dict
-  ctxBltn <- Bltn.initCtx ctxPrim
-  ctxPrld <- Prld.initCtx ctxBltn
-  pre     <- Prld.modFile
-  ctx <$ evalFile pre ctxPrld emptyStack
+  ctx <- initMainContext
+  Prim.initCtx ctx call apply apply_dict
+  Bltn.initCtx ctx
+  Prld.initCtx ctx evalFile
+  return ctx
 
 -- utilities: block call/apply --
 

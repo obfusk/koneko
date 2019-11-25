@@ -66,20 +66,22 @@ module Koneko.Data (
   pop2', pop3', popN', pop1push, pop2push, pop1push1, pop2push1,
   primModule, bltnModule, prldModule, mainModule, initMainContext,
   forkContext, forkScope, defineIn, lookup, lookupModule', moduleKeys,
-  typeNames, typeOf, typeToKwd, typeToStr, isNil, isBool, isInt,
-  isFloat, isStr, isKwd, isPair, isList, isDict, isIdent, isQuot,
-  isBlock, isBuiltin, isMulti, isRecordT, isRecord, isCallable,
-  isFunction, nil, false, true, bool, int, float, str, kwd, pair,
-  list, dict, block, dictLookup, mkPrim, mkBltn, defPrim, defMulti,
-  truthy, retOrThrow, recordTypeSig, underscored, digitParams
+  moduleNames, typeNames, typeOf, typeToKwd, typeToStr, isNil, isBool,
+  isInt, isFloat, isStr, isKwd, isPair, isList, isDict, isIdent,
+  isQuot, isBlock, isBuiltin, isMulti, isRecordT, isRecord,
+  isCallable, isFunction, nil, false, true, bool, int, float, str,
+  kwd, pair, list, dict, block, dictLookup, mkPrim, mkBltn, defPrim,
+  defMulti, truthy, retOrThrow, recordTypeSig, underscored,
+  digitParams
 ) where
 
 import Control.DeepSeq (deepseq, NFData(..))
 import Control.Exception (Exception, throw, throwIO)
 import Control.Monad (when)
 import Data.Char (intToDigit, isPrint, ord)
+import Data.Foldable (traverse_)
 import Data.List (intercalate, maximum)
-import Data.Maybe (catMaybes)
+import Data.Maybe (catMaybes, isNothing)
 import Data.Monoid ((<>))
 import Data.String (IsString)
 import Data.Text.Lazy (Text)
@@ -636,16 +638,17 @@ mainModule = "__main__"
 
 initMainContext :: IO Context
 initMainContext = do
-  modules <- HT.new; main <- HT.new
-  HT.insert modules mainModule main
+  modules <- HT.new
+  traverse_ (\m -> HT.new >>= HT.insert modules m)
+    [primModule, bltnModule, prldModule, mainModule]
   return Context { modules, ctxScope = _newScope mainModule }
 
--- TODO: error if already exists
 forkContext :: Identifier -> Context -> IO Context
 forkContext m c = do
-  newMod <- HT.new
-  HT.insert (modules c) m newMod
-  return c { ctxScope = _newScope m }
+    flip when mkMod =<< isNothing <$> HT.lookup (modules c) m
+    return c { ctxScope = _newScope m }
+  where
+    mkMod = HT.new >>= HT.insert (modules c) m
 
 _newScope :: Identifier -> Scope
 _newScope m = Scope m Nothing H.empty
@@ -664,17 +667,17 @@ defineIn c k v = do curMod <- scopeModule c; HT.insert curMod k v
 scopeModule :: Context -> IO Module
 scopeModule c = getModule c $ modName $ ctxScope c
 
--- Prim -> Scope* -> Module -> Prel -> Bltn
+-- Prim -> Scope* -> Module -> Prld -> Bltn
 -- throws ModuleNotFound
 lookup :: Context -> Identifier -> IO (Maybe KValue)
 lookup c k = M.firstJust [lookupPrim, lookupScope $ ctxScope c,
-                          lookupPrel, lookupBltn]
+                          lookupPrld, lookupBltn]
   where
     lookupScope s = maybe (f s) (return . Just) $ H.lookup k $ table s
     f s           = maybe (look $ modName s) lookupScope $ parent s
     lookupPrim    = look primModule
     lookupBltn    = look bltnModule
-    lookupPrel    = look prldModule
+    lookupPrld    = look prldModule
     look          = lookupModule c k
 
 -- throws ModuleNotFound
@@ -696,6 +699,9 @@ getModule :: Context -> Identifier -> IO Module
 getModule c m = HT.lookup (modules c) m >>= maybe err return
   where
     err = throwIO $ ModuleNotFound $ T.unpack m
+
+moduleNames :: Context -> IO [Identifier]
+moduleNames = fmap (map fst) . HT.toList . modules
 
 -- type predicates --
 

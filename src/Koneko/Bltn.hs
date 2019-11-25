@@ -2,7 +2,7 @@
 --
 --  File        : Koneko/Bltn.hs
 --  Maintainer  : Felix C. Stegerman <flx@obfusk.net>
---  Date        : 2019-11-12
+--  Date        : 2019-11-25
 --
 --  Copyright   : Copyright (C) 2019  Felix C. Stegerman
 --  Version     : v0.0.1
@@ -19,14 +19,10 @@ import Data.Monoid ((<>))
 
 import Koneko.Data
 
-initCtx :: Context -> IO Context
-initCtx ctxPrim = do
-  ctxBltn <- forkContext bltnModule ctxPrim
-  traverse_ (defPrim ctxBltn) typePreds
-  -- ...
-  return ctxBltn
-
--- ...
+initCtx :: Context -> IO ()
+initCtx ctxMain = do
+  ctx <- forkContext bltnModule ctxMain
+  traverse_ (defPrim ctx) typePreds
 
 typePreds :: [Builtin]
 typePreds = [ mkBltn (x <> "?") $ pop1push1

@@ -1,4 +1,4 @@
 #!/usr/bin/env -S cabal -v0 v2-run koneko
 ; ^ TODO
-"What's your name? " ask
-"Hello, " swap ++ "!" ++ say
+"What's your name? " ask!
+"Hello, " swap ++ "!" ++ say!
