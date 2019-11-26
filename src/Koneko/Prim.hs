@@ -43,26 +43,24 @@ initCtx ctxMain call apply apply_dict = do
   traverse_ (defPrim ctx) [
       mkPrim "call" call, mkPrim "apply" apply,
       mkPrim "apply-dict" apply_dict, if_ call,
-      def, defmulti, defrecord, mkPair, mkDict, swap,
+      def, defmulti, defrecord call, mkPair, mkDict, swap,
       show_, say, ask, type_, callable, function,
       defmodule call, modules, moduleGet, moduleDefs, moduleName,
-      not_, and_, or_,
       comp "=" (==), comp "not=" (/=), comp "<" (<),
       comp "<=" (<=), comp ">" (>), comp ">=" (>=),
       arithI "int+" (+), arithI "int-" (-), arithI "int*" (*),
       arithI "div" div, arithI "mod" mod,
       arithF "float+" (+), arithF "float-" (-),
       arithF "float*" (*), arithF "float/" (/),
-      chr_, intToFloat, recordToDict, recordType,
+      chr_, intToFloat, recordToDict, recordType, recordVals,
       recordTypeName, recordTypeFields,
       showStack, clearStack, nya
-      -- ...
     ]
 
 -- primitives: important --
 
-if_ :: Evaluator -> Builtin
-def, defmulti, defrecord, mkPair, mkDict, swap :: Builtin
+if_, defrecord :: Evaluator -> Builtin
+def, defmulti, mkPair, mkDict, swap :: Builtin
 
 if_ call = mkPrim "if" $ \c s -> do
   ((cond, t_br, f_br), s') <- pop3' s
@@ -83,16 +81,26 @@ defmulti = mkPrim "defmulti" $ \c s -> do
               _       -> throwIO $ LookupFailed $ T.unpack k
 
 -- TODO
-defrecord = mkPrim "defrecord" $ \c s -> do
+defrecord call = mkPrim "defrecord" $ \c s -> do
     ((Kwd recName, fs), s') <- pop2' s
     recFields <- retOrThrow $ map unKwd <$> fromVals fs
-    let r = RecordT{..}; p = recName <> "?"
-    s' <$ do defineIn c recName (KRecordT r); defPred c r p
+    let t = RecordT{..}; e = err $ T.unpack recName
+    defineIn c recName $ KRecordT t
+    defX c (recName <> "?") $ pop1push1 $ m t (const True) False
+    defX c ("^" <> recName) $ \c1 s1 -> do
+      ((x, f), s2) <- pop2' s1
+      let go r = rpush s2 $ recValues r ++ [f]
+      call c1 =<< m t go e x
+    defX c ("~" <> recName) $ \c1 s1 -> do
+      ((x, f, g), s2) <- pop3' s1
+      let go r = recValues r ++ [f]
+      call c1 =<< rpush s2 (m t go [g] x)
+    return s'
   where
-    defPred c t p = defineIn c p $ f $ pop1push1 $ \case
-        KRecord r -> recType r == t; _ -> False
-      where
-        f = KBuiltin . mkBltn (modName (ctxScope c) <> ":" <> p)
+    m t f d   = \case KRecord r | recType r == t -> f r; _ -> d
+    defX c k  = defineIn c k . KBuiltin .
+                mkBltn (modName (ctxScope c) <> ":" <> k)
+    err t     = throwIO $ stackExpected $ "record of type " <> t
 
 mkPair = mkPrim "=>" $ pop2push1 Pair
 
@@ -145,11 +153,6 @@ moduleName = mkPrim "name" $ \c s ->
 
 -- primitives: Eq, Ord --
 
-not_, and_, or_ :: Builtin
-not_  = mkPrim "not"  $ pop1push1 $ not . truthy
-and_  = mkPrim "and"  $ pop2push1 $ \x y -> if truthy x then y else x
-or_   = mkPrim "or"   $ pop2push1 $ \x y -> if truthy x then x else y
-
 comp :: Identifier -> (KValue -> KValue -> Bool) -> Builtin
 comp name op = mkPrim name $ pop2push1 op
 
@@ -171,7 +174,7 @@ arithF = arith
 
 -- primitives: conversion --
 
-chr_, intToFloat, recordToDict, recordType :: Builtin
+chr_, intToFloat, recordToDict, recordType, recordVals :: Builtin
 
 chr_ = mkPrim "chr" $ \_ s -> do
   (i, s') <- pop' s
@@ -186,7 +189,8 @@ recordToDict = mkPrim "record->dict" $ pop1push1 $ \r ->
   dict [ Pair (Kwd k) v | (k, v) <- zip (recFields $ recType r)
                                         (recValues r) ]
 
-recordType = mkPrim "record-type" $ pop1push1 $ KRecordT . recType
+recordType = mkPrim "record-type"   $ pop1push1 $ KRecordT . recType
+recordVals = mkPrim "record-values" $ pop1push1 $ recValues
 
 -- primitives: record-type info --
 

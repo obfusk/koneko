@@ -199,8 +199,8 @@ the value found is pushed onto the stack.
 ```koneko
 >>> 1 2 +                                   ; push and call "+"
 3
->>> 'not                                    ; push "not"
-#<primitive:__not__>
+>>> 'show                                   ; push "show"
+#<primitive:__show__>
 >>> 1 2 '+ call                             ; push "+", then call it
 3
 ```

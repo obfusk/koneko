@@ -98,10 +98,6 @@ import qualified Prelude as P
 
 import qualified Koneko.Misc as M
 
--- TODO:
---  * Record
---  * RawBlock vs Quoted Block
-
 -- types --
 
 type HashTable k v      = HT.BasicHashTable k v

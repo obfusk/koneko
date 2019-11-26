@@ -153,11 +153,12 @@ const record = (rectype, values) => {
 
 const T = bool(true), F = bool(false)
 
-const mkBltn    = (name, f) => [name, builtin(name, f)]
-const mkBltnPP  = (name, f, ...xs) => mkBltn(name, popPush(f, ...xs))
-
-const builtinPP = (name, g = x => x) => (f, ...xs) =>
+const mkPrim    = (name, f) => [name, builtin(name, f)]
+const mkPrimPP  = (name, f, ...xs) => mkPrim(name, popPush(f, ...xs))
+const primPP    = (name, g = x => x) => (f, ...xs) =>
   g(builtin(name, popPush(f, ...xs)))
+const builtinPP = (name, g = x => x) => (f, ...xs) =>
+  g(builtin(name, popPush(f, ...xs), false))
 
 const freeVars = (vs, seen = {}, free = new Set()) => {       //  {{{1
   for (const v of vs) {
@@ -215,7 +216,7 @@ const _flt      = "(?:-?\\d+(?:\\.\\d+e\\d+|\\.\\d+|e\\d+))"
 const _spc      = "(?:[\\s,]|;[^\\n]*(?:\\n|$))+"
 
 const _naiveId  = "[\\p{L}\\p{N}\\p{S}\\(\\)\\{\\}\\[\\]@%&*\\-_\\/?'!:]+"
-const _badId    = "['!:]|(?:[^\\s,]+[:({\\]]|[(){}\\[\\]]|\\(\\)|nil|"+
+const _badId    = "['!:]|(?:[^\\s,]+[:({\\[]|[(){}\\[\\]]|\\(\\)|nil|"+
                   _int+"|"+_flt+")(?:"+_spc+"|$)"
 const _idt      = "(?:(?!"+_badId+")"+_naiveId+")"
 
@@ -411,7 +412,7 @@ const call = (c0, s0, tailPos = false) => {                   //  {{{1
     case "str": {
       // TODO: inefficient implementation
       const xl = x.list
-      const [opv, op, r] = popOp(), p = builtinPP(op, r)
+      const [opv, op, r] = popOp(), p = primPP(op, r)
       switch (opv) {
         case "ord":
           if (xl.length != 1) {
@@ -463,7 +464,7 @@ const call = (c0, s0, tailPos = false) => {                   //  {{{1
     }
     case "list": {
       // TODO: inefficient implementation
-      const [opv, op, r] = popOp(), p = builtinPP(op, r)
+      const [opv, op, r] = popOp(), p = primPP(op, r)
       const g = () => { if (!xv.length) { throw new KE(...E.EmptyList(op)) } }
       switch (opv) {
         case "head^":
@@ -508,7 +509,7 @@ const call = (c0, s0, tailPos = false) => {                   //  {{{1
     }
     case "dict": {
       // TODO: inefficient implementation
-      const [opv, op, r] = popOp(), p = builtinPP(op, r)
+      const [opv, op, r] = popOp(), p = primPP(op, r)
       switch (opv) {
         case "keys":
           return r([...xv.keys()].map(kwd))
@@ -909,18 +910,18 @@ const modules = new Map(
 )
 
 modules.set("__prim__", new Map([                             //  {{{1
-  mkBltn("__call__", call),
-  mkBltn("__apply__", apply),
-  mkBltn("__apply-dict__", apply_dict),
-  mkBltn("__if__", (c, s0) => {
+  mkPrim("__call__", call),
+  mkPrim("__apply__", apply),
+  mkPrim("__apply-dict__", apply_dict),
+  mkPrim("__if__", (c, s0) => {
     const [[b, tb, fb], s1] = stack.popN(s0, 3)
     return call(c, stack.push(s1, truthy(b) ? tb : fb))
   }),
-  mkBltn("__def__", (c, s0) => {
+  mkPrim("__def__", (c, s0) => {
     const [[k, v], s1] = stack.pop(s0, "kwd", "_")
     scope.define(c, k.value, v); return s1
   }),
-  mkBltn("__defmulti__", (c, s0) => {
+  mkPrim("__defmulti__", (c, s0) => {
     const [[k, sig, b], s1] = stack.pop(s0, "kwd", "list", "block")
     for (const x of sig.value) { expect(x, "kwd") }
     const sig_ = sig.value.map(
@@ -940,92 +941,101 @@ modules.set("__prim__", new Map([                             //  {{{1
     m.table.set(sig_.join("###"), b)
     return s1
   }),
-  mkBltn("__defrecord__", (c, s0) => {
+  mkPrim("__defrecord__", (c, s0) => {
     const [[k, fs], s1] = stack.pop(s0, "kwd", "list")
     for (const x of fs.value) { expect(x, "kwd") }
-    const name = k.value, pred = name + "?"
-    const r = record_type(name, fs.value.map(x => x.value))
-    const p = builtinPP(c.module + ":" + pred)(
-      x => [bool(x.type == "record" && eq(x.rectype, r))], "_"
-    )
-    scope.define(c, name, r)
-    scope.define(c, pred, p)
+    const nm = k.value, t = record_type(nm, fs.value.map(x => x.value))
+    const is_t = x => x.type == "record" && eq(x.rectype, t)
+    const pred = k => builtinPP(k)(x => [bool(is_t(x))], "_")
+    const mat = k => builtin(k, (c, s0) => {
+      const [[x, f], s1] = stack.popN(s0, 2)
+      if (!is_t(x)) {
+        throw new KE(...E.Expected(`record of type ${nm} on stack`))
+      }
+      return call(c, stack.push(s1, ...x.values, f))
+    }, false)
+    const mat_ = k => builtin(k, (c, s0) => {
+      const [[x, f, g], s1] = stack.popN(s0, 3)
+      return call(c, stack.push(s1, ...(is_t(x) ? [...x.values, f] : [g])))
+    }, false)
+    scope.define(c, nm, t)
+    for (const [k,f] of [[nm+"?",pred], ["^"+nm,mat], ["~"+nm,mat_]]) {
+      scope.define(c, k, f(c.module + ":" + k))
+    }
     return s1
   }),
-  mkBltnPP("__=>__", (k, v) => [pair(k, v)], "kwd", "_"),
-  mkBltnPP("__dict__", l => {
+  mkPrimPP("__=>__", (k, v) => [pair(k, v)], "kwd", "_"),
+  mkPrimPP("__dict__", l => {
     for (const x of l.value) { expect(x, "pair") }
     return [dict(l.value)]
   }, "list"),
-  mkBltn("__swap__", pop2push((x, y) => [y, x])),
-  mkBltnPP("__show__", x => [str(show(x))], "_"),
-  mkBltnPP("__say!__", x => { say(x.list.join("")); return [] }, "str"),
-  mkBltn("__ask!__", (c, s) => {
+  mkPrim("__swap__", pop2push((x, y) => [y, x])),
+  mkPrimPP("__show__", x => [str(show(x))], "_"),
+  mkPrimPP("__say!__", x => { say(x.list.join("")); return [] }, "str"),
+  mkPrim("__ask!__", (c, s) => {
     throw new KE(...E.NotImplementedError("__ask!__"))
   }),
-  mkBltnPP("__type__", x => [kwd(x.type, "_")], "_"),
-  mkBltnPP("__callable?__",
+  mkPrimPP("__type__", x => [kwd(x.type, "_")], "_"),
+  mkPrimPP("__callable?__",
     x => [bool(callableTypes.includes(x.type))], "_"
   ),
-  mkBltnPP("__function?__",
+  mkPrimPP("__function?__",
     x => [bool(functionTypes.includes(x.type))], "_"
   ),
-  mkBltn("__defmodule__", (c, s0) => {
+  mkPrim("__defmodule__", (c, s0) => {
     const [[k, b], s1] = stack.pop(s0, "kwd", "block")
     return call(c, stack.push(s1, { ...b, scope: scope.new(k.value) }))
   }),
-  mkBltn("__modules__", (c, s0) =>
+  mkPrim("__modules__", (c, s0) =>
     stack.push(s0, list([...modules.keys()].sort().map(kwd)))
   ),
-  mkBltn("__module-get__", (c, s0) => {
+  mkPrim("__module-get__", (c, s0) => {
     const [[k, m], s1] = stack.pop(s0, "kwd", "kwd")
     const mod = getModule(m.value)
     if (!mod.has(k.value)) { throw new KE(...E.LookupFailed(k.value)) }
     return stack.push(s1, mod.get(k.value))
   }),
-  mkBltn("__module-defs__", (c, s0) => {
+  mkPrim("__module-defs__", (c, s0) => {
     const [[m], s1] = stack.pop(s0, "kwd")
     const l = [...getModule(m.value).keys()].sort().map(kwd)
     return stack.push(s1, list(l))
   }),
-  mkBltn("__name__", (c, s) => stack.push(s, kwd(c.module))),
-  mkBltn("__not__",   popPush(x => [bool(!truthy(x))], "_")),
-  mkBltn("__and__",   pop2push((x, y) => [truthy(x) ? y : x ])),
-  mkBltn("__or__" ,   pop2push((x, y) => [truthy(x) ? x : y ])),
-  mkBltn("__=__",     pop2push((x, y) => [bool( eq(x, y))   ])),
-  mkBltn("__not=__",  pop2push((x, y) => [bool(!eq(x, y))   ])),
-  mkBltn("__<__",     pop2push((x, y) => [cmp_lt (cmp(x, y))])),
-  mkBltn("__<=__",    pop2push((x, y) => [cmp_lte(cmp(x, y))])),
-  mkBltn("__>__",     pop2push((x, y) => [cmp_gt (cmp(x, y))])),
-  mkBltn("__>=__",    pop2push((x, y) => [cmp_gte(cmp(x, y))])),
-  mkBltn("__int+__"  , opI((x, y) => x + y)),
-  mkBltn("__int-__"  , opI((x, y) => x - y)),
-  mkBltn("__int*__"  , opI((x, y) => x * y)),
-  mkBltn("__div__"   , opI((x, y) => {
+  mkPrim("__name__", (c, s) => stack.push(s, kwd(c.module))),
+  mkPrim("__=__",     pop2push((x, y) => [bool( eq(x, y))   ])),
+  mkPrim("__not=__",  pop2push((x, y) => [bool(!eq(x, y))   ])),
+  mkPrim("__<__",     pop2push((x, y) => [cmp_lt (cmp(x, y))])),
+  mkPrim("__<=__",    pop2push((x, y) => [cmp_lte(cmp(x, y))])),
+  mkPrim("__>__",     pop2push((x, y) => [cmp_gt (cmp(x, y))])),
+  mkPrim("__>=__",    pop2push((x, y) => [cmp_gte(cmp(x, y))])),
+  mkPrim("__int+__"  , opI((x, y) => x + y)),
+  mkPrim("__int-__"  , opI((x, y) => x - y)),
+  mkPrim("__int*__"  , opI((x, y) => x * y)),
+  mkPrim("__div__"   , opI((x, y) => {
     if (y == 0) { throw new KE(...E.DivideByZero()) }
     return (x / y) | 0
   })),
-  mkBltn("__mod__"   , opI((x, y) => x % y)),                //  TODO
-  mkBltn("__float+__", opF((x, y) => x + y)),
-  mkBltn("__float-__", opF((x, y) => x - y)),
-  mkBltn("__float*__", opF((x, y) => x * y)),
-  mkBltn("__float/__", opF((x, y) => x / y)),
-  mkBltnPP("__chr__",
+  mkPrim("__mod__"   , opI((x, y) => x % y)),                //  TODO
+  mkPrim("__float+__", opF((x, y) => x + y)),
+  mkPrim("__float-__", opF((x, y) => x - y)),
+  mkPrim("__float*__", opF((x, y) => x * y)),
+  mkPrim("__float/__", opF((x, y) => x / y)),
+  mkPrimPP("__chr__",
     x => [str(String.fromCodePoint(x.value))], "int"
   ),
-  mkBltnPP("__int->float__"       , n => [float(n.value)] , "int"),
-  mkBltnPP("__record->dict__"     , x => [recordToDict(x)], "record"),
-  mkBltnPP("__record-type__"      , x => [x.rectype]      , "record"),
-  mkBltnPP("__record-type-name__" , x => [kwd(x.name)]    , "record-type"),
-  mkBltnPP("__record-type-fields__",
+  mkPrimPP("__int->float__"       , n => [float(n.value)] , "int"),
+  mkPrimPP("__record->dict__"     , x => [recordToDict(x)], "record"),
+  mkPrimPP("__record-type__"      , x => [x.rectype]      , "record"),
+  mkPrimPP("__record-values__"    , x => [list(x.values)] , "record"),
+  mkPrimPP("__record-type-name__" , x => [kwd(x.name)]    , "record-type"),
+  mkPrimPP("__record-type-fields__",
     x => [list(x.fields.map(kwd))], "record-type"
   ),
-  mkBltn("__show-stack__", (c, s) => {
+  mkPrim("__show-stack__", (c, s) => {
     for (const x of stack.toArray(s)) { say(show(x)) }
     return s
   }),
-  mkBltn("__clear-stack__", (c, s) => stack.empty()),
-  mkBltn("__nya!__", (c, s) => { nya(); return s }),
+  mkPrim("__clear-stack__", (c, s) => stack.empty()),
+  mkPrim("__nya!__", (c, s) => { nya(); return s }),
 ]))                                                           //  }}}1
 
 const getModule = m => {

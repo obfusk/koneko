@@ -2,7 +2,7 @@
 --
 --  File        : Koneko/Read.hs
 --  Maintainer  : Felix C. Stegerman <flx@obfusk.net>
---  Date        : 2019-11-12
+--  Date        : 2019-11-25
 --
 --  Copyright   : Copyright (C) 2019  Felix C. Stegerman
 --  Version     : v0.0.1
@@ -57,9 +57,6 @@ import Koneko.Misc (Parser, pIdent, pIdent_, pInt, pFloat, lexeme,
 import qualified Koneko.Data as D
 
 -- TODO:
---  * Record
---  * RawBlock vs Quoted Block
---  * ~sugar~
 --  * parser labels
 --  * test corner cases & failures
 

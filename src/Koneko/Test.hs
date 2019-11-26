@@ -2,7 +2,7 @@
 --
 --  File        : Koneko/Test.hs
 --  Maintainer  : Felix C. Stegerman <flx@obfusk.net>
---  Date        : 2019-11-14
+--  Date        : 2019-11-25
 --
 --  Copyright   : Copyright (C) 2019  Felix C. Stegerman
 --  Version     : v0.0.1
@@ -237,7 +237,7 @@ printSucc Example{..} = do
   where
     p = T.putStrLn
 
--- TODO: line#, ...
+-- TODO
 printFail :: Example -> [Text] -> [Text] -> IO ()
 printFail Example{..} out err = do
     p $ T.pack $ "File " ++ fileName ++ ", line " ++ show lineNo

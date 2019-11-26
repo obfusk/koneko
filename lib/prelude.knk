@@ -45,10 +45,6 @@
 
 :defmodule          '__defmodule__            def
 
-:not                '__not__                  def
-:and                '__and__                  def
-:or                 '__or__                   def
-
 :=                  '__=__                    def
 :not=               '__not=__                 def
 :<                  '__<__                    def
@@ -60,6 +56,7 @@
 :record->dict       '__record->dict__         def
 
 :record-type        '__record-type__          def
+:record-values      '__record-values__        def
 :record-type-name   '__record-type-name__     def
 :record-type-fields '__record-type-fields__   def
 
@@ -125,7 +122,8 @@
 ;
 ; --                                                            ; }}}1
 
-:swap   [ x y . 'y 'x ] def                   ; '__swap__
+:swap   [ x y . 'y 'x       ] def             ; '__swap__
+:rot    [ x y z . 'y 'z 'x  ] def             ; [ 'swap dip swap ]
 
  :dup   [ x   . 'x 'x       ] def
 :2dup   [ x y . 'x 'y 'x 'y ] def             ; [ over over ]
@@ -265,6 +263,36 @@
 
 ; ... TODO ...
 
+; -- logic --
+
+; --                                                            ; {{{1
+;
+; >>> #t 42 37 ?
+; 42
+;
+; >>> 5 not
+; #f
+; >>> nil not
+; #t
+;
+; >>> nil 5 or
+; 5
+; >>> nil 5 and
+; nil
+;
+; >>> 2 3 or
+; 2
+; >>> 2 3 and
+; 3
+;
+; --                                                            ; }}}1
+
+:?      [ .[ '1 ] bi$ if ] def
+
+:not    [ #f #t ?     ] def
+:and    [ over ?      ] def
+:or     [ 'dup dip ?  ] def
+
 ; -- arithmetic --
 
 ; --                                                            ; {{{1
@@ -362,14 +390,24 @@
 ;
 ; --                                                            ; }}}1
 
-:empty?   '.empty?  def
-:len      '.len     def
+:^seq     [ rot ^seq' ] def
+:^seq'    ( :_ )  [ f g x . 'x empty? 'f
+                    [ 'x 'head^ 'tail^ bi g ] if ] defmulti
 
-:get^     [ swap !get^    ] def
+:head     [ 'head^ [ empty? not ] ornil ] def
+:tail     [ 'tail^ [ empty? not ] ornil ] def
+
+:empty?   ( :_ ) [ .empty?  ] defmulti
+:len      ( :_ ) [ .len     ] defmulti
+
+:get^     [ swap !get^ ] def
 :get      [ 'get^ 'member? 2ornil ] def
 
-:member?  [ swap !member? ] def
-:elem?    [ swap !elem?   ] def
+:member?  [ swap member?' ] def
+:elem?    [ swap elem?'   ] def
+
+:member?' ( :_ ) [ !member? ] defmulti
+:elem?'   ( :_ ) [ !elem?   ] defmulti
 
 :sort     '.sort    def
 :++       '!append  def
@@ -438,22 +476,41 @@
 ;
 ; --                                                            ; }}}1
 
-:head^  '.head^ def
-:tail^  '.tail^ def
-
-:head   [ 'head^ [ empty? not ] ornil ] def
-:tail   [ 'tail^ [ empty? not ] ornil ] def
+:^seq'    ( :list ) [ rot rot ^list ] defmulti
+:head^    ( :list ) [ .head^  ] defmulti
+:tail^    ( :list ) [ .tail^  ] defmulti
 
 :uncons^  '.uncons^ def
 :cons     '!cons    def
 
-; TODO: ^list ...
+:^list    [ f g . dup empty? [ drop f ] [ uncons^ g ] if ] def
+:~list    [ h . 2over list? '^list 'h if ] def
 
-:map    [ f . dup empty? [ ] [ uncons^ 'f dip 'f map cons ] if ] def
-:foldl  [ z f . dup empty? [ drop 'z ]
-                [ uncons^ swap 'z swap f 'f foldl ] if ] def
+:map      [ f . [ () ] [ 'f dip 'f map cons ] ^list ] def
+:foldl    [ z f . [ 'z ] [ swap 'z swap f 'f foldl ] ^seq ] def
+:each     [ f . [ ] [ 'f dip 'f each ] ^seq ] def
 
-:each   [ f . dup empty? 'drop [ uncons^ 'f dip 'f each ] if ] def
+; ... TODO ...
+
+; -- ranges -- TODO --
+
+; ... TODO ...
+
+:range    ( :start :stop ) defrecord
+
+:[m-n]    'range            def
+:[m-n)    [ 1 - [m-n]     ] def
+:[0-n]    [ 0 swap [m-n]  ] def
+:[0-n)    [ 0 swap [m-n)  ] def
+:[1-n]    [ 1 swap [m-n]  ] def
+:[1-n)    [ 1 swap [m-n)  ] def
+
+:empty?   ( :range ) [ '> ^range ] defmulti
+:len      ( :range ) [ [ swap - 1 + ] ^range ] defmulti
+:elem?'   ( :range ) [ 'dup dip [ '>= '<= 2bi~' and ] ^range ] defmulti
+
+:head^    ( :range ) [ .start ] defmulti
+:tail^    ( :range ) [ [ [ 1 + ] dip range ] ^range ] defmulti
 
 ; ... TODO ...
 
@@ -476,7 +533,7 @@
  :ordef [ f p? d .  dup p? 'f [  drop 'd ] if ] def
 :2ordef [ f p? d . 2dup p? 'f [ 2drop 'd ] if ] def
 
-:times  [ f n . 'n 0 <= [ ] [ f 'f 'n 1 - times ] if ] def
+:times  [ [1-n] swap ![ drop .1 ] each ] def
 
 ; ... TODO ...
 
@@ -484,10 +541,6 @@
 
 ; --                                                            ; {{{1
 ;
-; >>> #t 42 37 ?
-; 42
-;
-; >>> clear-stack
 ; >>> 1 2 = [ "oh no!" say! ] when
 ; >>> 1 1 = [ "good!"  say! ] when
 ; good!
@@ -520,15 +573,14 @@
 ;
 ; --                                                            ; }}}1
 
-:?      [ .[ '1 ] bi$ if ] def
-
 :when   [ [ ]    if ] def
 :when1  [ 'drop  if ] def
 :when2  [ '2drop if ] def
 
- :cond  [ cons '_&cond apply call ] def
-:_&cond [ x p? f & . 'p? function? [ 'x p? ] [ 'p? ] if
-          [ 'f ] [ 'x '& cons '_&cond apply ] if ] def
+  :cond [ _cond call ] def
+ :_cond [ cons '_&cond apply ] def
+:_&cond [ x p? f & .  'p? function? [ 'x p? ] [ 'p? ] if
+                      [ 'f ] [ 'x '& _cond ] if ] def
 
 :num?   [ 'int? 'float? bi or ] def
 
@@ -537,6 +589,8 @@
 ; -- TODO --
 
 ; ...
+
+; --
 
 ] __defmodule__
 
