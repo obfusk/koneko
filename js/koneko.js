@@ -2,7 +2,7 @@
 //
 //  File        : koneko.js
 //  Maintainer  : Felix C. Stegerman <flx@obfusk.net>
-//  Date        : 2019-11-25
+//  Date        : 2019-11-26
 //
 //  Copyright   : Copyright (C) 2019  Felix C. Stegerman
 //  Version     : v0.0.1
@@ -151,6 +151,21 @@ const record = (rectype, values) => {
   return { type: "record", rectype, values }
 }
 
+const thunk = f => {                                          //  {{{1
+  let v
+  const run = () => {
+    if (f) {
+      const vs = f()
+      if (vs.length != 1) {
+        throw new KE(...E.Expected("thunk to produce exactly 1 value"))
+      }
+      v = vs[0]; f = null
+    }
+    return v
+  }
+  return { type: "thunk", run }
+}                                                             //  }}}1
+
 const T = bool(true), F = bool(false)
 
 const mkPrim    = (name, f) => [name, builtin(name, f)]
@@ -216,7 +231,7 @@ const _flt      = "(?:-?\\d+(?:\\.\\d+e\\d+|\\.\\d+|e\\d+))"
 const _spc      = "(?:[\\s,]|;[^\\n]*(?:\\n|$))+"
 
 const _naiveId  = "[\\p{L}\\p{N}\\p{S}\\(\\)\\{\\}\\[\\]@%&*\\-_\\/?'!:]+"
-const _badId    = "['!:]|(?:[^\\s,]+[:({\\[]|[(){}\\[\\]]|\\(\\)|nil|"+
+const _badId    = "['!:]|(?:[^\\s,]+[:({\\[]|[(){}\\[\\]]|"+
                   _int+"|"+_flt+")(?:"+_spc+"|$)"
 const _idt      = "(?:(?!"+_badId+")"+_naiveId+")"
 
@@ -569,6 +584,8 @@ const call = (c0, s0, tailPos = false) => {                   //  {{{1
       }
       return stack.push(s2, x.values[i])
     }
+    case "thunk":
+      return stack.push(s1, x.run())
     default:
       throw new KE(...E.UncallableType(x.type))
   }
@@ -740,6 +757,8 @@ const show = x => {                                           //  {{{1
       )
       return x.rectype.name + "{ " + flds.join(", ") + " }"
     }
+    case "thunk":
+      return "#<thunk>"
     default:
       throw new Error(`type ${x.type} is not showable`)
   }
@@ -1030,6 +1049,11 @@ modules.set("__prim__", new Map([                             //  {{{1
   mkPrimPP("__record-type-fields__",
     x => [list(x.fields.map(kwd))], "record-type"
   ),
+  mkPrim("__thunk__", (c, s0) => {
+    const [[b], s1] = stack.pop(s0, "block")
+    const f = () => call(c, stack.push(stack.empty(), b))
+    return stack.push(s1, thunk(f))
+  }),
   mkPrim("__show-stack__", (c, s) => {
     for (const x of stack.toArray(s)) { say(show(x)) }
     return s
@@ -1046,12 +1070,12 @@ const getModule = m => {
 const types = [
   "nil", "bool", "int", "float", "str", "kwd", "pair", "list", "dict",
   "ident", "quot", "block", "builtin", "multi", "record-type",
-  "record"
+  "record", "thunk"
 ]
 
 const functionTypes = ["block", "builtin", "multi", "record-type"]
 const callableTypes =
-  ["str", "pair", "list", "dict", "record"].concat(functionTypes)
+  ["str", "pair", "list", "dict", "record", "thunk"].concat(functionTypes)
 
 for (const t of types) {
   modules.get("__bltn__").set(t+"?", builtin(

@@ -2,7 +2,7 @@
 --
 --  File        : Koneko/Data.hs
 --  Maintainer  : Felix C. Stegerman <flx@obfusk.net>
---  Date        : 2019-11-25
+--  Date        : 2019-11-26
 --
 --  Copyright   : Copyright (C) 2019  Felix C. Stegerman
 --  Version     : v0.0.1
@@ -57,27 +57,27 @@
 module Koneko.Data (
   Identifier, Module, Evaluator, Args, KException(..), stackExpected,
   applyMissing, expected, unexpected, Kwd(..), Ident, unIdent, ident,
-  List(..), Dict(..), Block(..), Builtin(..), Multi(..), RecordT(..),
-  Record, recType, recValues, record, Scope, modName, Context,
-  ctxScope, Pair(..), KPrim(..), KValue(..), KType(..), Stack,
-  freeVars, escapeFrom, escapeTo, ToVal, toVal, FromVal, fromVal,
-  toVals, fromVals, maybeToVal, maybeToNil, eitherToVal, eitherToNil,
-  emptyStack, push', push, rpush, rpush1, pop, pop2, pop3, pop',
-  pop2', pop3', popN', pop1push, pop2push, pop1push1, pop2push1,
-  primModule, bltnModule, prldModule, mainModule, initMainContext,
-  forkContext, forkScope, defineIn, lookup, lookupModule', moduleKeys,
-  moduleNames, typeNames, typeOf, typeToKwd, typeToStr, isNil, isBool,
-  isInt, isFloat, isStr, isKwd, isPair, isList, isDict, isIdent,
-  isQuot, isBlock, isBuiltin, isMulti, isRecordT, isRecord,
-  isCallable, isFunction, nil, false, true, bool, int, float, str,
-  kwd, pair, list, dict, block, dictLookup, mkPrim, mkBltn, defPrim,
-  defMulti, truthy, retOrThrow, recordTypeSig, underscored,
-  digitParams
+  Pair(..), List(..), Dict(..), Block(..), Builtin(..), Multi(..),
+  RecordT(..), Record, recType, recValues, record, Thunk, runThunk,
+  thunk, Scope, modName, Context, ctxScope, KPrim(..), KValue(..),
+  KType(..), Stack, freeVars, escapeFrom, escapeTo, ToVal, toVal,
+  FromVal, fromVal, toVals, fromVals, maybeToVal, maybeToNil,
+  eitherToVal, eitherToNil, emptyStack, push', push, rpush, rpush1,
+  pop, pop2, pop3, pop', pop2', pop3', popN', pop1push, pop2push,
+  pop1push1, pop2push1, primModule, bltnModule, prldModule,
+  mainModule, initMainContext, forkContext, forkScope, defineIn,
+  lookup, lookupModule', moduleKeys, moduleNames, typeNames, typeOf,
+  typeToKwd, typeToStr, isNil, isBool, isInt, isFloat, isStr, isKwd,
+  isPair, isList, isDict, isIdent, isQuot, isBlock, isBuiltin,
+  isMulti, isRecordT, isRecord, isThunk, isCallable, isFunction, nil,
+  false, true, bool, int, float, str, kwd, pair, list, dict, block,
+  dictLookup, mkPrim, mkBltn, defPrim, defMulti, truthy, retOrThrow,
+  recordTypeSig, underscored, digitParams
 ) where
 
 import Control.DeepSeq (deepseq, NFData(..))
 import Control.Exception (Exception, throw, throwIO)
-import Control.Monad (when)
+import Control.Monad (liftM, when)
 import Data.Char (intToDigit, isPrint, ord)
 import Data.Foldable (traverse_)
 import Data.List (intercalate, maximum)
@@ -89,6 +89,7 @@ import Data.Typeable (Typeable)
 import GHC.Generics (Generic)
 import Numeric (showHex)
 import Prelude hiding (lookup)
+import System.IO.Unsafe (unsafeInterleaveIO)
 
 import qualified Data.HashMap.Strict as H
 import qualified Data.HashSet as S
@@ -156,6 +157,9 @@ newtype Ident = Ident_ { unIdent :: Identifier }
 ident :: Identifier -> Maybe Ident
 ident s = if M.isIdent s then Just $ Ident_ s else Nothing
 
+data Pair = Pair { key :: Kwd, value :: KValue }
+  deriving (Eq, Ord, Generic, NFData)
+
 newtype List = List { unList :: [KValue] }
   deriving (Eq, Ord, Generic, NFData)
 
@@ -204,6 +208,18 @@ record recType@RecordT{..} recValues
   | otherwise = Left $ expected $ (show $ length recFields) ++
                 " arg(s) for record " ++ T.unpack recName
 
+data Thunk = Thunk { runThunk :: IO KValue }
+
+thunk :: IO KValue -> IO Thunk
+thunk x = return . Thunk =<< _once x
+
+_once :: IO a -> IO (IO a)
+_once = liftM return . unsafeInterleaveIO
+
+-- TODO
+instance NFData Thunk where
+  rnf _ = ()
+
 data Scope = Scope {
   modName :: Identifier,
   parent  :: Maybe Scope,
@@ -219,9 +235,6 @@ data Context = Context {
   ctxScope  :: Scope
 }
 
-data Pair = Pair { key :: Kwd, value :: KValue }
-  deriving (Eq, Ord, Generic, NFData)
-
 -- TODO: + Rx
 data KPrim
     = KNil | KBool Bool | KInt Integer | KFloat Double
@@ -232,13 +245,13 @@ data KPrim
 data KValue
     = KPrim KPrim | KPair Pair | KList List | KDict Dict
     | KIdent Ident | KQuot Ident | KBlock Block | KBuiltin Builtin
-    | KMulti Multi | KRecordT RecordT | KRecord Record
+    | KMulti Multi | KRecordT RecordT | KRecord Record | KThunk Thunk
   deriving (Eq, Ord, Generic, NFData)
 
 data KType
     = TNil | TBool | TInt | TFloat | TStr | TKwd | TPair | TList
     | TDict | TIdent | TQuot | TBlock | TBuiltin | TMulti | TRecordT
-    | TRecord
+    | TRecord | TThunk
   deriving (Eq, Ord, Generic, NFData)
 
 type Stack = [KValue]
@@ -270,6 +283,9 @@ instance Eq Builtin where
 instance Eq Multi where
   _ == _ = throw $ UncomparableType "multi"
 
+instance Eq Thunk where
+  _ == _ = throw $ UncomparableType "thunk"
+
 instance Ord Block where
   compare _ _ = throw $ UncomparableType "block"
 
@@ -279,6 +295,9 @@ instance Ord Builtin where
 
 instance Ord Multi where
   compare _ _ = throw $ UncomparableType "multi"
+
+instance Ord Thunk where
+  compare _ _ = throw $ UncomparableType "thunk"
 
 instance Show KException where
   show (ParseError msg)         = "parse error: " ++ msg
@@ -313,6 +332,9 @@ instance Show Kwd where
 
 instance Show Ident where
   show = T.unpack . unIdent
+
+instance Show Pair where
+  show (Pair k v) = show k ++ " " ++ show v ++ " =>"
 
 instance Show List where
   show (List [])  = "()"
@@ -358,9 +380,6 @@ instance Show Record where
                 $ zip (recFields recType) recValues
       f (k, v)  = show $ Pair (Kwd k) v
 
-instance Show Pair where
-  show (Pair k v) = show k ++ " " ++ show v ++ " =>"
-
 -- TODO
 instance Show KPrim where
   show KNil       = "nil"
@@ -382,6 +401,7 @@ instance Show KValue where
   show (KMulti m)     = show m
   show (KRecordT r)   = show r
   show (KRecord r)    = show r
+  show (KThunk _)     = "#<thunk>"
 
 instance Show KType where
   show TNil       = "#<::nil>"
@@ -400,6 +420,7 @@ instance Show KType where
   show TMulti     = "#<::multi>"
   show TRecordT   = "#<::record-type>"
   show TRecord    = "#<::record>"
+  show TThunk     = "#<::thunk>"
 
 showStr :: Text -> String
 showStr s = T.unpack $ T.concat ["\"", T.concatMap f s, "\""]
@@ -705,7 +726,7 @@ typeNames :: [Identifier]
 typeNames = [
     "nil", "bool", "int", "float", "str", "kwd", "pair", "list",
     "dict", "ident", "quot", "block", "builtin", "multi",
-    "record-type", "record"
+    "record-type", "record", "thunk"
   ]
 
 typeOf :: KValue -> KType
@@ -726,6 +747,7 @@ typeOf (KBuiltin _)   =   TBuiltin
 typeOf (KMulti _)     =   TMulti
 typeOf (KRecordT _)   =   TRecordT
 typeOf (KRecord _)    =   TRecord
+typeOf (KThunk _)     =   TThunk
 
 typeToKwd :: KType -> Kwd
 typeToKwd = Kwd . typeToStr
@@ -747,10 +769,11 @@ typeToStr TBuiltin    = "builtin"
 typeToStr TMulti      = "multi"
 typeToStr TRecordT    = "record-type"
 typeToStr TRecord     = "record"
+typeToStr TThunk      = "thunk"
 
 isNil, isBool, isInt, isFloat, isStr, isKwd, isPair, isList, isDict,
-  isIdent, isQuot, isBlock, isBuiltin, isMulti, isRecordT, isRecord
-    :: KValue -> Bool
+  isIdent, isQuot, isBlock, isBuiltin, isMulti, isRecordT, isRecord,
+  isThunk :: KValue -> Bool
 
 isNil       = (TNil       ==) . typeOf
 isBool      = (TBool      ==) . typeOf
@@ -768,13 +791,14 @@ isBuiltin   = (TBuiltin   ==) . typeOf
 isMulti     = (TMulti     ==) . typeOf
 isRecordT   = (TRecordT   ==) . typeOf
 isRecord    = (TRecord    ==) . typeOf
+isThunk     = (TThunk     ==) . typeOf
 
 isCallable, isFunction :: KValue -> Bool
 isCallable = (`elem` callableTypes) . typeOf
 isFunction = (`elem` functionTypes) . typeOf
 
 callableTypes, functionTypes :: [KType]
-callableTypes = [TStr, TPair, TList, TDict, TRecord] ++ functionTypes
+callableTypes = [TStr, TPair, TList, TDict, TRecord, TThunk] ++ functionTypes
 functionTypes = [TBlock, TBuiltin, TMulti, TRecordT]
 
 -- "constructors" --

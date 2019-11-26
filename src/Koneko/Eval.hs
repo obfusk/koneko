@@ -2,7 +2,7 @@
 --
 --  File        : Koneko/Eval.hs
 --  Maintainer  : Felix C. Stegerman <flx@obfusk.net>
---  Date        : 2019-11-25
+--  Date        : 2019-11-26
 --
 --  Copyright   : Copyright (C) 2019  Felix C. Stegerman
 --  Version     : v0.0.1
@@ -145,6 +145,7 @@ call c s = do
     KMulti m        -> callMulti    m c s'
     KRecordT r      -> callRecordT  r c s'
     KRecord r       -> callRecord   r c s'
+    KThunk t        -> callThunk    t c s'
     _               -> throwIO $ UncallableType $ typeToStr $ typeOf x
 
 -- TODO
@@ -253,6 +254,9 @@ callRecord r _ s = do
   where
     RecordT{..} = recType r
 
+callThunk :: Thunk -> Evaluator
+callThunk t _ s = rpush1 s =<< runThunk t
+
 -- apply --
 
 -- TODO
@@ -343,7 +347,7 @@ _pushRec s r = retOrThrow r >>= rpush1 s . KRecord
 initContext :: IO Context
 initContext = do
   ctx <- initMainContext
-  Prim.initCtx ctx call apply apply_dict
+  Prim.initCtx ctx call apply apply_dict callBlock
   Bltn.initCtx ctx
   Prld.initCtx ctx evalFile
   return ctx

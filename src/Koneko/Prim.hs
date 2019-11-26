@@ -2,7 +2,7 @@
 --
 --  File        : Koneko/Prim.hs
 --  Maintainer  : Felix C. Stegerman <flx@obfusk.net>
---  Date        : 2019-11-25
+--  Date        : 2019-11-26
 --
 --  Copyright   : Copyright (C) 2019  Felix C. Stegerman
 --  Version     : v0.0.1
@@ -37,8 +37,9 @@ import Koneko.Misc (prompt')
 import Paths_koneko (getDataFileName)
 
 -- TODO
-initCtx :: Context -> Evaluator -> Evaluator -> Evaluator -> IO ()
-initCtx ctxMain call apply apply_dict = do
+initCtx :: Context -> Evaluator -> Evaluator -> Evaluator ->
+           (Block -> Evaluator) -> IO ()
+initCtx ctxMain call apply apply_dict callBlock = do
   ctx <- forkContext primModule ctxMain
   traverse_ (defPrim ctx) [
       mkPrim "call" call, mkPrim "apply" apply,
@@ -52,8 +53,10 @@ initCtx ctxMain call apply apply_dict = do
       arithI "div" div, arithI "mod" mod,
       arithF "float+" (+), arithF "float-" (-),
       arithF "float*" (*), arithF "float/" (/),
-      chr_, intToFloat, recordToDict, recordType, recordVals,
+      chr_, intToFloat, recordToDict,
+      recordType, recordVals,
       recordTypeName, recordTypeFields,
+      thunk_ callBlock,
       showStack, clearStack, nya
     ]
 
@@ -174,7 +177,7 @@ arithF = arith
 
 -- primitives: conversion --
 
-chr_, intToFloat, recordToDict, recordType, recordVals :: Builtin
+chr_, intToFloat, recordToDict :: Builtin
 
 chr_ = mkPrim "chr" $ \_ s -> do
   (i, s') <- pop' s
@@ -189,6 +192,9 @@ recordToDict = mkPrim "record->dict" $ pop1push1 $ \r ->
   dict [ Pair (Kwd k) v | (k, v) <- zip (recFields $ recType r)
                                         (recValues r) ]
 
+-- primitives: record --
+
+recordType, recordVals :: Builtin
 recordType = mkPrim "record-type"   $ pop1push1 $ KRecordT . recType
 recordVals = mkPrim "record-values" $ pop1push1 $ recValues
 
@@ -198,6 +204,18 @@ recordTypeName, recordTypeFields :: Builtin
 recordTypeName    = mkPrim "record-type-name" $ pop1push1 $ Kwd . recName
 recordTypeFields  = mkPrim "record-type-fields" $ pop1push1
                   $ map kwd . recFields
+
+-- primitives: thunk --
+
+thunk_ :: (Block -> Evaluator) -> Builtin
+thunk_ callBlock = mkPrim "thunk" $ \c s -> do
+  (b, s') <- pop' s
+  t <- thunk $ do
+    l <- callBlock b c emptyStack
+    unless (length l == 1) $ throwIO $
+      expected "thunk to produce exactly 1 value"
+    return $ head l   -- safe!
+  rpush1 s' $ KThunk t
 
 -- repl --
 
