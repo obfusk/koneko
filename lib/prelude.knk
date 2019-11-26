@@ -2,7 +2,7 @@
 ;
 ; File        : prelude.knk
 ; Maintainer  : Felix C. Stegerman <flx@obfusk.net>
-; Date        : 2019-11-25
+; Date        : 2019-11-26
 ;
 ; Copyright   : Copyright (C) 2019  Felix C. Stegerman
 ; Version     : v0.0.1
@@ -62,49 +62,61 @@
 
                                                                 ; }}}1
 
-; -- stack shuffling --
+; -- stack shuffling --                                         ; {{{1
 
-; --                                                            ; {{{1
-;
 ; >>> , 1 2 show-stack
 ; 2
 ; 1
 ; >>> , swap show-stack
 ; 1
 ; 2
-;
-; >>> clear-stack
-; >>> 42
+
+:swap   [ x y . 'y 'x ] def                   ; '__swap__
+
+; >>> , 1 2 3 rot> show-stack
+; 2
+; 1
+; 3
+; >>> , <rot show-stack
+; 3
+; 2
+; 1
+
+:rot>   [ x y z . 'z 'x 'y  ] def             ; [ swap 'swap dip ]
+:<rot   [ x y z . 'y 'z 'x  ] def             ; [ 'swap dip swap ]
+
+; >>> , 42 dup show-stack
 ; 42
-; >>> , dup show-stack
 ; 42
-; 42
-;
 ; >>> clear-stack
 ; >>> , 1 2 2dup show-stack
 ; 2
 ; 1
 ; 2
 ; 1
-;
-; >>> clear-stack
+
+ :dup   [ x   . 'x 'x       ] def
+:2dup   [ x y . 'x 'y 'x 'y ] def             ; [ over over ]
+
 ; >>> nil
 ; nil
 ; >>> drop
 ; >>> drop
 ; *** ERROR: stack underflow
-;
 ; >>> 42 37 2drop
-;
+
+ :drop  [ _   . ] def
+:2drop  [ _ _ . ] def                         ; [ drop drop ]
+
 ; >>> , 42 37 nip show-stack
 ; 37
-;
-; >>> clear-stack
+
+:nip    [ _ y . 'y ] def                      ; [ 'drop dip ]
+
 ; >>> , 1 2 over show-stack
 ; 1
 ; 2
 ; 1
-;
 ; >>> clear-stack
 ; >>> , 1 2 3 2over show-stack
 ; 2
@@ -112,213 +124,199 @@
 ; 3
 ; 2
 ; 1
-;
-; >>> clear-stack
+
+ :over  [ x y   . 'x 'y 'x        ] def       ; [ 'dup dip swap ]
+:2over  [ x y z . 'x 'y 'z 'x 'y  ] def       ; [ over2 over2 ]
+
 ; >>> , 1 2 3 over2 show-stack
 ; 1
 ; 3
 ; 2
 ; 1
-;
-; --                                                            ; }}}1
-
-:swap   [ x y . 'y 'x       ] def             ; '__swap__
-:rot    [ x y z . 'y 'z 'x  ] def             ; [ 'swap dip swap ]
-
- :dup   [ x   . 'x 'x       ] def
-:2dup   [ x y . 'x 'y 'x 'y ] def             ; [ over over ]
-
- :drop  [ _   . ] def
-:2drop  [ _ _ . ] def                         ; [ drop drop ]
-
-:nip    [ _ y . 'y ] def                      ; [ 'drop dip ]
-
- :over  [ x y   . 'x 'y 'x        ] def       ; [ 'dup dip swap ]
-:2over  [ x y z . 'x 'y 'z 'x 'y  ] def       ; [ over2 over2 ]
 
 :over2  [ x y z . 'x 'y 'z 'x ] def           ; [ 'over dip swap ]
 
 ; ... TODO ...
 
-; -- combinators --
+                                                                ; }}}1
 
-; --                                                            ; {{{1
+; -- combinators --                                             ; {{{1
+
+; dip: remove top value(s), call function, restore value(s)
 ;
-; >>> , 1 2 'dup dip swap show-stack
-; 1
+; >>> , 1 2 'dup dip show-stack
 ; 2
 ; 1
-;
+; 1
 ; >>> clear-stack
 ; >>> , 1 2 3 4 '- 2dip show-stack
 ; 4
 ; 3
 ; -1
-;
 ; >>> clear-stack
-; >>> , 2 [ dup * ] keep show-stack
-; 2
+; >>> , 1 2 3 4 'neg 3dip show-stack
 ; 4
-;
-; >>> clear-stack
-; >>> , 2 3 '* 2keep show-stack
 ; 3
 ; 2
-; 6
-;
-; >>> clear-stack
-; >>> , 35 [ 2 + ] [ 7 + ] bi show-stack
-; 42
-; 37
-;
-; >>> clear-stack
-; >>> 1 [ 1 + ] [ 2 + ] [ 3 + ] tri * +
-; 14
-;
-; >>> clear-stack
-; >>> 2 3 [ dup * ] bi$ +
-; 13
-;
-; >>> clear-stack
-; >>> , 2 3 4 [ dup * ] tri$ show-stack
-; 16
-; 9
-; 4
-;
-; >>> clear-stack
-; >>> , 4 9 [ 2 div ] [ 3 div ] bi~ show-stack
-; 3
-; 2
-;
-; >>> clear-stack
-; >>> ( 1 2 3 :x :y :z .[ '1 swap => ] tri$ tri~ )
-; ( :x 1 => :y 2 => :z 3 => )
-;
-; >>> clear-stack
-; >>> , 2 3 [ dup * ] [ 1 + ] bi* show-stack
-; 4
-; 3
-; 9
-; 4
-;
-; >>> clear-stack
-; >>> , 1 2 '+ '- 2bi show-stack
 ; -1
-; 3
-;
-; >>> clear-stack
-; >>> , 7 2 '+ '- 'div 2tri show-stack
-; 3
-; 5
-; 9
-;
-; >>> clear-stack
-; >>> , 1 2 3 4 '+ 2bi$ show-stack
-; 7
-; 3
-;
-; >>> clear-stack
-; >>> , 1 2 3 4 '+ '- 2bi~ show-stack
-; -1
-; 3
-;
-; >>> clear-stack
-; >>> , 1 3 2 4 '+ 2bi$' show-stack
-; 7
-; 3
-;
-; >>> clear-stack
-; >>> , 1 3 2 4 '+ '- 2bi~' show-stack
-; -1
-; 3
-;
-; --                                                            ; }}}1
 
  :dip   [ x f   . f 'x    ] def
 :2dip   [ x y f . f 'x 'y ] def               ; [ swap 'dip dip ]
 :3dip   [ swap '2dip dip  ] def
 
+; keep: copy top value(s), call function, push value(s)
+;
+; >>> , 2 [ dup * ] keep show-stack
+; 2
+; 4
+; >>> clear-stack
+; >>> , 2 3 '* 2keep show-stack
+; 3
+; 2
+; 6
+
  :keep  [  over 'call  dip  ] def             ; [ x f . 'x f 'x ]
 :2keep  [ 2over 'call 2dip  ] def             ; [ '2dup dip 2dip ]
+
+; bi, tri: call multiple functions on one value
+;
+; >>> , 35 [ 2 + ] [ 7 + ] bi show-stack
+; 42
+; 37
+; >>> clear-stack
+; >>> , 2 [ 1 + ] [ 2 * ] [ 3 - ] tri show-stack
+; -1
+; 4
+; 3
 
 :bi     [ x f g   . 'x f 'x g       ] def     ; [ 'keep dip call ]
 :tri    [ x f g h . 'x f 'x g 'x h  ] def     ; [ 'keep 2dip bi ]
 
+; bi$, tri$: call a function on multiple values
+;
+; >>> 2 3 [ dup * ] bi$ +
+; 13
+; >>> clear-stack
+; >>> , 2 3 4 [ dup * ] tri$ show-stack
+; 16
+; 9
+; 4
+
 :bi$    [ x y f   . 'x f 'y f       ] def     ; [ dup bi~ ]
 :tri$   [ x y z f . 'x f 'y f 'z f  ] def     ; [ dup dup tri~ ]
+
+; bi~, tri~: "pair" multiple functions and values
+;
+; >>> , 4 9 [ 2 + ] [ 3 div ] bi~ show-stack
+; 3
+; 6
+; >>> clear-stack
+; >>> ( 1 2 3 :x :y :z .[ '1 swap => ] tri$ tri~ )
+; ( :x 1 => :y 2 => :z 3 => )
 
 :bi~    [ x y f g     . 'x f 'y g       ] def ; [ 'dip dip call ]
 :tri~   [ x y z f g h . 'x f 'y g 'z h  ] def
 
+; bi*: "multiply" multiple functions and values
+;
+; >>> , 2 3 [ dup * ] [ 1 + ] bi* show-stack
+; 4
+; 3
+; 9
+; 4
+
 :bi*    [ x y f g . 'x f 'y f 'x g 'y g ] def ; [ [ 'bi$ 2keep ] dip bi$ ]
+
+; >>> , 1 2 '+ '- 2bi show-stack
+; -1
+; 3
+; >>> clear-stack
+; >>> , 7 2 '+ '- 'div 2tri show-stack
+; 3
+; 5
+; 9
 
 :2bi    [ '2keep dip call ] def
 :2tri   [ '2keep 2dip 2bi ] def
 
+; >>> , 1 2 3 4 '+ 2bi$ show-stack
+; 7
+; 3
+; >>> clear-stack
+; >>> , 1 3 2 4 '+ 2bi$' show-stack
+; 7
+; 3
+
 :2bi$   [ dup 2bi~        ] def
 :2bi$'  [ 'swap 2dip 2bi$ ] def
+
+; >>> , 1 2 3 4 '+ '- 2bi~ show-stack
+; -1
+; 3
+; >>> clear-stack
+; >>> , 1 3 2 4 '+ '- 2bi~' show-stack
+; -1
+; 3
 
 :2bi~   [ '2dip dip call  ] def
 :2bi~'  [ 'swap 3dip 2bi~ ] def
 
 ; ... TODO ...
 
-; -- logic --
+                                                                ; }}}1
 
-; --                                                            ; {{{1
-;
+; -- logic --                                                   ; {{{1
+
 ; >>> #t 42 37 ?
 ; 42
-;
+
+:?      [ .[ '1 ] bi$ if ] def
+
+; >>> 1 2 = [ "oh no!" say! ] when
+; >>> 1 1 = [ "good!"  say! ] when
+; good!
+; >>> , 42 dup 2 mod 0 = [ 2 div ] when1 show-stack
+; 21
+; >>> clear-stack
+; >>> 1 2 2dup = '+ when2
+
+:when   [ [ ]    if ] def
+:when1  [ 'drop  if ] def
+:when2  [ '2drop if ] def
+
 ; >>> 5 not
 ; #f
 ; >>> nil not
 ; #t
-;
 ; >>> nil 5 or
 ; 5
 ; >>> nil 5 and
 ; nil
-;
 ; >>> 2 3 or
 ; 2
 ; >>> 2 3 and
 ; 3
-;
-; --                                                            ; }}}1
-
-:?      [ .[ '1 ] bi$ if ] def
 
 :not    [ #f #t ?     ] def
 :and    [ over ?      ] def
 :or     [ 'dup dip ?  ] def
 
-; -- arithmetic --
+                                                                ; }}}1
 
-; --                                                            ; {{{1
-;
+; -- arithmetic --                                              ; {{{1
+
 ; >>> 1 2 +
 ; 3
 ; >>> 4 3 -
 ; 1
 ; >>> 6 7 *
 ; 42
-;
 ; >>> 1.0 2.0 +
 ; 3.0
 ; >>> 4.0 3 -
 ; 1.0
 ; >>> 6 7.0 *
 ; 42.0
-;
-; >>> 1.0 2.0 /
-; 0.5
-; >>> 8 3 div
-; 2
-; >>> 8 3 mod
-; 2
-;
-; --                                                            ; }}}1
 
 :+ ( :int   :int    ) [ __int+__          ] defmulti
 :+ ( :float :float  ) [ __float+__        ] defmulti
@@ -335,9 +333,33 @@
 :* ( :int   :float  ) [ 'int->float dip * ] defmulti
 :* ( :float :int    ) [  int->float     * ] defmulti
 
+; >>> 10 neg
+; -10
+; >>> -10 neg
+; 10
+; >>> 3.14 neg
+; -3.14
+
+:neg ( :int   ) [ 0   swap - ] defmulti
+:neg ( :float ) [ 0.0 swap - ] defmulti
+
+; >>> 1.0 2.0 /
+; 0.5
+; >>> 8 3 div
+; 2
+; >>> 8 3 mod
+; 2
+
 :/    '__float/__ def ; aliases
 :div  '__div__    def
 :mod  '__mod__    def
+
+; TODO: floor, ceil, round, ...
+; TODO: div/mod vs quot/rem
+
+                                                                ; }}}1
+
+; === WORK IN PROGRESS ===
 
 ; -- sequences -- TODO --
 
@@ -390,7 +412,7 @@
 ;
 ; --                                                            ; }}}1
 
-:^seq     [ rot ^seq' ] def
+:^seq     [ <rot ^seq' ] def
 :^seq'    ( :_ )  [ f g x . 'x empty? 'f
                     [ 'x 'head^ 'tail^ bi g ] if ] defmulti
 
@@ -476,7 +498,7 @@
 ;
 ; --                                                            ; }}}1
 
-:^seq'    ( :list ) [ rot rot ^list ] defmulti
+:^seq'    ( :list ) [ rot> ^list ] defmulti
 :head^    ( :list ) [ .head^  ] defmulti
 :tail^    ( :list ) [ .tail^  ] defmulti
 
@@ -541,13 +563,6 @@
 
 ; --                                                            ; {{{1
 ;
-; >>> 1 2 = [ "oh no!" say! ] when
-; >>> 1 1 = [ "good!"  say! ] when
-; good!
-;
-; >>> 42, dup 2 mod 0 = [ 2 div ] when1
-; 21
-;
 ; >>> clear-stack
 ; >>> , :temp [
 ; ...     dup
@@ -572,10 +587,6 @@
 ; #f
 ;
 ; --                                                            ; }}}1
-
-:when   [ [ ]    if ] def
-:when1  [ 'drop  if ] def
-:when2  [ '2drop if ] def
 
   :cond [ _cond call ] def
  :_cond [ cons '_&cond apply ] def
