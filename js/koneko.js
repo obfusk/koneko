@@ -2,7 +2,7 @@
 //
 //  File        : koneko.js
 //  Maintainer  : Felix C. Stegerman <flx@obfusk.net>
-//  Date        : 2019-11-26
+//  Date        : 2019-11-27
 //
 //  Copyright   : Copyright (C) 2019  Felix C. Stegerman
 //  Version     : v0.0.1
@@ -46,6 +46,7 @@ const E = {                                                   //  {{{1
   IndexError:           (op, index)   => [`${op}: index ${index} is out of range`, { op, index }],
   KeyError:             (op, key)     => [`${op}: key ${key} not found`, { op, key }],
   DivideByZero:         ()            => ["divide by zero", {}],
+  Fail:                 msg           => [msg, { msg }],
   NotImplementedError:  what          => [`not implemented: ${what}`, { what }],
 }                                                             //  }}}1
 
@@ -1057,6 +1058,10 @@ modules.set("__prim__", new Map([                             //  {{{1
     const [[b], s1] = stack.pop(s0, "block")
     const f = () => call(c, stack.push(stack.empty(), b))
     return stack.push(s1, thunk(f))
+  }),
+  mkPrim("__fail__", (c, s0) => {
+    const [[msg], s1] = stack.pop(s0, "str")
+    throw new KE(...E.Fail(msg.list.join("")))
   }),
   mkPrim("__show-stack__", (c, s) => {
     for (const x of stack.toArray(s)) { say(show(x)) }

@@ -2,7 +2,7 @@
 --
 --  File        : Koneko/Prim.hs
 --  Maintainer  : Felix C. Stegerman <flx@obfusk.net>
---  Date        : 2019-11-26
+--  Date        : 2019-11-27
 --
 --  Copyright   : Copyright (C) 2019  Felix C. Stegerman
 --  Version     : v0.0.1
@@ -56,7 +56,7 @@ initCtx ctxMain call apply apply_dict callBlock = do
       chr_, intToFloat, recordToDict,
       recordType, recordVals,
       recordTypeName, recordTypeFields,
-      thunk_ callBlock,
+      thunk_ callBlock, fail_,
       showStack, clearStack, nya
     ]
 
@@ -216,6 +216,10 @@ thunk_ callBlock = mkPrim "thunk" $ \c s -> do
       expected "thunk to produce exactly 1 value"
     return $ head l   -- safe!
   rpush1 s' $ KThunk t
+
+fail_ :: Builtin
+fail_ = mkPrim "fail" $ \_ s -> do
+  (msg, _) <- pop' s; throwIO $ Fail $ T.unpack msg
 
 -- repl --
 

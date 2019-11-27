@@ -2,7 +2,7 @@
 ;
 ; File        : prelude.knk
 ; Maintainer  : Felix C. Stegerman <flx@obfusk.net>
-; Date        : 2019-11-26
+; Date        : 2019-11-27
 ;
 ; Copyright   : Copyright (C) 2019  Felix C. Stegerman
 ; Version     : v0.0.1
@@ -59,6 +59,8 @@
 :record-values      '__record-values__        def
 :record-type-name   '__record-type-name__     def
 :record-type-fields '__record-type-fields__   def
+
+:fail               '__fail__                 def
 
                                                                 ; }}}1
 
