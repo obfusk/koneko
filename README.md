@@ -2,7 +2,7 @@
 
     File        : README.md
     Maintainer  : Felix C. Stegerman <flx@obfusk.net>
-    Date        : 2019-11-26
+    Date        : 2019-11-27
 
     Copyright   : Copyright (C) 2019  Felix C. Stegerman
     Version     : v0.0.1
@@ -166,8 +166,8 @@ between the names of "functions", "variables", and "operators".
 
 Functions with names starting with:
 
-* `~` ...
-* `^` ...
+* `~` ... branch ...
+* `^` ... pattern match ...
 * `&` can be `apply`d to a variable number of arguments;
 * a number (e.g. `2dip`) perform an operation on that number of their
   arguments.

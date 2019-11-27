@@ -44,6 +44,8 @@
 :function?          '__function?__            def
 
 :defmodule          '__defmodule__            def
+:import             '__import__               def
+:import-from        '__import-from__          def
 
 :=                  '__=__                    def
 :not=               '__not=__                 def
@@ -352,8 +354,11 @@
 :div    '__div__    def
 :mod    '__mod__    def
 
-; TODO: floor, ceil, round, ...
-; TODO: div/mod vs quot/rem
+; TODO:
+;   * div/mod vs quot/rem
+;   * abs, floor, ceil, round**, trunc, ...
+;   * pi, exp, log, sqrt, sin, cos, ...
+;   * ^ :math import ?!
 
                                                                 ; }}}1
 
@@ -371,14 +376,19 @@
 
 ; -- nil & pair --                                              ; {{{1
 
-; >>> , :f [ [ "nil" say! ] [ type show say! ] ~nil ] def
+; nil "branch"
+;
+; >>> , :f [ [ "nil!" say! ] [ type show say! ] ~nil ] def
 ; >>> nil f
-; nil
+; nil!
 ; >>> 42 f
 ; :int
 
 :~nil   [ x f g . 'x nil? 'f [ 'x g ] if ] def
+;       [ <rot .[ '2 .1 ] 'nil? bi rot> if ]
 
+; pair "pattern match"
+;
 ; >>> , x: 42 'swap ^pair, show-stack
 ; :x
 ; 42
@@ -394,11 +404,14 @@
 :Range ( :start :stop ) defrecord
 
 :[m-n]    'Range            def
-:[m-n)    [ 1 - [m-n]     ] def
+:[m-n)    [ 1 -    [m-n]  ] def
+:[m-)     [ nil    [m-n]  ] def
 :[0-n]    [ 0 swap [m-n]  ] def
 :[0-n)    [ 0 swap [m-n)  ] def
+:[0-)     [ 0 nil  [m-n]  ] def
 :[1-n]    [ 1 swap [m-n]  ] def
 :[1-n)    [ 1 swap [m-n)  ] def
+:[1-)     [ 1 nil  [m-n]  ] def
 
 ; lazy sequence
 ;
@@ -414,27 +427,6 @@
 :lseq     [ __thunk__ LSeq ] def
 :lseq1    [ [ () !cons ] dip lseq ] def
 :lazy-seq [ () swap lseq ] def
-
-; append two sequences
-;
-; >>> "foo" "bar" ++
-; "foobar"
-; >>> ( 1 2 3 ) ( 4 5 ) ++
-; ( 1 2 3 4 5 )
-
-:++       ( :str  :str  ) [ !append ] defmulti
-:++       ( :list :list ) [ !append ] defmulti
-
-; >>> ( 1 2 3 ) [ ( 4 5 ) ] lazy-seq ++ ->list
-; ( 1 2 3 4 5 )
-; >>> [ ( 1 2 3 ) ] lazy-seq ( 4 5 ) ++ ->list
-; ( 1 2 3 4 5 )
-
-:++       ( :list :LSeq ) [ [ '++ dip LSeq ] ^LSeq ] defmulti
-:++       ( :LSeq :list ) [ _lseq++ ] defmulti
-:++       ( :LSeq :LSeq ) [ _lseq++ ] defmulti
-
-:_lseq++  [ l . [ ![ .1 'l ++ ] lseq ] ^LSeq ] def
 
 ; seq returns either the sequence (when not empty) or nil
 ;
@@ -510,8 +502,32 @@
 ; >>> ( 1 2 3 ) [ 2 >= ] filter len
 ; 2
 
-:len      ( :LSeq ) [ ->list len  ] defmulti                    ; TODO
-:len      ( :_    ) [ .len        ] defmulti
+:len      ( :str  ) [ .len        ] defmulti
+:len      ( :list ) [ .len        ] defmulti
+:len      ( :dict ) [ .len        ] defmulti
+:len      ( :_    ) [ ->list len  ] defmulti                    ; TODO
+
+; append two sequences
+;
+; >>> "foo" "bar" ++
+; "foobar"
+; >>> ( 1 2 3 ) ( 4 5 ) ++
+; ( 1 2 3 4 5 )
+
+:++       ( :str  :str  ) [ !append ] defmulti
+:++       ( :list :list ) [ !append ] defmulti
+
+; >>> ( 1 2 3 ) [ ( 4 5 ) ] lazy-seq ++ ->list
+; ( 1 2 3 4 5 )
+; >>> [ ( 1 2 3 ) ] lazy-seq ( 4 5 ) ++ ->list
+; ( 1 2 3 4 5 )
+
+:++       ( :nil  :LSeq ) [ nip ] defmulti
+:++       ( :list :LSeq ) [ [ '++ dip LSeq ] ^LSeq ] defmulti
+:++       ( :LSeq :list ) [ _lseq++ ] defmulti
+:++       ( :LSeq :LSeq ) [ _lseq++ ] defmulti
+
+:_lseq++  [ l . [ ![ .1 'l ++ ] lseq ] ^LSeq ] def
 
 ; >>> "foo" ->list
 ; ( "f" "o" "o" )
@@ -525,7 +541,7 @@
 :->list   ( :dict ) [ .pairs ] defmulti
 :->list   ( :_    ) [ [ () ] [ ->list !cons ] ^seq ] defmulti   ; TODO
 
-; "pattern match"
+; list & seq "pattern match"
 ;
 ; >>> ( 1 2 3 ) [ "empty" ] [ hd tl . 'hd ] ^list  ; head or "empty"
 ; 1
@@ -539,8 +555,13 @@
 ; nil
 ; >>> ( 1 2 3 ) 'len when-seq
 ; 3
+; >>> ( 1 2 3 ) 'drop with-seq
+; 1
+; >>> () 'drop with-seq
+; nil
 
 :when-seq [ [ seq dup ] dip when ] def
+:with-seq [ [ nil ] swap ^seq ] def
 
 ; "lazy" map & filter
 ;
@@ -551,15 +572,17 @@
 ; >>> ( 1 2 3 4 ) [ 2 mod 0 = ] filter ->list
 ; ( 2 4 )
 
-:map      [ f . [ nil ] [ x xt . ( 'x f ) [ 'xt 'f map ] lseq ] ^seq ] def
+:map      [ f . [ x xt . ( 'x f ) [ 'xt 'f map ] lseq ] with-seq ] def
 :filter   [ ![ dup .1 not 'drop when ] map ] def
 
 ; >>> ( 1 2 ) ( 3 4 5 ) [ () cons cons ] zip ->list
 ; ( ( 1 3 ) ( 2 4 ) )
 
-:zip      [ f . [ drop nil ] [ y yt . [ nil ] [ x xt .
+:zip      [ f . [ drop nil ] [ y yt . [ x xt .
             ( 'x 'y f ) [ 'xt 'yt 'f zip ] lseq
-          ] ^seq ] ^seq ] def
+          ] with-seq ] ^seq ] def
+
+; TODO: unzip
 
 ; >>> ( 2 3 4 ) 10 '- foldl
 ; 1
@@ -572,23 +595,44 @@
 :foldr    [ f . swap [ ] [ <rot 'f foldr f ] ^seq ] def
 :foldr'   [ f . swap [ ] [ <rot ![ '1 '2 'f foldr' ] f ] ^seq ] def
 
+; TODO: scanl, scanr
+; TODO: any, all
+; TODO: min, max, sum, prod
+
+; >>> ( ( 1 2 3 ) dup [ dup * ] map ) concat ->list
+; ( 1 2 3 1 4 9 )
+; >>> ( 1 2 3 ) reverse                               ; "strict"
+; ( 3 2 1 )
+
+:concat   [ () [ lazy-seq ++ ] foldr' ] def
+:reverse  ( :_ ) [ () [ swap cons ] foldl ] defmulti
+
 ; >>> , ( "Hello" "World" ) 'say! each
 ; Hello
 ; World
 
 :each     [ f . [ ] [ 'f dip 'f each ] ^seq ] def
 
+; >>> ( 1 2 3 ) cycle 10 take-first ->list
+; ( 1 2 3 1 2 3 1 2 3 1 )
 ; >>> 0 [ 1 + ] iterate 10 take-first 2 drop-first ->list
 ; ( 2 3 4 5 6 7 8 9 )
 ; >>> 1 [ 2 * ] iterate [ 10 < ] drop-while [ 80 < ] take-while ->list
 ; ( 16 32 64 )
+; >>> 42 repeat 4 take-first ->list
+; ( 42 42 42 42 )
+; >>> :x 3 replicate ->list
+; ( :x :x :x )
 
+:cycle      [ repeat concat ] def
 :iterate    [ x f . 'x [ 'x f 'f iterate ] lseq1 ] def
+:repeat     [ dup ![ '1 repeat ] lseq1 ] def
+:replicate  [ 'repeat dip take-first ] def
 
-:take-first [ n . [ nil ] [
+:take-first [ n . [
               'n 0 > [ 'n 1 - ![ '1 '2 take-first ] lseq1 ]
                 [ 2drop nil ] if
-            ] ^seq ] def
+            ] with-seq ] def
 
 :drop-first [ n . [
               'n 0 > [ rest 'n 1 - drop-first ] when
@@ -601,6 +645,7 @@
             ] when-seq ] def
 
 ; TODO: split-at, split-w/, ...
+; TODO: last, init
 
                                                                 ; }}}1
 

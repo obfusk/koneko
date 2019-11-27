@@ -107,7 +107,8 @@ const scope = {                                               //  {{{1
       if (c_.table.has(k)) { return c_.table.get(k) }
       c_ = c_.parent
     }
-    for (const m of [c.module, "__bltn__", "__prld__"]) {
+    const imps = [...(imports.get(c.module) || [])]
+    for (const m of [c.module, ...imps, "__prld__", "__bltn__"]) {
       const mod = modules.get(m)
       if (mod && mod.has(k)) { return mod.get(k) }
     }
@@ -929,6 +930,8 @@ const cmp_gte = c => bool(c ==  1 || c == 0)
 
 /* === modules & primitives === */
 
+const imports = new Map()
+
 const modules = new Map(
   ["__bltn__", "__prld__", "__main__"].map(k => [k, new Map()])
 )
@@ -1015,9 +1018,7 @@ modules.set("__prim__", new Map([                             //  {{{1
   ),
   mkPrim("__module-get__", (c, s0) => {
     const [[k, m], s1] = stack.pop(s0, "kwd", "kwd")
-    const mod = getModule(m.value)
-    if (!mod.has(k.value)) { throw new KE(...E.LookupFailed(k.value)) }
-    return stack.push(s1, mod.get(k.value))
+    return stack.push(s1, moduleLookup(m.value, k.value))
   }),
   mkPrim("__module-defs__", (c, s0) => {
     const [[m], s1] = stack.pop(s0, "kwd")
@@ -1025,6 +1026,21 @@ modules.set("__prim__", new Map([                             //  {{{1
     return stack.push(s1, list(l))
   }),
   mkPrim("__name__", (c, s) => stack.push(s, kwd(c.module))),
+  mkPrim("__import__", (c, s0) => {
+    const [[m], s1] = stack.pop(s0, "kwd")
+    let imp = imports.get(c.module)
+    if (!imp) { imp = new Set(); imports.set(c.module, imp) }
+    imp.add(m.value)
+    return s1
+  }),
+  mkPrim("__import-from__", (c, s0) => {
+    const [[ks, m], s1] = stack.pop(s0, "list", "kwd")
+    for (const x of ks.value) { expect(x, "kwd") }
+    for (const k of ks.value) {
+      scope.define(c, k.value, moduleLookup(m.value, k.value))
+    }
+    return s1
+  }),
   mkPrim("__=__",     pop2push((x, y) => [bool( eq(x, y))   ])),
   mkPrim("__not=__",  pop2push((x, y) => [bool(!eq(x, y))   ])),
   mkPrim("__<__",     pop2push((x, y) => [cmp_lt (cmp(x, y))])),
@@ -1074,6 +1090,12 @@ modules.set("__prim__", new Map([                             //  {{{1
 const getModule = m => {
   if (!modules.has(m)) { throw new KE(...E.ModuleNotFound(m)) }
   return modules.get(m)
+}
+
+const moduleLookup = (m, k) => {
+  const mod = getModule(m)
+  if (!mod.has(k)) { throw new KE(...E.LookupFailed(k)) }
+  return mod.get(k)
 }
 
 const types = [

@@ -66,13 +66,14 @@ module Koneko.Data (
   pop, pop2, pop3, pop', pop2', pop3', popN', pop1push, pop2push,
   pop1push1, pop2push1, primModule, bltnModule, prldModule,
   mainModule, initMainContext, forkContext, forkScope, defineIn,
-  lookup, lookupModule', moduleKeys, moduleNames, typeNames, typeOf,
-  typeToKwd, typeToStr, isNil, isBool, isInt, isFloat, isStr, isKwd,
-  isPair, isList, isDict, isIdent, isQuot, isBlock, isBuiltin,
-  isMulti, isRecordT, isRecord, isThunk, isCallable, isFunction, nil,
-  false, true, bool, int, float, str, kwd, pair, list, dict, block,
-  dictLookup, mkPrim, mkBltn, defPrim, defMulti, truthy, retOrThrow,
-  recordTypeSig, underscored, digitParams
+  importIn, importFromIn, lookup, lookupModule', moduleKeys,
+  moduleNames, typeNames, typeOf, typeToKwd, typeToStr, isNil, isBool,
+  isInt, isFloat, isStr, isKwd, isPair, isList, isDict, isIdent,
+  isQuot, isBlock, isBuiltin, isMulti, isRecordT, isRecord, isThunk,
+  isCallable, isFunction, nil, false, true, bool, int, float, str,
+  kwd, pair, list, dict, block, dictLookup, mkPrim, mkBltn, defPrim,
+  defMulti, truthy, retOrThrow, recordTypeSig, underscored,
+  digitParams, unKwds
 ) where
 
 import Control.DeepSeq (deepseq, NFData(..))
@@ -233,6 +234,7 @@ instance NFData Scope where
 
 data Context = Context {
   modules   :: HashTable Identifier Module,
+  imports   :: HashTable Identifier (S.HashSet Identifier),
   ctxScope  :: Scope
 }
 
@@ -657,10 +659,11 @@ mainModule = "__main__"
 
 initMainContext :: IO Context
 initMainContext = do
-  modules <- HT.new
+  modules <- HT.new; imports <- HT.new
+  let ctxScope = _newScope mainModule
   traverse_ (\m -> HT.new >>= HT.insert modules m)
     [primModule, bltnModule, prldModule, mainModule]
-  return Context { modules, ctxScope = _newScope mainModule }
+  return Context{..}
 
 forkContext :: Identifier -> Context -> IO Context
 forkContext m c = do
@@ -682,22 +685,36 @@ forkScope l  c s  = c { ctxScope = s { parent = Just s,
 defineIn :: Context -> Identifier -> KValue -> IO ()
 defineIn c k v = do curMod <- scopeModule c; HT.insert curMod k v
 
+importIn :: Context -> Identifier -> IO ()
+importIn c k  = HT.mutate (imports c) (modName $ ctxScope c)
+              $ (,()) . Just . maybe (S.singleton k) (S.insert k)
+
+-- TODO: error if already defined?!
+-- throws ModuleNotFound or LookupFailed
+importFromIn :: Context -> Identifier -> [Identifier] -> IO ()
+importFromIn c m
+  = traverse_ $ \k -> defineIn c k =<< lookupModule' c k m
+
 -- throws ModuleNotFound
 scopeModule :: Context -> IO Module
 scopeModule c = getModule c $ modName $ ctxScope c
 
--- Prim -> Scope* -> Module -> Prld -> Bltn
+-- Prim -> Scope* -> Module -> Import* -> Prld -> Bltn
 -- throws ModuleNotFound
 lookup :: Context -> Identifier -> IO (Maybe KValue)
-lookup c k = M.firstJust [lookupPrim, lookupScope $ ctxScope c,
-                          lookupPrld, lookupBltn]
+lookup c k = do
+    imp <- maybe S.empty id <$> HT.lookup (imports c) m
+    M.firstJust [lookupPrim, lookupScope s, lookupImp imp,
+                 lookupPrld, lookupBltn]
   where
-    lookupScope s = maybe (f s) (return . Just) $ H.lookup k $ table s
-    f s           = maybe (look $ modName s) lookupScope $ parent s
+    s = ctxScope c; m = modName s
+    lookupScope x = maybe (f x) (return . Just) $ H.lookup k $ table x
+    f x           = maybe (look m) lookupScope $ parent x
     lookupPrim    = look primModule
     lookupBltn    = look bltnModule
     lookupPrld    = look prldModule
     look          = lookupModule c k
+    lookupImp     = M.firstJust . map look . S.toList
 
 -- throws ModuleNotFound
 lookupModule :: Context -> Identifier -> Identifier -> IO (Maybe KValue)
@@ -894,5 +911,8 @@ digitParams Block{..} = map (Ident_ . fst) $ take n parms     -- safe!
           $ S.toList $ freeVars blkCode
     parms = [ (underscored $ T.singleton (intToDigit i), i)
             | i <- [1..9] ]
+
+unKwds :: [KValue] -> IO [Identifier]
+unKwds = retOrThrow . fmap (map unKwd) . fromVals
 
 -- vim: set tw=70 sw=2 sts=2 et fdm=marker :

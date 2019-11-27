@@ -47,6 +47,7 @@ initCtx ctxMain call apply apply_dict callBlock = do
       def, defmulti, defrecord call, mkPair, mkDict, swap,
       show_, say, ask, type_, callable, function,
       defmodule call, modules, moduleGet, moduleDefs, moduleName,
+      import_, importFrom,
       comp "=" (==), comp "not=" (/=), comp "<" (<),
       comp "<=" (<=), comp ">" (>), comp ">=" (>=),
       arithI "int+" (+), arithI "int-" (-), arithI "int*" (*),
@@ -74,7 +75,7 @@ def = mkPrim "def" $ \c s -> do
 
 defmulti = mkPrim "defmulti" $ \c s -> do
     ((Kwd k, sig, b), s') <- pop3' s
-    sig' <- traverse (f c) =<< retOrThrow (map unKwd <$> fromVals sig)
+    sig' <- traverse (f c) =<< unKwds sig
     s' <$ defMulti c k sig' b
   where
     f c k | k == "_" || k `elem` typeNames = return k
@@ -85,8 +86,7 @@ defmulti = mkPrim "defmulti" $ \c s -> do
 
 -- TODO
 defrecord call = mkPrim "defrecord" $ \c s -> do
-    ((Kwd recName, fs), s') <- pop2' s
-    recFields <- retOrThrow $ map unKwd <$> fromVals fs
+    ((Kwd recName, fs), s') <- pop2' s; recFields <- unKwds fs
     let t = RecordT{..}; e = err $ T.unpack recName
     defineIn c recName $ KRecordT t
     defX c (recName <> "?") $ pop1push1 $ m t (const True) False
@@ -134,7 +134,7 @@ function  = mkPrim "function?"  $ pop1push1 isFunction
 -- primitives: modules --
 
 defmodule :: Evaluator -> Builtin
-modules, moduleGet, moduleDefs, moduleName :: Builtin
+modules, moduleGet, moduleDefs, moduleName, import_, importFrom :: Builtin
 
 defmodule call = mkPrim "defmodule" $ \c s -> do
   ((Kwd m, b), s') <- pop2' s; c' <- forkContext m c
@@ -153,6 +153,12 @@ moduleDefs = mkPrim "module-defs" $ \c s -> do
 
 moduleName = mkPrim "name" $ \c s ->
   rpush1 s $ kwd $ modName $ ctxScope c
+
+import_ = mkPrim "import" $ \c s -> do
+  (Kwd m, s') <- pop' s; s' <$ importIn c m
+
+importFrom = mkPrim "import-from" $ \c s -> do
+  ((ks, Kwd m), s') <- pop2' s; s' <$ (importFromIn c m =<< unKwds ks)
 
 -- primitives: Eq, Ord --
 
