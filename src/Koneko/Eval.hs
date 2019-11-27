@@ -157,6 +157,7 @@ callStr x _ s = do
     "ord"     ->  do  unless (T.length x == 1) $ throwIO $
                         stackExpected "str of length 1"
                       p $ toInteger $ ord $ T.head x
+    "->list"  ->  p $ list $ map T.singleton $ T.unpack x
     "append"  ->  pr $ pop1push1 (<> x)
     "slice"   ->  pr $ \_ s1 -> do
                     ((i, j, step), s2) <- pop3' s1; let lx = lengthT x

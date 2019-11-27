@@ -2,7 +2,7 @@
 
     File        : README.md
     Maintainer  : Felix C. Stegerman <flx@obfusk.net>
-    Date        : 2019-11-25
+    Date        : 2019-11-26
 
     Copyright   : Copyright (C) 2019  Felix C. Stegerman
     Version     : v0.0.1
@@ -548,15 +548,15 @@ Point{ :x 1 =>, :y 2 => }
 ( 1 2 3 )
 
 >>> , ( 1 2 3 ) 5                           ; block w/ "holes" -- TODO
->>> ![ 10 * '1 div ] map
+>>> ![ 10 * '1 div ] map ->list
 ( 2 4 6 )
 >>> , ( 1 2 3 ) 5                           ; . doesn't call (! does)
->>> .[ 10 * '1 div ] call map
+>>> .[ 10 * '1 div ] call map ->list
 ( 2 4 6 )
 >>> , ( 1 2 3 ) 5                           ; desugared
->>> [ __1__ . [ 10 * '__1__ div ] ] call map
+>>> [ __1__ . [ 10 * '__1__ div ] ] call map ->list
 ( 2 4 6 )
->>> ( 1 2 3 ) [ 10 * 5 div ] map            ; equivalent
+>>> ( 1 2 3 ) [ 10 * 5 div ] map ->list     ; equivalent
 ( 2 4 6 )
 ```
 
@@ -747,7 +747,7 @@ nil
 >>> ( 3 4 ) 2 swap cons
 ( 2 3 4 )
 
->>> ( 2 3 4 ) [ dup * ] map
+>>> ( 2 3 4 ) [ dup * ] map ->list
 ( 4 9 16 )
 ```
 

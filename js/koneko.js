@@ -434,6 +434,8 @@ const call = (c0, s0, tailPos = false) => {                   //  {{{1
             throw new KE(...E.Expected("str of length 1 on stack"))
           }
           return r(int(xl[0].codePointAt(0)))
+        case "->list":
+          return r(list(xl.map(str)))
         case "append":
           return p(y => [str_(y.list.concat(xl))], "str")
         case "slice":
@@ -527,11 +529,13 @@ const call = (c0, s0, tailPos = false) => {                   //  {{{1
       const [opv, op, r] = popOp(), p = primPP(op, r)
       switch (opv) {
         case "keys":
-          return r([...xv.keys()].map(kwd))
+          return r(list([...xv.keys()].map(kwd)))
         case "values":
-          return r([...xv.values()])
+          return r(list([...xv.values()]))
         case "pairs":
-          return r([...xv.entries()].map(([k, v]) => pair(kwd(k, v))))
+          return r(list([...xv.entries()].map(
+            ([k, v]) => pair(kwd(k), v)
+          )))
         case "merge":
           return p(y => [dict_(new Map([...y.value, ...xv]))], "dict")
         case "empty?":
