@@ -2,7 +2,7 @@
 --
 --  File        : Koneko/Eval.hs
 --  Maintainer  : Felix C. Stegerman <flx@obfusk.net>
---  Date        : 2019-11-26
+--  Date        : 2019-11-27
 --
 --  Copyright   : Copyright (C) 2019  Felix C. Stegerman
 --  Version     : v0.0.1
@@ -171,7 +171,7 @@ callStr x _ s = do
                     (i, s2) <- pop' s1
                     let err = throwIO $ IndexError (T.unpack o) i
                     maybe err (rpush1 s2) $ indexT x i
-    "member?" ->  pr $ pop1push1 $ mem lengthT x
+    "has?"    ->  pr $ pop1push1 $ has lengthT x
     "elem?"   ->  pr $ pop1push1 (`T.isInfixOf` x)
     _         ->  throwIO $ UnknownField (T.unpack op) "str"
 
@@ -208,7 +208,7 @@ callList (List l) _ s = do
                     (i, s2) <- pop' s1
                     let err = throwIO $ IndexError (T.unpack o) i
                     maybe err (rpush1 s2) $ atMay l $ fromInteger i
-    "member?" ->  pr $ pop1push1 $ mem len l
+    "has?"    ->  pr $ pop1push1 $ has len l
     "elem?"   ->  pr $ pop1push1 (`elem` l)
     _         ->  throwIO $ UnknownField (T.unpack op) "list"
 
@@ -230,7 +230,7 @@ callDict (Dict h) _ s = do
                     (Kwd k, s2) <- pop' s1
                     let err = throwIO $ KeyError (T.unpack o) (T.unpack k)
                     maybe err (rpush1 s2) $ H.lookup k h
-    "member?" ->  pr $ \_ s1 -> do
+    "has?"    ->  pr $ \_ s1 -> do
                     (Kwd k, s2) <- pop' s1; rpush1 s2 $ H.member k h
     _         ->  throwIO $ UnknownField (T.unpack op) "dict"
 
@@ -374,15 +374,15 @@ mkOp = mkPrim . (<> ")") . ("(" <>)
 len :: [a] -> Integer
 len = genericLength
 
-mem :: (a -> Integer) -> a -> Integer -> Bool
-mem l x i = 0 <= i && i < (l x)
+has :: (a -> Integer) -> a -> Integer -> Bool
+has l x i = 0 <= i && i < (l x)
 
 lengthT :: Text -> Integer
 lengthT = toInteger . T.length
 
 -- TODO
 indexT :: Text -> Integer -> Maybe Text
-indexT t i = if mem lengthT t i then f i else Nothing
+indexT t i = if has lengthT t i then f i else Nothing
   where
     f = Just . T.singleton . T.index t . fromInteger
 

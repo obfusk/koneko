@@ -265,7 +265,7 @@
 
                                                                 ; }}}1
 
-; -- logic --                                                   ; {{{1
+; -- logic & order --                                           ; {{{1
 
 ; >>> #t 42 37 ?
 ; 42
@@ -300,6 +300,14 @@
 :not    [ #f #t ?     ] def
 :and    [ over ?      ] def
 :or     [ 'dup dip ?  ] def
+
+; >>> 1 2 min
+; 1
+; >>> -1 -2 max
+; -1
+
+:min    [ 2dup <= 'drop 'nip if ] def
+:max    [ 2dup >= 'drop 'nip if ] def
 
                                                                 ; }}}1
 
@@ -374,7 +382,7 @@
 
                                                                 ; }}}1
 
-; -- nil & pair --                                              ; {{{1
+; -- nil, num, & pair --                                        ; {{{1
 
 ; nil "branch"
 ;
@@ -385,7 +393,31 @@
 ; :int
 
 :~nil   [ x f g . 'x nil? 'f [ 'x g ] if ] def
-;       [ <rot .[ '2 .1 ] 'nil? bi rot> if ]
+      ; [ <rot .[ '2 .1 ] 'nil? bi rot> if ]
+
+; >>> 1 num?
+; #t
+; >>> 3.14 num?
+; #t
+; >>> () num?
+; #f
+
+:num?   [ 'int? 'float? bi or ] def
+
+; number "branch"
+;
+; >>> 0 [ " negative" ] [ " non-negative" ] ~neg  'show dip ++ say!
+; 0 non-negative
+; >>> 0 [ " zero"     ] [ " non-zero"     ] ~zero 'show dip ++ say!
+; 0 zero
+; >>> 0 [ " positive" ] [ " non-positive" ] ~pos  'show dip ++ say!
+; 0 non-positive
+
+:~neg   [ [ dup 0 < ] 2dip if ] def
+:~zero  [ [ dup 0 = ] 2dip if ] def
+:~pos   [ [ dup 0 > ] 2dip if ] def
+
+; TODO: floats
 
 ; pair "pattern match"
 ;
@@ -397,21 +429,30 @@
 
                                                                 ; }}}1
 
-; -- sequences, lists & ranges --                               ; {{{1
+; -- sequences, lists, & ranges --                              ; {{{1
 
-; TODO
-
+; NB: inclusive; infinite if stop is nil
 :Range ( :start :stop ) defrecord
 
-:[m-n]    'Range            def
-:[m-n)    [ 1 -    [m-n]  ] def
-:[m-)     [ nil    [m-n]  ] def
-:[0-n]    [ 0 swap [m-n]  ] def
-:[0-n)    [ 0 swap [m-n)  ] def
-:[0-)     [ 0 nil  [m-n]  ] def
-:[1-n]    [ 1 swap [m-n]  ] def
-:[1-n)    [ 1 swap [m-n)  ] def
-:[1-)     [ 1 nil  [m-n]  ] def
+:[m-n]  'Range            def
+:[m-n)  [ 1 -    [m-n]  ] def
+:[m-)   [ nil    [m-n]  ] def
+:[0-n]  [ 0 swap [m-n]  ] def
+:[0-n)  [ 0 swap [m-n)  ] def
+:[0-)   [ 0 nil  [m-n]  ] def
+:[1-n]  [ 1 swap [m-n]  ] def
+:[1-n)  [ 1 swap [m-n)  ] def
+:[1-)   [ 1 nil  [m-n]  ] def
+
+; TODO: floats
+
+; >>> 42 1list
+; ( 42 )
+; >>> :x :y 2list
+; ( :x :y )
+
+:1list  [ () cons     ] def
+:2list  [ 1list cons  ] def
 
 ; lazy sequence
 ;
@@ -424,9 +465,9 @@
 
 :LSeq ( :chunk :thunk ) defrecord   ; NB: chunk must be a list
 
-:lseq     [ __thunk__ LSeq ] def
-:lseq1    [ [ () !cons ] dip lseq ] def
-:lazy-seq [ () swap lseq ] def
+:lseq     [ __thunk__  LSeq ] def
+:lseq1    [ '1list dip lseq ] def
+:lazy-seq [ () swap    lseq ] def
 
 ; seq returns either the sequence (when not empty) or nil
 ;
@@ -440,16 +481,19 @@
 ; nil
 ; >>> { x: 1, y: 2 } seq
 ; ( :x 1 => :y 2 => )
+; >>> 10 [1-n] dup seq =
+; #t
 ; >>> [ ( 1 2 3 ) ] lazy-seq seq
 ; ( 1 2 3 )
 
-:seq      ( :nil  ) [ ] defmulti
-:seq      ( :str  ) [ _empty?->nil '->list if ] defmulti
-:seq      ( :list ) [ _empty?->nil when       ] defmulti
-:seq      ( :dict ) [ _empty?->nil '.pairs if ] defmulti
-:seq      ( :LSeq ) [ dup .chunk empty? [ !thunk seq ] when ] defmulti
+:seq    ( :nil    ) [ ] defmulti
+:seq    ( :str    ) [ _empty?->nil '->list if ] defmulti        ; TODO
+:seq    ( :list   ) [ _empty?->nil when       ] defmulti
+:seq    ( :dict   ) [ _empty?->nil '.pairs if ] defmulti        ; TODO
+:seq    ( :Range  ) [ _empty?->nil when       ] defmulti
+:seq    ( :LSeq   ) [ dup .chunk empty? [ !thunk seq ] when ] defmulti
 
-:_empty?->nil [ dup .empty? [ drop nil ] ] def
+:_empty?->nil [ dup empty? [ drop nil ] ] def
 
 ; unseq <=> 'first 'rest bi
 ;
@@ -457,12 +501,17 @@
 ; ( 2 )
 ; 1
 ; >>> clear-stack
+; >>> , 3 10 [m-n] unseq len show-stack
+; 7
+; 3
+; >>> clear-stack
 ; >>> , [ ( 1 2 ) ] lazy-seq unseq show-stack
 ; ( 2 )
 ; 1
 
-:unseq    ( :list ) [ [ nil nil ] [ ] ^list ] defmulti
-:unseq    ( :LSeq ) [ [ c t .
+:unseq  ( :list   ) [ [ nil nil ] [ ] ^list ] defmulti
+:unseq  ( :Range  ) [ [ [ dup 1 + ] dip Range ] ^Range ] defmulti
+:unseq  ( :LSeq   ) [ [ c t .
                       'c seq [ 'c unseq 't LSeq ] [ t unseq ] if
                     ] ^LSeq ] defmulti
 
@@ -474,8 +523,8 @@
 ; >>> ( 1 2 3 ) rest
 ; ( 2 3 )
 
-:first    ( :_ ) [ unseq drop ] defmulti
-:rest     ( :_ ) [ unseq nip  ] defmulti
+:first  ( :_ ) [ unseq drop ] defmulti
+:rest   ( :_ ) [ unseq nip  ] defmulti
 
 ; empty? <=> seq not
 ;
@@ -485,13 +534,16 @@
 ; #t
 ; >>> { x: 1 } empty?
 ; #f
+; >>> 1 [1-n] rest empty?
+; #t
 ; >>> ( 1 2 3 ) [ 1 + ] map empty?
 ; #f
 
-:empty?   ( :str  ) [ .empty? ] defmulti
-:empty?   ( :list ) [ .empty? ] defmulti
-:empty?   ( :dict ) [ .empty? ] defmulti
-:empty?   ( :_    ) [ seq not ] defmulti
+:empty? ( :str    ) [ .empty? ] defmulti
+:empty? ( :list   ) [ .empty? ] defmulti
+:empty? ( :dict   ) [ .empty? ] defmulti
+:empty? ( :Range  ) [ [ [ drop #f ] '> ~nil ] ^Range ] defmulti
+:empty? ( :_      ) [ seq not ] defmulti
 
 ; >>> "foo" len
 ; 3
@@ -499,13 +551,20 @@
 ; 2
 ; >>> { x: 1 } len
 ; 1
+; >>> 37 42 [m-n) len
+; 5
+; >>> 42 [m-) len
+; nil
 ; >>> ( 1 2 3 ) [ 2 >= ] filter len
 ; 2
 
-:len      ( :str  ) [ .len        ] defmulti
-:len      ( :list ) [ .len        ] defmulti
-:len      ( :dict ) [ .len        ] defmulti
-:len      ( :_    ) [ ->list len  ] defmulti                    ; TODO
+:len    ( :str    ) [ .len        ] defmulti
+:len    ( :list   ) [ .len        ] defmulti
+:len    ( :dict   ) [ .len        ] defmulti
+:len    ( :Range  ) [ range-len   ] defmulti
+:len    ( :_      ) [ ->list len  ] defmulti                    ; TODO
+
+:range-len [ [ [ drop nil ] [ swap - 1 + ] ~nil ] ^Range ] def
 
 ; append two sequences
 ;
@@ -514,20 +573,20 @@
 ; >>> ( 1 2 3 ) ( 4 5 ) ++
 ; ( 1 2 3 4 5 )
 
-:++       ( :str  :str  ) [ !append ] defmulti
-:++       ( :list :list ) [ !append ] defmulti
+:++     ( :str  :str  ) [ !append ] defmulti
+:++     ( :list :list ) [ !append ] defmulti
 
 ; >>> ( 1 2 3 ) [ ( 4 5 ) ] lazy-seq ++ ->list
 ; ( 1 2 3 4 5 )
 ; >>> [ ( 1 2 3 ) ] lazy-seq ( 4 5 ) ++ ->list
 ; ( 1 2 3 4 5 )
 
-:++       ( :nil  :LSeq ) [ nip ] defmulti
-:++       ( :list :LSeq ) [ [ '++ dip LSeq ] ^LSeq ] defmulti
-:++       ( :LSeq :list ) [ _lseq++ ] defmulti
-:++       ( :LSeq :LSeq ) [ _lseq++ ] defmulti
+:++     ( :nil  :LSeq ) [ nip                     ] defmulti
+:++     ( :list :LSeq ) [ [ '++ dip LSeq ] ^LSeq  ] defmulti
+:++     ( :LSeq :list ) [ _lseq++                 ] defmulti
+:++     ( :LSeq :LSeq ) [ _lseq++                 ] defmulti
 
-:_lseq++  [ l . [ ![ .1 'l ++ ] lseq ] ^LSeq ] def
+:_lseq++ [ l . [ ![ .1 'l ++ ] lseq ] ^LSeq ] def
 
 ; >>> "foo" ->list
 ; ( "f" "o" "o" )
@@ -536,20 +595,22 @@
 ; >>> { x: 1, y: 2 } ->list
 ; ( :x 1 => :y 2 => )
 
-:->list   ( :str  ) [ .->list ] defmulti
-:->list   ( :list ) [ ] defmulti
-:->list   ( :dict ) [ .pairs ] defmulti
-:->list   ( :_    ) [ [ () ] [ ->list !cons ] ^seq ] defmulti   ; TODO
+:->list ( :str  ) [ .->list ] defmulti
+:->list ( :list ) [         ] defmulti
+:->list ( :dict ) [ .pairs  ] defmulti
+
+:->list ( :_    ) [ xs . ( 'xs [ ] each ) ] defmulti            ; TODO
+                ; [ [ () ] [ ->list cons ] ^seq ]
 
 ; list & seq "pattern match"
 ;
 ; >>> ( 1 2 3 ) [ "empty" ] [ hd tl . 'hd ] ^list  ; head or "empty"
 ; 1
-; >>> () [ "empty" ] [ drop ] ^seq
+; >>> () [ "empty" ] 'drop ^seq
 ; "empty"
 
-:^list    [ f g . dup .empty? [ drop f ] [ .uncons^ g ] if ] def
-:^seq     [ 'seq 2dip ![ unseq .1 ] ~nil ] def
+:^list  [ f g . dup .empty? [ drop f ] [ .uncons^ g ] if ] def
+:^seq   [ 'seq 2dip ![ unseq .1 ] ~nil ] def
 
 ; >>> () 'len when-seq
 ; nil
@@ -560,8 +621,8 @@
 ; >>> () 'drop with-seq
 ; nil
 
-:when-seq [ [ seq dup ] dip when ] def
-:with-seq [ [ nil ] swap ^seq ] def
+:when-seq [ [ seq dup ] dip when  ] def
+:with-seq [ [ nil ] swap ^seq     ] def
 
 ; "lazy" map & filter
 ;
@@ -572,15 +633,17 @@
 ; >>> ( 1 2 3 4 ) [ 2 mod 0 = ] filter ->list
 ; ( 2 4 )
 
-:map      [ f . [ x xt . ( 'x f ) [ 'xt 'f map ] lseq ] with-seq ] def
-:filter   [ ![ dup .1 not 'drop when ] map ] def
+:map    [ f . [ x xt . ( 'x f ) [ 'xt 'f map ] lseq ] with-seq ] def
+:filter [ ![ dup .1 not 'drop when ] map ] def
 
-; >>> ( 1 2 ) ( 3 4 5 ) [ () cons cons ] zip ->list
+; >>> ( 1 2 ) ( 3 4 5 ) '2list zip ->list
 ; ( ( 1 3 ) ( 2 4 ) )
+; >>> [1-) ( :x :y ) [ swap => ] zip ->list dict
+; { :x 1 =>, :y 2 => }
 
-:zip      [ f . [ drop nil ] [ y yt . [ x xt .
-            ( 'x 'y f ) [ 'xt 'yt 'f zip ] lseq
-          ] with-seq ] ^seq ] def
+:zip    [ f . [ drop nil ] [ y yt . [ x xt .
+          ( 'x 'y f ) [ 'xt 'yt 'f zip ] lseq
+        ] with-seq ] ^seq ] def
 
 ; TODO: unzip
 
@@ -591,9 +654,9 @@
 ; >>> ( 2 3 4 ) () [ [ 1 + ] dip call cons ] foldr'   ; "lazy"
 ; ( 3 4 5 )
 
-:foldl    [ f . swap [ ] [ rot> f 'f foldl ] ^seq ] def
-:foldr    [ f . swap [ ] [ <rot 'f foldr f ] ^seq ] def
-:foldr'   [ f . swap [ ] [ <rot ![ '1 '2 'f foldr' ] f ] ^seq ] def
+:foldl  [ f . swap [ ] [ rot> f 'f foldl             ] ^seq ] def
+:foldr  [ f . swap [ ] [ <rot 'f foldr f             ] ^seq ] def
+:foldr' [ f . swap [ ] [ <rot ![ '1 '2 'f foldr' ] f ] ^seq ] def
 
 ; TODO: scanl, scanr
 ; TODO: any, all
@@ -610,8 +673,14 @@
 ; >>> , ( "Hello" "World" ) 'say! each
 ; Hello
 ; World
+; >>> , ( 1 2 3 ) [ ] each show-stack
+; 3
+; 2
+; 1
+; >>> ( ( 1 2 ) 'dup each )
+; ( 1 1 2 2 )
 
-:each     [ f . [ ] [ 'f dip 'f each ] ^seq ] def
+:each   [ f . [ ] [ 'f dip 'f each ] ^seq ] def
 
 ; >>> ( 1 2 3 ) cycle 10 take-first ->list
 ; ( 1 2 3 1 2 3 1 2 3 1 )
@@ -649,7 +718,7 @@
 
                                                                 ; }}}1
 
-; -- lists, dicts & indexing --                                 ; {{{1
+; -- lists, dicts, & indexing --                                ; {{{1
 
 ; >>> ( 1 2 3 )
 ; ( 1 2 3 )
@@ -670,99 +739,98 @@
 ; nil
 ; >>> () tail
 ; nil
+; >>> ( 4 2 1 3 ) sort
+; ( 1 2 3 4 )
 
-:head^    '.head^   def
-:tail^    '.tail^   def
+:head^    '.head^ def
+:tail^    '.tail^ def
 
 :head     [ _empty?->nil 'head^ if ] def
 :tail     [ _empty?->nil 'tail^ if ] def
 
 :uncons^  '.uncons^ def
 :cons     '!cons    def
+:sort     '.sort    def
 
-                                                                ; }}}1
+; >>> { x: 1, y: 2 } { x: 99 } update
+; { :x 99 =>, :y 2 => }
 
-; -- miscellaneous --                                           ; {{{1
+:update ( :dict :dict ) [ !merge ] defmulti
+:update ( :_    :_    ) [ over [ 'record->dict dip !merge ] dip
+                          record-type apply-dict ] defmulti     ; TODO
 
-; >>> 1 num?
-; #t
-; >>> 3.14 num?
-; #t
-; >>> () num?
-; #f
+; >>> { x: 1, y: 2 } dup keys
+; ( :x :y )
+; >>> drop values
+; ( 1 2 )
 
-:num?   [ 'int? 'float? bi or ] def
+:keys   ( :dict   ) [ .keys   ] defmulti
+:values ( :dict   ) [ .values ] defmulti
 
-                                                                ; }}}1
+:keys   ( :_      ) [ record-type record-type-fields  ] defmulti
+:values ( :_      ) [ record-values                   ] defmulti
 
-; === WORK IN PROGRESS ===
-
-; >>> ( :one :two :three ) 1 get^
-; :two
-; >>> () 0 get^
-; *** ERROR: list.get^: index 0 is out of range
-; >>> () 0 get
-; nil
-;
-; >>> ( :one :two :three ) 1 member?
-; #t
-; >>> ( :one :two :three ) :two elem?
-; #t
-;
-; >>> ( 4 2 1 3 ) sort
-; ( 1 2 3 4 )
-;
-; >>> ( 0 1 2 3 4 5 6 7 8 9 ) -5 [i-)
-; ( 5 6 7 8 9 )
-; >>> ( 0 1 2 3 4 5 6 7 8 9 ) 5 [-j)
-; ( 0 1 2 3 4 )
-;
 ; >>> "0123456789" 5 [i-)
 ; "56789"
 ; >>> "0123456789" -5 [-j)
 ; "01234"
 ; >>> "0123456789" 3 -3 [i-j)
 ; "3456"
-;
-; >>> ( 1 2 3 ) reverse
-; ( 3 2 1 )
-;
-; >>> { x: 1, y: 2 } { x: 99 } update
-; { :x 99 =>, :y 2 => }
+; >>> ( 0 1 2 3 4 5 6 7 8 9 ) -5 [i-)
+; ( 5 6 7 8 9 )
+; >>> ( 0 1 2 3 4 5 6 7 8 9 ) 5 [-j)
+; ( 0 1 2 3 4 )
+; >>> 10 20 [m-n] 2 -2 [i-j) ->list
+; ( 12 13 14 15 16 17 18 )
 
-:get^     [ swap !get^ ] def
-:get      [ 'get^ 'member? 2ornil ] def
+:[i-j)  [ x i j . 'i 'j 1 'x slice  ] def                       ; TODO
+:[i-)   [ nil      [i-j)            ] def
+:[-j)   [ nil swap [i-j)            ] def
 
-:member?  [ swap member?' ] def
-:elem?    [ swap elem?'   ] def
+:slice  ( :str    ) [ !slice      ] defmulti
+:slice  ( :list   ) [ !slice      ] defmulti
+:slice  ( :Range  ) [ range-slice ] defmulti
 
-:member?' ( :_ ) [ !member? ] defmulti
-:elem?'   ( :_ ) [ !elem?   ] defmulti
+; TODO: errors, step
+:range-slice  [ _ r .
+                [ 0 or ] [ 'r len or ] bi~
+                [ 'r swap range-relidx ] bi$
+                over [ [ drop nil ] [ swap - ] ~nil ] dip
+                'r range-drop range-take
+              ] def
+:range-relidx [ [ drop nil ] [ [ 'len dip + ] 'nip ~neg ] ~nil ] def
+:range-drop   [ [ '+ dip Range ] ^Range ] def
+:range-take   [ [ <rot [ ] [
+                swap [ over + 1 - ] dip [ ] 'min ~nil
+              ] ~nil Range ] ^Range ] def
 
-:sort     '.sort    def
+; >>> ( :one :two :three ) 1 get^
+; :two
+; >>> () 0 get^
+; *** ERROR: list.get^: index 0 is out of range
+; >>> ( 1 2 3 ) 1 get
+; 2
+; >>> () 0 get
+; nil
+; >>> ( :one :two :three ) 1 has?       ; valid index of
+; #t
+; >>> ( :one :two :three ) :two elem?   ; element of
+; #t
 
-:[i-)     [ nil [i-j)       ] def
-:[-j)     [ nil swap [i-j)  ] def
-:[i-j)    [ x i j . 'i 'j 1 'x !slice ] def
+:get    [ 2dup has? 'get^ [ 2drop nil ] if ] def
 
-:reverse  ( :list ) [ () [ swap cons ] foldl ] defmulti
+:get^   [ swap get^'  ] def
+:has?   [ swap has?'  ] def
+:elem?  [ swap elem?' ] def
 
-:update   ( :dict :dict ) [ !merge ] defmulti
-:update   ( :_    :_    ) [ over [ 'record->dict dip !merge ] dip
-                            record-type apply-dict ] defmulti   ; TODO
+:get^'  ( :_ ) [ !get^  ] defmulti
+:has?'  ( :_ ) [ !has?  ] defmulti
+:elem?' ( :_ ) [ !elem? ] defmulti
 
-; >>> ( 2 3 4 ) [ dup * ] map ->list
-; ( 4 9 16 )
-;
+; TODO
+:elem?' ( :Range ) [ 'dup dip [ '>= '<= 2bi~' and ] ^Range ] defmulti
 
-:~list    [ h . 2over list? '^list 'h if ] def
-
-:empty?   ( :Range ) [ '> ^Range ] defmulti
-:len      ( :Range ) [ [ swap - 1 + ] ^Range ] defmulti
-:elem?'   ( :Range ) [ 'dup dip [ '>= '<= 2bi~' and ] ^Range ] defmulti
-
-; :head^    ( :Range ) [ .start ] defmulti
-; :tail^    ( :Range ) [ [ [ 1 + ] dip Range ] ^Range ] defmulti
+                                                                ; }}}1
 
 ; -- miscellaneous --                                           ; {{{1
 
@@ -775,9 +843,6 @@
 
 :times  [ [1-n] swap ![ drop .1 ] each ] def
 
-; -- conditionals & predicates -- TODO --
-
-; >>> clear-stack
 ; >>> , :temp [
 ; ...     dup
 ; ...     ( [ 15 < ]  [ "is cold!"  ]
@@ -792,16 +857,14 @@
 ; 20 is ok!
 ; >>> 30 temp
 ; 30 is warm!
-;
-;
-; --                                                            ; }}}1
 
-  :cond [ _cond call ] def
+  :cond [ _cond call ] def                                      ; TODO
  :_cond [ cons '_&cond apply ] def
-:_&cond [ x p? f & .  'p? function? [ 'x p? ] [ 'p? ] if
-                      [ 'f ] [ 'x '& _cond ] if ] def
+:_&cond [ x p? f & .
+          'p? function? [ 'x p? ] [ 'p? ] if [ 'f ] [ 'x '& _cond ] if
+        ] def
 
-; -- TODO --
+                                                                ; }}}1
 
 ; ...
 

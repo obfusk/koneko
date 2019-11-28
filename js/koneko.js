@@ -424,7 +424,7 @@ const call = (c0, s0, tailPos = false) => {                   //  {{{1
     const r = (...xs) => stack.push(s2, ...xs)
     return [k.value, x.type + "." + k.value, r]
   }
-  const mem = (i, l = xv.length) => 0 <= i && i < l
+  const has = (i, l = xv.length) => 0 <= i && i < l
   switch (x.type) {
     case "str": {
       // TODO: inefficient implementation
@@ -455,13 +455,13 @@ const call = (c0, s0, tailPos = false) => {                   //  {{{1
           return r(int(xl.length))
         case "get^":
           return p(i => {
-            if (!mem(i.value, xl.length)) {
+            if (!has(i.value, xl.length)) {
               throw new KE(...E.IndexError(op, i.value))
             }
             return [xl[i.value]]
           }, "int")
-        case "member?":
-          return p(i => [bool(mem(i.value, xl.length))], "int")
+        case "has?":
+          return p(i => [bool(has(i.value, xl.length))], "int")
         case "elem?":
           return p(y =>
             [bool(xl.join("").includes(y.list.join("")))], "str"
@@ -513,13 +513,13 @@ const call = (c0, s0, tailPos = false) => {                   //  {{{1
           return r(int(xv.length))
         case "get^":
           return p(i => {
-            if (!mem(i.value)) {
+            if (!has(i.value)) {
               throw new KE(...E.IndexError(op, i.value))
             }
             return [xv[i.value]]
           }, "int")
-        case "member?":
-          return p(i => [bool(mem(i.value))], "int")
+        case "has?":
+          return p(i => [bool(has(i.value))], "int")
         case "elem?":
           return p(y => [bool(xv.find(z => eq(z, y)))], "_")
         default:
@@ -551,7 +551,7 @@ const call = (c0, s0, tailPos = false) => {                   //  {{{1
             }
             return [xv.get(k.value)]
           }, "kwd")
-        case "member":
+        case "has":
           return p(k => [bool(xv.has(k.value))], "kwd")
         default:
           throw new KE(...E.UnknownField(op, x.type))
@@ -861,7 +861,7 @@ const eq = (x, y) => {                                        //  {{{1
     case "record-type":
       return x.name == y.name && eqArray(x.fields, y.fields, eqPrim)
     case "record":
-      return eq(x.rectype, y.rectype) && eqArray(x.values, y.values)
+      return eq(x.rectype, y.rectype) && eqArray(x.values, y.values, eq)
     default:
       throw new KE(...E.UncomparableType(x.type))
   }

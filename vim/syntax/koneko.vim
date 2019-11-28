@@ -25,8 +25,9 @@ syn match   knkQuot       '\(\'[.!]\?\)\@2<=[^.!, \t][^, \t]*'
 
 syn match   knkFloat      '-\?\d\+\(\.\d\+e\d\+\|\.\d\+\|e\d\+\)\([, \t]\|$\)\@='
 
-syn match   knkComment    ';.*' contains=knkTODO
+syn match   knkComment    ';.*' contains=knkTODO,knkPrompt
 syn match   knkTODO       '\.\.\.\|TODO'
+syn match   knkPrompt     '>>>' contained
 
 hi def link knkIdent      Identifier
 
@@ -48,5 +49,6 @@ hi def link knkFloat      Constant
 
 hi def link knkComment    Comment
 hi def link knkTODO       Todo
+hi def link knkPrompt     Statement
 
 let b:current_syntax = "koneko"
