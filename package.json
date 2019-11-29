@@ -26,7 +26,7 @@
   "main"        : "js/koneko.js",
   "bin"         : "./js/cli.js",
   "files"       : [
-    "js/koneko.js", "js/cli.js", "lib/**/*.knk", "nya/*.cat",
+    "js/koneko.js", "js/cli.js", "lib/*.knk", "nya/*.cat",
     "README.md"
   ],
 

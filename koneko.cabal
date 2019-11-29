@@ -43,7 +43,7 @@ build-type:          Simple
 -- README.
 extra-source-files:  CHANGELOG.md, README.md, LICENSE.LGPLv3.STDLIB
 
-data-files:          lib/**/*.knk nya/*.cat
+data-files:          lib/*.knk nya/*.cat
 
 
 common deps
