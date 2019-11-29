@@ -53,15 +53,6 @@ anonymous functions with named parameters).
   - (mostly) strict evaluation
 * dynamically, strongly typed
 
-<!--
-  * strict -> streams
-  * types -> ???
-  * dynamic scope???
-  * mark I/O as "dirty" to allow for optimizing code that is known to
-    be referentially transparent? vs clojure?
-  * sh/streams/pipes (cf. Haskell Pipes)
--->
-
 ## Hello World
 
 ```bash
@@ -116,8 +107,6 @@ There is currently no mechanism for exception handling.  When an error
 occurs, an error message is printed and the program is terminated
 (except when using the repl, in which case the repl continues after
 printing an error message and resetting the stack).
-
-<!-- TODO: arith errors -->
 
 ### Comments & Whitespace
 
@@ -205,8 +194,6 @@ the value found is pushed onto the stack.
 3
 ```
 
-<!-- quote lists, blocks? macros? -->
-
 ### Naming Things
 
 Identifiers refer to either named parameters or definitions in modules.
@@ -293,11 +280,6 @@ implementation does not intern them).
 /cat|kitten/
 ```
 
-* Ident
-* Raw*
-* Range? ...
-* Namespace/Scope, Stack, ...
-
 -->
 
 ### Pairs, Lists and Dicts
@@ -332,12 +314,6 @@ NB: list literals have the head on the left.
 >>> :x get^
 42
 ```
-
-<!--
-
-* linked list vs dynamic array ???
-
--->
 
 ### Blocks
 
@@ -377,15 +353,6 @@ separated from the code by a `.`.
 1
 2
 ```
-
-<!--
-
-* arity? args + body
-* ..., variable arity, apply, ...
-* curry, partial?
-* show-stack + reverse order
-
--->
 
 ### Calling vs Applying
 
@@ -507,8 +474,6 @@ Point{ :x 99 =>, :y -1 => }
 Point{ :x 4 =>, :y 6 => }
 ```
 
-<!-- ADTs ??? -->
-
 ### Syntactic Sugar
 
 The parser provides some syntactic sugar.
@@ -559,25 +524,6 @@ Point{ :x 1 =>, :y 2 => }
 >>> ( 1 2 3 ) [ 10 * 5 div ] map ->list     ; equivalent
 ( 2 4 6 )
 ```
-
-<!--
-
-```
->>> 1 `+ 2                                  ; shift token (use w/ caution)
-3
->>> 1 2 +                                   ; desugared
-3
-
->>> [[ 1 2 3 + + ]]                         ; grouped expression
-6
-```
-
-* !foo( ... ) ?!
-
-* reader vs eval vs primitive vs builtin vs prelude vs stdlib
-* [[ ]] is not reader-only sugar
-
--->
 
 ### Primitives
 
@@ -764,13 +710,6 @@ Hi!
 
 ... TODO ...
 
-<!--
-
-* lib/
-* DSLs, Shell, FFI, ...
-
--->
-
 ### Possible Future Extensions
 
 #### Protocols
@@ -778,13 +717,6 @@ Hi!
 (aka Interfaces)
 
 ... TODO ...
-
-<!--
-
-* match by partial spec like ocaml!
-* store/match how?
-
--->
 
 #### Exception Handling
 
@@ -874,8 +806,6 @@ NaNNaNNaNNaNNaNNaNNaNNaNNaNNaN batman!
 ( 0 1 1 2 3 5 8 13 21 34 )
 ```
 
-<!-- [ ] <==> [ drop () ] if empty? -->
-
 ... TODO ...
 
 ## Installing
@@ -912,16 +842,6 @@ TODO: haddock
 * ???
 * profit!
 
-<!--
-
-* look at notes and old python stuff
-* haskell features (Text, not String)
-
-* dyn vars?
-* iterators?
-
--->
-
 ## License
 
 ### Interpreter
@@ -933,16 +853,6 @@ TODO: haddock
 (i.e. `lib/*.knk`)
 
 [![LGPLv3+](https://www.gnu.org/graphics/lgplv3-147x51.png)](https://www.gnu.org/licenses/lgpl-3.0.html)
-
-<!--
-
-### Thesis
-
-(i.e. `thesis/*`)
-
-[![CC-BY-SA](https://licensebuttons.net/l/by-sa/4.0/88x31.png)](https://creativecommons.org/licenses/by-sa/4.0/)
-
--->
 
 ## References
 
