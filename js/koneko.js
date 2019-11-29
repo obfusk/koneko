@@ -2,7 +2,7 @@
 //
 //  File        : koneko.js
 //  Maintainer  : Felix C. Stegerman <flx@obfusk.net>
-//  Date        : 2019-11-28
+//  Date        : 2019-11-29
 //
 //  Copyright   : Copyright (C) 2019  Felix C. Stegerman
 //  Version     : v0.0.1
@@ -346,7 +346,9 @@ const parseOne = (s, p0 = 0, end = null) => {                 //  {{{1
   else if (t("[)}\\]]") && end == m[1]) {
     return [p1, { end }]
   }
-  throw new KE(...E.ParseError(`no match at pos ${p0}`))
+  throw new KE(...E.ParseError(
+    `no match at pos ${p0}:\n` + parseErrorContext(s, p0)
+  ))
 }                                                             //  }}}1
 
 const parseMany = (s, p, end = null) => {
@@ -357,9 +359,20 @@ const parseMany = (s, p, end = null) => {
     vs.push(...v)
   }
   if (end) {
-    throw new KE(...E.ParseError(`expected "${end}" at pos ${p}`))
+    throw new KE(...E.ParseError(
+      `expected "${end}" at pos ${p}:\n` + parseErrorContext(s, p)
+    ))
   }
   return [p, vs]
+}
+
+// TODO: show line number
+const parseErrorContext = (s, p) => {
+  const back = s.lastIndexOf("\n", p), front = s.indexOf("\n", p)
+  const b = back  != -1 ? back+1 : 0
+  const f = front != -1 ? front  : s.length
+  return " | \n | " + s.slice(b, f) + "\n | " +
+    Array(p-b).fill(" ").join("") + "^"
 }
 
 const read = s => {
@@ -1134,6 +1147,11 @@ const zip = (xs, ys) => xs.map((x, i) => [x, ys[i]])
 
 /* === files === */
 
+// TODO: handle errors
+
+const baseDir =
+  _req ? _req("path").dirname(module.filename) + "/../" : ""
+
 // NB: browser only; Promise
 const requestFile = fname => new Promise((resolve, reject) => {
   const r = new XMLHttpRequest()
@@ -1161,7 +1179,7 @@ const evalFile = (fname, c = undefined, s = undefined) => {
 }
 
 // NB: Promise
-const loadPrelude = (fname = "lib/prelude.knk") =>
+const loadPrelude = (fname = baseDir + "lib/prelude.knk") =>
   modules.get("__prld__").get("def") ?
     new Promise((resolve, reject) => resolve()) : evalFile(fname)
 
@@ -1393,7 +1411,10 @@ const main = () => loadPrelude().then(() => {
   const opts    = argv.filter(a =>  a.startsWith("-"))
   const args    = argv.filter(a => !a.startsWith("-"))
   const verbose = opts.includes("-v")
-  if (opts.includes("--doctest")) {
+  if (opts.includes("--version")) {
+    const version = require(baseDir + "package.json").version
+    putOut(`koneko 「子猫」 ${version}`)
+  } else if (opts.includes("--doctest")) {
     doctest_(args, verbose).catch(e => {
       console.error(e); process.exit(1)
     })
@@ -1413,7 +1434,7 @@ const nya = () => {
   if (overrides.nya) {
     overrides.nya()
   } else if (_req) {
-    putOut(_req("fs").readFileSync("nya/tabby.cat", "utf8"), "")
+    putOut(_req("fs").readFileSync(baseDir + "nya/tabby.cat", "utf8"), "")
   } else {
     throw new KE(...E.NotImplementedError("__nya__"))
   }
@@ -1425,7 +1446,7 @@ _mod[_exp] = {
   KonekoError, read, evaluate, evalText, show, toJS, fromJS,
   loadPrelude, overrides,
   initContext: scope.new, emptyStack: stack.empty,
-  ...(_req ? { repl, doctest, doctest_ } : {})
+  ...(_req ? { repl, doctest, doctest_, main } : {})
 }
 
 // NB: node.js only
