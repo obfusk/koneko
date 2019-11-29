@@ -2,7 +2,7 @@
 //
 //  File        : koneko.js
 //  Maintainer  : Felix C. Stegerman <flx@obfusk.net>
-//  Date        : 2019-11-27
+//  Date        : 2019-11-28
 //
 //  Copyright   : Copyright (C) 2019  Felix C. Stegerman
 //  Version     : v0.0.1
@@ -12,6 +12,19 @@
 
 "use strict";
 ((_mod, _exp, _req, Rx) => {
+
+// TODO
+let mkInt, intToNum, strToInt
+if (typeof BigInt === "undefined") {
+  console.warn("no BigInt support, falling back to Number")
+  mkInt     = i => i|0
+  intToNum  = i => i
+  strToInt  = parseInt
+} else {
+  mkInt     = BigInt
+  intToNum  = Number
+  strToInt  = (s, b) => BigInt((b == 16 ? "0x" : b == 2 ? "0b" : "") + s)
+}
 
 /* === error, stack, scope === */
 
@@ -123,7 +136,7 @@ const _tv   = (type, value) => ({ type, value })
 
 const nil   = { type: "nil" }
 const bool  = b => _tv("bool", !!b)
-const int   = i => _tv("int", i|0)
+const int   = i => _tv("int", mkInt(i))
 const float = f => _tv("float", f)
 const str   = s => str_([...s])
 const str_  = s => ({ type: "str", list: s })
@@ -274,9 +287,9 @@ const parseOne = (s, p0 = 0, end = null) => {                 //  {{{1
   } else if (t("#t") || t("#f")) {
     return [p1, bool(m[1] == "#t") ]
   } else if (t("-?\\d+")) {
-    return [p1, int(parseInt(m[1], 10))]
+    return [p1, int(strToInt(m[1], 10))]
   } else if (t("(0x)(" + hd + "+)") || t("(0b)([01]+)")) {
-    return [p1, int(parseInt(m[3], m[2] == "0x" ? 16 : 2))]
+    return [p1, int(strToInt(m[3], m[2] == "0x" ? 16 : 2))]
   } else if (t("-?\\d+(?:\\.\\d+e\\d+|\\.\\d+|e\\d+)")) {
     return [p1, float(parseFloat(m[1]))]
   } else if (t('"(' + chr + '*)"')) {
@@ -442,8 +455,8 @@ const call = (c0, s0, tailPos = false) => {                   //  {{{1
           return p(y => [str_(y.list.concat(xl))], "str")
         case "slice":
           return p((i, j, step) => {
-            const i_ = nilToDef(i, 0        , "int")
-            const j_ = nilToDef(j, xl.length, "int")
+            const i_ = intToNum(nilToDef(i, 0        , "int"))
+            const j_ = intToNum(nilToDef(j, xl.length, "int"))
             if (step.value != 1) {
               throw new KE(...E.NotImplementedError(`${op}: step other than 1`))
             }
@@ -455,13 +468,14 @@ const call = (c0, s0, tailPos = false) => {                   //  {{{1
           return r(int(xl.length))
         case "get^":
           return p(i => {
-            if (!has(i.value, xl.length)) {
-              throw new KE(...E.IndexError(op, i.value))
+            const i_ = intToNum(i.value)
+            if (!has(i_, xl.length)) {
+              throw new KE(...E.IndexError(op, i_))
             }
-            return [xl[i.value]]
+            return [xl[i_]]
           }, "int")
         case "has?":
-          return p(i => [bool(has(i.value, xl.length))], "int")
+          return p(i => [bool(has(intToNum(i.value), xl.length))], "int")
         case "elem?":
           return p(y =>
             [bool(xl.join("").includes(y.list.join("")))], "str"
@@ -500,8 +514,8 @@ const call = (c0, s0, tailPos = false) => {                   //  {{{1
           return p(y => [list(y.value.concat(xv))], "list")
         case "slice":
           return p((i, j, step) => {
-            const i_ = nilToDef(i, 0        , "int")
-            const j_ = nilToDef(j, xv.length, "int")
+            const i_ = intToNum(nilToDef(i, 0        , "int"))
+            const j_ = intToNum(nilToDef(j, xv.length, "int"))
             if (step.value != 1) {
               throw new KE(...E.NotImplementedError(`${op}: step other than 1`))
             }
@@ -513,13 +527,12 @@ const call = (c0, s0, tailPos = false) => {                   //  {{{1
           return r(int(xv.length))
         case "get^":
           return p(i => {
-            if (!has(i.value)) {
-              throw new KE(...E.IndexError(op, i.value))
-            }
-            return [xv[i.value]]
+            const i_ = intToNum(i.value)
+            if (!has(i_)) { throw new KE(...E.IndexError(op, i_)) }
+            return [xv[i_]]
           }, "int")
         case "has?":
-          return p(i => [bool(has(i.value))], "int")
+          return p(i => [bool(has(intToNum(i.value)))], "int")
         case "elem?":
           return p(y => [bool(xv.find(z => eq(z, y)))], "_")
         default:
@@ -1052,7 +1065,7 @@ modules.set("__prim__", new Map([                             //  {{{1
   mkPrim("__int*__"  , opI((x, y) => x * y)),
   mkPrim("__div__"   , opI((x, y) => {
     if (y == 0) { throw new KE(...E.DivideByZero()) }
-    return (x / y) | 0
+    return mkInt(x / y)
   })),
   mkPrim("__mod__"   , opI((x, y) => x % y)),                //  TODO
   mkPrim("__float+__", opF((x, y) => x + y)),
@@ -1060,9 +1073,9 @@ modules.set("__prim__", new Map([                             //  {{{1
   mkPrim("__float*__", opF((x, y) => x * y)),
   mkPrim("__float/__", opF((x, y) => x / y)),
   mkPrimPP("__chr__",
-    x => [str(String.fromCodePoint(x.value))], "int"
+    x => [str(String.fromCodePoint(intToNum(x.value)))], "int"
   ),
-  mkPrimPP("__int->float__"       , n => [float(n.value)] , "int"),
+  mkPrimPP("__int->float__", n => [float(intToNum(n.value))], "int"),
   mkPrimPP("__record->dict__"     , x => [recordToDict(x)], "record"),
   mkPrimPP("__record-type__"      , x => [x.rectype]      , "record"),
   mkPrimPP("__record-values__"    , x => [list(x.values)] , "record"),
