@@ -2,7 +2,7 @@
 --
 --  File        : Koneko/Data.hs
 --  Maintainer  : Felix C. Stegerman <flx@obfusk.net>
---  Date        : 2019-11-27
+--  Date        : 2019-11-28
 --
 --  Copyright   : Copyright (C) 2019  Felix C. Stegerman
 --  Version     : v0.0.1
@@ -65,8 +65,8 @@ module Koneko.Data (
   eitherToVal, eitherToNil, emptyStack, push', push, rpush, rpush1,
   pop, pop2, pop3, pop', pop2', pop3', popN', pop1push, pop2push,
   pop1push1, pop2push1, primModule, bltnModule, prldModule,
-  mainModule, initMainContext, forkContext, forkScope, defineIn,
-  importIn, importFromIn, lookup, lookupModule', moduleKeys,
+  mainModule, initMainContext, initModule, forkContext, forkScope,
+  defineIn, importIn, importFromIn, lookup, lookupModule', moduleKeys,
   moduleNames, typeNames, typeOf, typeToKwd, typeToStr, isNil, isBool,
   isInt, isFloat, isStr, isKwd, isPair, isList, isDict, isIdent,
   isQuot, isBlock, isBuiltin, isMulti, isRecordT, isRecord, isThunk,
@@ -660,10 +660,13 @@ mainModule = "__main__"
 initMainContext :: IO Context
 initMainContext = do
   modules <- HT.new; imports <- HT.new
-  let ctxScope = _newScope mainModule
-  traverse_ (\m -> HT.new >>= HT.insert modules m)
+  let ctxScope = _newScope mainModule; ctx = Context{..}
+  traverse_ (initModule ctx)
     [primModule, bltnModule, prldModule, mainModule]
-  return Context{..}
+  return ctx
+
+initModule :: Context -> Identifier -> IO ()
+initModule ctx m = HT.new >>= HT.insert (modules ctx) m
 
 forkContext :: Identifier -> Context -> IO Context
 forkContext m c = do

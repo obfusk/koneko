@@ -2,7 +2,7 @@
 --
 --  File        : Koneko/Test.hs
 --  Maintainer  : Felix C. Stegerman <flx@obfusk.net>
---  Date        : 2019-11-25
+--  Date        : 2019-11-28
 --
 --  Copyright   : Copyright (C) 2019  Felix C. Stegerman
 --  Version     : v0.0.1
@@ -39,7 +39,7 @@ import qualified Data.Text.Lazy.IO as T
 import qualified System.IO as IO
 import qualified System.IO.Silently as S
 
-import Koneko.Data (Context, Stack, emptyStack)
+import Koneko.Data (Context, Stack, emptyStack, initModule, mainModule)
 import Koneko.Eval (initContext)
 
 import qualified Koneko.Repl as RE
@@ -55,14 +55,16 @@ type ExampleGroup = [Example]
 type Examples     = [ExampleGroup]
 
 doctest :: Verbosity -> [FilePath] -> IO Bool
-doctest v fs = _testFail <$> testFiles v fs
+doctest v fs = do
+  ctx <- initContext
+  _testFail <$> testFiles ctx v fs
 
 doctest' :: [FilePath] -> IO ()
 doctest' fs
   = getVerbosity >>= flip doctest fs >>= flip unless exitFailure
 
-testFiles :: Verbosity -> [FilePath] -> IO (Int, Int, Int)
-testFiles verb files = do
+testFiles :: Context -> Verbosity -> [FilePath] -> IO (Int, Int, Int)
+testFiles ctx verb files = do
     r@(t,o,f) <- s <$> traverse process files
     when (verb /= Quiet) $ do
       putStrLn "=== Summary ==="
@@ -75,41 +77,42 @@ testFiles verb files = do
           info          = fp ++ " (" ++ what ++ ")"
       when (verb /= Quiet) $
         putStrLn $ "=== Testing " ++ info ++ " ==="
-      func verb fp <* when (verb /= Quiet) (putStrLn "")
+      func ctx verb fp <* when (verb /= Quiet) (putStrLn "")
     typAndFunc fp = if takeExtension fp == ".md"
                     then ("markdown", testMarkdownFile)
                     else ("koneko"  , testKonekoFile  )
     s = foldl' (\(t,o,f) (t',o',f') -> (t+t',o+o',f+f')) (0,0,0)
 
 testKoneko, testMarkdown
-  :: Verbosity -> FilePath -> [Text] -> IO (Int, Int, Int)
-testKoneko    v fp = testExamples v . parseKoneko   fp
-testMarkdown  v fp = testExamples v . parseMarkdown fp
+  :: Context -> Verbosity -> FilePath -> [Text] -> IO (Int, Int, Int)
+testKoneko   ctx v fp = testExamples ctx v . parseKoneko   fp
+testMarkdown ctx v fp = testExamples ctx v . parseMarkdown fp
 
 testKoneko_, testMarkdown_
-  :: Verbosity -> FilePath -> [Text] -> IO Bool
+  :: Context -> Verbosity -> FilePath -> [Text] -> IO Bool
 testKoneko_   = _test parseKoneko
 testMarkdown_ = _test parseMarkdown
 
 _test :: (FilePath -> [Text] -> Examples)
-      -> Verbosity -> FilePath -> [Text] -> IO Bool
-_test f v fp ls = _testFail <$> testExamples v (f fp ls)
+      -> Context -> Verbosity -> FilePath -> [Text] -> IO Bool
+_test f ctx v fp ls = _testFail <$> testExamples ctx v (f fp ls)
 
 _testFail :: (Int, Int, Int) -> Bool
 _testFail (_, _, fail) = fail == 0
 
 testKonekoFile, testMarkdownFile
-  :: Verbosity -> FilePath -> IO (Int, Int, Int)
+  :: Context -> Verbosity -> FilePath -> IO (Int, Int, Int)
 testKonekoFile    = _testFile testKoneko
 testMarkdownFile  = _testFile testMarkdown
 
-testKonekoFile_, testMarkdownFile_ :: Verbosity -> FilePath -> IO Bool
+testKonekoFile_, testMarkdownFile_
+  :: Context -> Verbosity -> FilePath -> IO Bool
 testKonekoFile_   = _testFile testKoneko_
 testMarkdownFile_ = _testFile testMarkdown_
 
-_testFile :: (Verbosity -> FilePath -> [Text] -> IO a)
-          -> Verbosity -> FilePath -> IO a
-_testFile f v fp = T.readFile fp >>= f v fp . T.lines
+_testFile :: (Context -> Verbosity -> FilePath -> [Text] -> IO a)
+          -> Context -> Verbosity -> FilePath -> IO a
+_testFile f ctx v fp = T.readFile fp >>= f ctx v fp . T.lines
 
 -- parsing --
 
@@ -169,8 +172,8 @@ mdCodeEnd   = "```"
 -- internal --
 
 -- TODO
-testExamples :: Verbosity -> Examples -> IO (Int, Int, Int)
-testExamples verb ex = do
+testExamples :: Context -> Verbosity -> Examples -> IO (Int, Int, Int)
+testExamples ctx verb ex = do
     r@(total, ok, fail) <- go 0 0 0 ex
     when (verb == Loud) $ do
       putStrLn "=== Summary ==="
@@ -179,13 +182,14 @@ testExamples verb ex = do
   where
     go total ok fail []     = return (total, ok, fail)
     go total ok fail (g:gt) = do
-      (t, o, f) <- testExampleGroup verb g
+      (t, o, f) <- testExampleGroup ctx verb g
       go (total+t) (ok+o) (fail+f) gt
 
 -- TODO
-testExampleGroup :: Verbosity -> ExampleGroup -> IO (Int, Int, Int)
-testExampleGroup verb g = do
-    ctx <- initContext
+testExampleGroup
+  :: Context -> Verbosity -> ExampleGroup -> IO (Int, Int, Int)
+testExampleGroup ctx verb g = do
+    initModule ctx mainModule                                 --  TODO
     let st = emptyStack; total = length g
     (ok, fail, _) <- loop 0 0 g ctx st
     when (verb == Loud) $ do printTTPF total ok fail; putStrLn ""

@@ -2,7 +2,7 @@
 
     File        : README.md
     Maintainer  : Felix C. Stegerman <flx@obfusk.net>
-    Date        : 2019-11-27
+    Date        : 2019-11-28
 
     Copyright   : Copyright (C) 2019  Felix C. Stegerman
     Version     : v0.0.1
@@ -866,6 +866,12 @@ nil
 ```koneko
 >>> "" 0.0 0.0 / show ![ '1 ++ ] 10 times " batman!" ++ say!
 NaNNaNNaNNaNNaNNaNNaNNaNNaNNaN batman!
+```
+
+```koneko
+>>> , :fibs ( 0 1 ) [ 'fibs dup rest '+ zip ] lseq def
+>>> 'fibs 10 take-first ->list
+( 0 1 1 2 3 5 8 13 21 34 )
 ```
 
 <!-- [ ] <==> [ drop () ] if empty? -->
