@@ -2,7 +2,7 @@
 
     File        : README.md
     Maintainer  : Felix C. Stegerman <flx@obfusk.net>
-    Date        : 2019-11-28
+    Date        : 2019-11-29
 
     Copyright   : Copyright (C) 2019  Felix C. Stegerman
     Version     : v0.0.1
@@ -21,6 +21,20 @@
   koneko - a concatenative not-quite-lisp for kittens
 </p>
 
+→ [Description](#description),
+→ [Hello World](#hello-world),
+→ [The Language](#the-language),
+→ [More Examples](#more-examples);
+<br/>
+→ [Installing](#installing),
+→ [Running](#running),
+→ [(Build) Requirements](#build-requirements),
+→ [Specs & Docs](#specs--docs);
+<br/>
+→ [TODO](#todo),
+→ [License](#license),
+→ [References](#references)
+
 ## Description
 
 **NB: work in progress.**
@@ -31,7 +45,7 @@ to combine the elegance of the (point-free) "concatenation is
 composition" model with the elegance of lisp-like languages (esp.
 anonymous functions with named parameters).
 
-**&rarr; Try koneko in your browser with the JavaScript
+**→ Try koneko in your browser with the JavaScript
 [REPL](https://koneko.dev).**
 
 ### Properties
@@ -70,6 +84,32 @@ Hello, World!
 ```
 
 ## The Language
+
+→ [Type System](#type-system),
+→ [Errors](#errors),
+→ [Comments & Whitespace](#comments--whitespace);
+<br/>
+→ [Ident(ifier)s](#identifiers),
+→ [Quoting](#quoting),
+→ [Naming Things](#naming-things);
+<br/>
+→ [Primitive Data Types](#primitive-data-types),
+→ [Pairs, Lists & Dicts](#pairs-lists--dicts);
+<br/>
+→ [Blocks](#blocks),
+→ [Calling vs Applying](#calling-vs-applying),
+→ [Functions vs Callables](#functions-vs-callables);
+<br/>
+→ [Multi(method)s](#multimethods),
+→ [Records](#records);
+<br/>
+→ [Syntactic Sugar](#syntactic-sugar),
+→ [Primitives](#primitives),
+→ [Builtins](#builtins),
+→ [Prelude](#prelude);
+<br/>
+→ [Standard Library](#standard-library),
+→ [Possible Future Extensions](#possible-future-extensions)
 
 A program is a sequence of tokens.  Each token represents a function
 that takes a scope and a stack and returns an (updated) stack.
@@ -135,9 +175,9 @@ is an identifier if it:
 * is not a valid integer literal, floating point literal, or `nil`;
 * and does not end with an opening bracket.
 
-Unquoted idents are always evaluated as calls: the ident is looked up
-in the current scope, the value found is pushed onto the stack, and
-the top of the stack is `call`ed.
+[Unquoted](#quoting) idents are always evaluated as calls: the ident
+is looked up in the current scope, the value found is pushed onto the
+stack, and the top of the stack is `call`ed.
 
 NB: `+`, `foo`, and `<42>'` are all idents; there is no distinction
 between the names of "functions", "variables", and "operators".
@@ -209,9 +249,9 @@ order:
 * the prelude;
 * builtins.
 
-NB: `def` is the module definition primitive; it takes a keyword
-representing the name of the ident to be defined and a value to bind
-the ident to.
+NB: `def` is the module definition primitive; it takes a
+[keyword](#primitive-data-types) representing the name of the ident to
+be defined and a value to bind the ident to.
 
 ```koneko
 >>> , :answer 42 def            ; define a constant (in the current module)
@@ -298,7 +338,7 @@ implementation does not intern them).
 
 -->
 
-### Pairs, Lists and Dicts
+### Pairs, Lists & Dicts
 
 NB: list literals have the head on the left.
 
@@ -717,6 +757,14 @@ interpreter but could have been defined in the prelude instead.
 ```
 
 ### Prelude
+
+→ [Stack Shuffling](#stack-shuffling),
+→ [Combinators](#combinators),
+→ [Logic & Arithmetic](#logic--arithmetic);
+<br/>
+→ [Strings, Characters, Nil, Numbers & Pairs](#strings-characters-nil-numbers--pairs),
+→ [Lists, Dicts, Ranges & Sequences](#lists-dicts-ranges--sequences),
+→ [Miscellaneous](#miscellaneous)
 
 A small set of standard definitions that is available automatically in
 all modules.
