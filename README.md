@@ -118,7 +118,7 @@ printing an error message and resetting the stack).
 ```
 
 NB: the repl will print the top of the stack (unless empty) after it
-evaluates a line, unless the line starts with a `,`.
+evaluates a line -- unless the line starts with a `,`.
 
 ### Ident(ifier)s
 
@@ -155,8 +155,9 @@ between the names of "functions", "variables", and "operators".
 
 Functions with names starting with:
 
-* `~` ... branch ...
-* `^` ... pattern match ...
+* `~` (e.g. `~nil`) branch (and possibly pattern match) on (the type
+  of) a value;
+* `^` (e.g. `^seq`) pattern match (and "destructure") a value;
 * `&` can be `apply`d to a variable number of arguments;
 * a number (e.g. `2dip`) perform an operation on that number of their
   arguments.
@@ -204,8 +205,9 @@ order:
 * primitives;
 * the current scope and any parent scope(s);
 * the module the current scope belongs to;
-* builtins;
-* the prelude.
+* any modules imported by the scope's module;
+* the prelude;
+* builtins.
 
 NB: `def` is the module definition primitive; it takes a keyword
 representing the name of the ident to be defined and a value to bind
@@ -229,6 +231,18 @@ currently enforced).
 The default module is `__main__`; primitives, builtins, and the
 prelude are `__prim__`, `__bltn__`, and `__prld__` respectively.
 
+#### Modules
+
+**NB: work in progress.**
+
+```
+>>> , :foo [ ... ] defmodule      ; define a module
+>>> , :foo import                 ; import a module
+>>> , ( :x :y ) :foo import-from  ; copy specific idents from a module
+```
+
+TODO: load modules from files.
+
 ### Primitive Data Types
 
 i.e. nil, bool, int, float, str, kwd
@@ -246,6 +260,8 @@ nil
 42
 >>> 0x20
 32
+>>> 0b11
+3
 
 >>> 3.14            ; floating point
 3.14
@@ -295,6 +311,8 @@ NB: list literals have the head on the left.
 >>> ,drop
 >>> .value
 42
+>>> answer: 42                    ; syntactic sugar
+:answer 42 =>
 
 >>> ( 1 2 :foo 4 )                ; linked list (parentheses)
 ( 1 2 :foo 4 )
@@ -302,8 +320,10 @@ NB: list literals have the head on the left.
 >>> len
 4
 >>> ,drop
->>> 2 get^
+>>> 2 get^                        ; indexing
 :foo
+>>> () empty?
+#t
 
 >>> { x: 42, :y 99 1 + => }       ; dict: key/value map (curly brackets)
 { :x 42 =>, :y 100 => }
@@ -311,7 +331,7 @@ NB: list literals have the head on the left.
 >>> len
 2
 >>> ,drop
->>> :x get^
+>>> :x get^                       ; indexing
 42
 ```
 
@@ -324,13 +344,14 @@ A block consists of:
 * optional parameters (for which the arguments are popped from the
   stack -- right to left (i.e. from the top of the stack) -- when the
   block is called);
-* code (i.e. a sequence of tokens) that is executed when the block is called.
+* code (i.e. a sequence of tokens) that is executed when the block is
+  called.
 
 A block is delimited by square brackets; parameters (if any) are
 separated from the code by a `.`.
 
 ```koneko
->>> ; push a block -- that pushes 42 onto the stack -- onto the stack
+; push a block -- that pushes 42 onto the stack -- onto the stack
 >>> [ 42 ]
 [ 42 ]
 >>> call                          ; call the block on the stack
@@ -435,7 +456,7 @@ which implement certain primitive operations via calls.
 ### Multi(method)s
 
 ```koneko
->>> ; a multi w/ 2 parameters, defined for a mix of int and float
+; a multi w/ 2 parameters, defined for a mix of int and float
 >>> , :add ( :int   :int    ) [ __int+__            ] defmulti
 >>> , :add ( :float :float  ) [ __float+__          ] defmulti
 >>> , :add ( :int   :float  ) [ 'int->float dip add ] defmulti
@@ -446,20 +467,34 @@ which implement certain primitive operations via calls.
 4.0
 ```
 
+To provide a "fallback"/"default" for a multi, use a signature
+consisting only of `:_` keywords (the number matching the arity).
+
+```koneko
+>>> , :add ( :_ :_ ) [ nil ] defmulti
+>>> "foo" () add
+nil
+```
+
 NB: `defmulti` always creates or extends a multi in the current
 module; to extend a multi from e.g. the prelude, alias it first.
+
+NB: multis are "global state": extending e.g. a prelude multi will
+affect all code using that multi.
 
 ### Records
 
 ```koneko
->>> , :Point ( :x :y ) defrecord  ; define record type + predicate
->>> Point{ x: 1, y: -1 }          ; create record instance
+>>> , :Point ( :x :y ) defrecord  ; define record type
+>>> Point( 1 -1 )                 ; "list" constructor
+Point{ :x 1 =>, :y -1 => }
+>>> Point{ y: -1, x: 1 }          ; "dict" constructor
 Point{ :x 1 =>, :y -1 => }
 >>> ,dup
->>> Point?
+>>> Point?                        ; automatically defined type predicate
 #t
 >>> ,drop dup
->>> .x
+>>> .x                            ; field access
 1
 >>> ,drop dup
 >>> .y
@@ -468,10 +503,35 @@ Point{ :x 1 =>, :y -1 => }
 >>> { x: 99 } update              ; update record (creates a new one)
 Point{ :x 99 =>, :y -1 => }
 
+; automatically defined "pattern match" function:
+; calls the block with the values of the records' fields
+>>> , [ x y . "x = " 'x show ++ ", y = " 'y show ++ ++ say! ] ^Point
+x = 99, y = -1
+
+; automatically defined "branch" function:
+; takes a second block to call if the value is of another type
+>>> , Point( 1 2 )
+>>> [ + ] [ "not a point" ] ~Point
+3
+
+; multis can have record names in their signatures
 >>> , :+ '+ def                   ; alias to extend
 >>> , :+ ( :Point :Point ) [ '.x '.y .[ '1 bi$ + ] bi$ 2bi Point ] defmulti
 >>> Point( 1 2 ) Point( 3 4 ) +
 Point{ :x 4 =>, :y 6 => }
+
+>>> Point( 9 34 ) record->dict    ; conversion & type information
+{ :x 9 =>, :y 34 => }
+>>> Point( 3 4 ) record-type
+#<record-type:Point(x#y)>
+>>> dup record-type-name
+:Point
+>>> drop record-type-fields
+( :x :y )
+>>> Point( 3 4 ) record-values
+( 3 4 )
+>>> '=> zip ->list dict 'Point apply-dict
+Point{ :x 3 =>, :y 4 => }
 ```
 
 ### Syntactic Sugar
@@ -490,12 +550,12 @@ The parser provides some syntactic sugar.
 { :x 1 =>, :y 2 => }
 
 >>> , :Point ( :x :y ) defrecord
->>> Point{ y: 2, x: 1 }                     ; record "constructor" (from dict)
+>>> Point{ y: 2, x: 1 }                     ; record "dict constructor"
 Point{ :x 1 =>, :y 2 => }
 >>> ( :y 2 =>, :x 1 => ) dict 'Point apply-dict ; desugared
 Point{ :x 1 =>, :y 2 => }
 
->>> Point( 1 2 )                            ; record "constructor" (from list)
+>>> Point( 1 2 )                            ; record "list constructor"
 Point{ :x 1 =>, :y 2 => }
 >>> ( 1 2 ) 'Point apply                    ; desugared
 Point{ :x 1 =>, :y 2 => }
@@ -512,17 +572,47 @@ Point{ :x 1 =>, :y 2 => }
 >>> 1 ( 2 3 ) :cons swap call call          ; desugared
 ( 1 2 3 )
 
->>> , ( 1 2 3 ) 5                           ; block w/ "holes" -- TODO
->>> ![ 10 * '1 div ] map ->list
-( 2 4 6 )
->>> , ( 1 2 3 ) 5                           ; . doesn't call (! does)
->>> .[ 10 * '1 div ] call map ->list
-( 2 4 6 )
->>> , ( 1 2 3 ) 5                           ; desugared
->>> [ __1__ . [ 10 * '__1__ div ] ] call map ->list
-( 2 4 6 )
->>> ( 1 2 3 ) [ 10 * 5 div ] map ->list     ; equivalent
-( 2 4 6 )
+>>> '.x                                     ; quoted field access
+[ :x __swap__ __call__ ]
+>>> '!x                                     ; quoted field call
+[ :x __swap__ __call__ __call__ ]
+
+>>> , Point( 1 2 ) Point( 3 4 )
+>>> '.x bi$ +                               ; useful for combinators
+4
+```
+
+```koneko
+>>> .[ 2 * '1 div ]                         ; "curried" block w/ "holes"
+[ __1__ . [ 2 * '__1__ div ] ]
+>>> 3 swap call                             ; "fill" the hole from the stack
+[ 2 * '__1__ div ]
+>>> 2 ![ 3 * '1 div ]                       ; "!" version calls immediately
+[ 3 * '__1__ div ]
+>>> 5 swap call
+7
+>>> 5 [ 3 * 2 div ] call                    ; equivalent
+7
+
+>>> .[ '2 .1 ]                              ; '2 is sugar for '__2__ (etc.)
+[ __1__ __2__ . [ '__2__ __1__ ] ]
+>>> '+ 1 ![ '2 .1 ]                         ; .1 is sugar for __1__ (etc.)
+[ '__2__ __1__ ]
+>>> 42 swap call
+43
+
+>>> 1 2 '+ 'show ![ .1 .2 ] call            ; function composition
+"3"
+
+>>> ( 1 2 3 ) '* ![ 3 .1 2 div ] map ->list
+( 1 3 4 )
+>>> ( 1 2 3 ) [ 3 * 2 div ] map ->list      ; equivalent
+( 1 3 4 )
+```
+
+```koneko
+>>> ...                                     ; sugar for __ellipsis__
+*** ERROR: name __ellipsis__ is not defined
 ```
 
 ### Primitives
@@ -546,13 +636,6 @@ definitions.
 >>> [ :less ] [ :not-less ] if  ; conditional
 :less
 
->>> #f not                      ; logical
-#t
->>> #f 1 or
-1
->>> 1 nil and
-nil
-
 >>> ( 42 ) show                 ; convert to readable str
 "( 42 )"
 >>> "foo" show
@@ -572,6 +655,8 @@ Hello!
 #t
 >>> () callable?
 #t
+>>> () function?
+#f
 
 >>> , :answer 42 def
 >>> __name__
@@ -580,15 +665,19 @@ Hello!
 ( :answer :clear-stack :show-stack )
 >>> :answer :__main__ __module-get__
 42
+>>> __modules__
+( :__bltn__ :__main__ :__prim__ :__prld__ )
 
 >>> 1 int->float
 1.0
 
 >>> clear-stack                 ; only available in the repl
->>> show-stack
+>>> ,show-stack
 >>> , 1 2 show-stack
 2
 1
+>>> "oops!" fail
+*** ERROR: oops!
 ```
 
 ```
@@ -607,7 +696,7 @@ defines more convenient versions of these, like `+` and `div`:
 To list all primitives, run:
 
 ```
->>> :__prim__ __module-defs__     ; (elided)
+>>> :__prim__ __module-defs__   ; (elided)
 ( :__=__ :__apply__ :__call__ :__def__ :__if__ ... )
 ```
 
@@ -632,8 +721,10 @@ interpreter but could have been defined in the prelude instead.
 A small set of standard definitions that is available automatically in
 all modules.
 
-See `lib/prelude.knk` for the complete prelude with definitions and
-examples.
+See [`lib/prelude.knk`](lib/prelude.knk) for the complete prelude with
+definitions and examples.
+
+#### Stack Shuffling
 
 ```koneko
 >>> , 1 2 show-stack
@@ -651,8 +742,15 @@ examples.
 2
 ```
 
+See also: `rot>`, `<rot`, `2dup`, `2drop`, `nip`, `over`, `2over`,
+`over2`.
+
+#### Combinators
+
+`bi` calls 2 functions on 1 value, `bi$` 1 function on 2 values, etc.
+
 ```koneko
->>> , 35 [ 2 + ] [ 7 + ] bi       ; combinators
+>>> , 35 [ 2 + ] [ 7 + ] bi
 >>> , show-stack
 42
 37
@@ -661,22 +759,63 @@ examples.
 237
 ```
 
+See also: `2dip`, `3dip`, `keep`, `2keep`, `tri`, `bi$`, `tri$`,
+`bi~`, `tri~`, `bi*`, `2bi`, `2tri`, `2bi$`, `2bi~`.
+
+#### Logic & Arithmetic
+
 ```koneko
->>> 1 2 +                         ; arithmetic
+>>> #f not
+#t
+>>> #f 1 or
+1
+>>> 1 nil and
+nil
+
+>>> #t 42 37 ?
+42
+```
+
+See also: `when`, `min`, `max`.
+
+```koneko
+>>> 1 2 +
 3
 >>> 1.0 2.0 /
 0.5
 >>> 8 3 div
 2
+>>> 5.0 neg
+-5.0
+```
 
->>> () empty?                     ; sequences
+#### Strings, Characters, Nil, Numbers & Pairs
+
+```koneko
+>>> 0x732b chr
+"猫"
+>>> ord
+29483
+```
+
+```koneko
+>>> nil [ "<nil>" ] [ type show ] ~nil
+"<nil>"
+```
+
+See also: `num?`, `~neg`, `~zero`, `~pos`, `^pair`.
+
+#### Lists, Dicts, Ranges & Sequences
+
+```koneko
+>>> () empty?
 #t
 >>> ( :x :y :z ) len
 3
 >>> ( :a :b :c ) 1 get^
 :b
 
->>> ( 1 2 ) head^                 ; lists
+>>> ( 1 2 ) head^
 1
 >>> ( 1 2 3 ) tail^
 ( 2 3 )
@@ -685,26 +824,73 @@ nil
 ```
 
 ```koneko
->>> , ( 1 2 3 ) uncons^ show-stack  ; lists
+>>> , ( 1 2 3 ) uncons^ show-stack
 ( 2 3 )
 1
 >>> cons
 ( 1 2 3 )
 >>> ( 3 4 ) 2 swap cons
 ( 2 3 4 )
-
->>> ( 2 3 4 ) [ dup * ] map ->list
-( 4 9 16 )
 ```
 
 ```koneko
->>> , [ "Hi!" say! ] 3 times      ; miscellaneous
+>>> ( 1 2 ) ( 3 4 ) ++
+( 1 2 3 4 )
+
+>>> ( :one :two :three ) 1 has?
+#t
+>>> ( :one :two :three ) :two elem?
+#t
+
+>>> { x: 1, y: 2 } { x: 99 } update
+{ :x 99 =>, :y 2 => }
+
+>>> 10 15 [m-n] ->list            ; ranges
+( 10 11 12 13 14 15 )
+
+>>> "0123456789" 3 -3 [i-j)       ; slicing
+"3456"
+```
+
+```koneko
+>>> () seq                        ; non-empty sequence or nil
+nil
+>>> ( 1 2 ) seq
+( 1 2 )
+>>> ( 1 2 ) first
+1
+>>> ( 1 2 ) rest
+( 2 )
+
+; branch/match on empty or first & rest
+>>> [ "empty" ] [ x xt . "not empty" ] ^seq
+"not empty"
+
+>>> ( 2 3 4 ) [ dup * ] map ->list
+( 4 9 16 )
+>>> ( 2 3 4 ) [ 2 mod 0 = ] filter ->list
+( 2 4 )
+>>> ( 2 3 4 ) 10 '- foldl
+1
+
+; map etc. consume and produce "lazy" (and possibly infinite) sequences
+>>> ( 1 2 3 ) cycle [ dup * ] map 7 take-first ->list
+( 1 4 9 1 4 9 1 )
+```
+
+See also: `[m-n)`, `[0-)`, `[1-n]`, etc.; `1list`, `lazy-seq`,
+`unseq`, `^list`, `zip`, `foldr`, `concat`, `reverse`, `each`,
+`cycle`, `iterate`, `repeat`, `replicate`, `take-first`, `drop-first`,
+`take-while`, `drop-while`, `sort`.
+
+#### Miscellaneous
+
+```koneko
+>>> , [ "Hi!" say! ] 3 times
 Hi!
 Hi!
 Hi!
 ```
-
-... TODO ...
 
 ### Standard Library
 
@@ -712,19 +898,26 @@ Hi!
 
 ### Possible Future Extensions
 
-#### Protocols
-
-(aka Interfaces)
-
-... TODO ...
-
-#### Exception Handling
-
-... TODO ...
+* Pattern matching (`( 1 Foo( #_ 2 ) ) [ x . ... ] ^~`).
+* Optional (static) type and/or arity checking.
+* Protocols/interfaces.
+* Exception handling.
+* ...
 
 ## More Examples
 
-NB: work in progress.
+**NB: work in progress.**
+
+```koneko
+>>> , :fibs ( 0 1 ) [ 'fibs dup rest '+ zip ] lseq def
+>>> 'fibs 10 take-first ->list
+( 0 1 1 2 3 5 8 13 21 34 )
+```
+
+```koneko
+>>> "" 0.0 0.0 / show ![ '1 ++ ] 10 times " batman!" ++ say!
+NaNNaNNaNNaNNaNNaNNaNNaNNaNNaN batman!
+```
 
 ```koneko
 >>> , :twice [ f . f f ] def              ; with named parameters
@@ -780,7 +973,7 @@ nil
 ```
 
 ```koneko
->>> , :myif [ 'and dip or call ] def  ; TODO: primitive redundancy?
+>>> , :myif [ 'and dip or call ] def
 >>> 42 [ :A ] [ :B ] myif
 :A
 >>> #f [ :A ] [ :B ] myif
@@ -795,24 +988,23 @@ nil
 6
 ```
 
-```koneko
->>> "" 0.0 0.0 / show ![ '1 ++ ] 10 times " batman!" ++ say!
-NaNNaNNaNNaNNaNNaNNaNNaNNaNNaN batman!
-```
-
-```koneko
->>> , :fibs ( 0 1 ) [ 'fibs dup rest '+ zip ] lseq def
->>> 'fibs 10 take-first ->list
-( 0 1 1 2 3 5 8 13 21 34 )
-```
-
 ... TODO ...
 
 ## Installing
 
 ... TODO ...
 
-## Build Requirements
+## Running
+
+```bash
+rlwrap cabal v2-run koneko --     # Haskell REPL
+node js/koneko                    # Node.js REPL
+cd js && python3 -m http.server   # Browser REPL
+```
+
+... TODO ...
+
+## (Build) Requirements
 
 See `koneko.cabal` for the dependencies.
 
@@ -821,15 +1013,20 @@ See `koneko.cabal` for the dependencies.
 ```bash
 $ apt install haskell-platform libghc-cmdargs-dev libghc-doctest-dev \
   libghc-hashtables-dev libghc-megaparsec-dev libghc-safe-dev \
-  libghc-silently-dev
+  libghc-silently-dev                         # Haskell version
+$ apt install nodejs                          # Node.js version
 ```
 
 ## Specs & Docs
 
 ```bash
+# Haskell
 cabal v2-build --write-ghc-environment-files=always --enable-tests
 cabal v2-run doctests
-cabal v2-run koneko -- --doctest README.md lib/*.knk
+cabal v2-run koneko -- --doctest lib/*.knk README.md
+
+# JavaScript
+node js/koneko --doctest lib/*.knk README.md
 ```
 
 TODO: haddock
@@ -844,7 +1041,7 @@ TODO: haddock
 
 ## License
 
-### Interpreter
+### Interpreter(s)
 
 [![GPLv3+](https://www.gnu.org/graphics/gplv3-127x51.png)](https://www.gnu.org/licenses/gpl-3.0.html)
 

@@ -120,7 +120,7 @@ const scope = {                                               //  {{{1
       if (c_.table.has(k)) { return c_.table.get(k) }
       c_ = c_.parent
     }
-    const imps = [...(imports.get(c.module) || [])]
+    const imps = imports.get(c.module) || []
     for (const m of [c.module, ...imps, "__prld__", "__bltn__"]) {
       const mod = modules.get(m)
       if (mod && mod.has(k)) { return mod.get(k) }
@@ -1042,8 +1042,8 @@ modules.set("__prim__", new Map([                             //  {{{1
   mkPrim("__import__", (c, s0) => {
     const [[m], s1] = stack.pop(s0, "kwd")
     let imp = imports.get(c.module)
-    if (!imp) { imp = new Set(); imports.set(c.module, imp) }
-    imp.add(m.value)
+    if (!imp) { imp = []; imports.set(c.module, imp) }
+    if (!imp.includes(m.value)) { imp.unshift(m.value) }
     return s1
   }),
   mkPrim("__import-from__", (c, s0) => {

@@ -234,7 +234,7 @@ instance NFData Scope where
 
 data Context = Context {
   modules   :: HashTable Identifier Module,
-  imports   :: HashTable Identifier (S.HashSet Identifier),
+  imports   :: HashTable Identifier [Identifier],
   ctxScope  :: Scope
 }
 
@@ -690,7 +690,9 @@ defineIn c k v = do curMod <- scopeModule c; HT.insert curMod k v
 
 importIn :: Context -> Identifier -> IO ()
 importIn c k  = HT.mutate (imports c) (modName $ ctxScope c)
-              $ (,()) . Just . maybe (S.singleton k) (S.insert k)
+              $ (,()) . Just . maybe [k] (insert k)
+  where
+    insert x xs = if x `elem` xs then xs else x:xs            --  TODO
 
 -- TODO: error if already defined?!
 -- throws ModuleNotFound or LookupFailed
@@ -706,7 +708,7 @@ scopeModule c = getModule c $ modName $ ctxScope c
 -- throws ModuleNotFound
 lookup :: Context -> Identifier -> IO (Maybe KValue)
 lookup c k = do
-    imp <- maybe S.empty id <$> HT.lookup (imports c) m
+    imp <- maybe [] id <$> HT.lookup (imports c) m
     M.firstJust [lookupPrim, lookupScope s, lookupImp imp,
                  lookupPrld, lookupBltn]
   where
@@ -717,7 +719,7 @@ lookup c k = do
     lookupBltn    = look bltnModule
     lookupPrld    = look prldModule
     look          = lookupModule c k
-    lookupImp     = M.firstJust . map look . S.toList
+    lookupImp     = M.firstJust . map look
 
 -- throws ModuleNotFound
 lookupModule :: Context -> Identifier -> Identifier -> IO (Maybe KValue)
