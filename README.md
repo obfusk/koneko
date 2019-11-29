@@ -21,19 +21,19 @@
   koneko - a concatenative not-quite-lisp for kittens
 </p>
 
-→ [Description](#description),
-→ [Hello World](#hello-world),
-→ [The Language](#the-language),
-→ [More Examples](#more-examples);
+→ [Description](#description),
+→ [Hello World](#hello-world),
+→ [The Language](#the-language),
+→ [More Examples](#more-examples);
 <br/>
-→ [Installing](#installing),
-→ [Running](#running),
-→ [(Build) Requirements](#build-requirements),
-→ [Specs & Docs](#specs--docs);
+→ [Installing](#installing),
+→ [Running](#running),
+→ [(Build) Requirements](#build-requirements),
+→ [Specs & Docs](#specs--docs);
 <br/>
-→ [TODO](#todo),
-→ [License](#license),
-→ [References](#references)
+→ [TODO](#todo),
+→ [License](#license),
+→ [References](#references)
 
 ## Description
 
@@ -85,31 +85,31 @@ Hello, World!
 
 ## The Language
 
-→ [Type System](#type-system),
-→ [Errors](#errors),
-→ [Comments & Whitespace](#comments--whitespace);
+→ [Type System](#type-system),
+→ [Errors](#errors),
+→ [Comments & Whitespace](#comments--whitespace);
 <br/>
-→ [Ident(ifier)s](#identifiers),
-→ [Quoting](#quoting),
-→ [Naming Things](#naming-things);
+→ [Ident(ifier)s](#identifiers),
+→ [Quoting](#quoting),
+→ [Naming Things](#naming-things);
 <br/>
-→ [Primitive Data Types](#primitive-data-types),
-→ [Pairs, Lists & Dicts](#pairs-lists--dicts);
+→ [Primitive Data Types](#primitive-data-types),
+→ [Pairs, Lists & Dicts](#pairs-lists--dicts);
 <br/>
-→ [Blocks](#blocks),
-→ [Calling vs Applying](#calling-vs-applying),
-→ [Functions vs Callables](#functions-vs-callables);
+→ [Blocks](#blocks),
+→ [Calling vs Applying](#calling-vs-applying),
+→ [Functions vs Callables](#functions-vs-callables);
 <br/>
-→ [Multi(method)s](#multimethods),
-→ [Records](#records);
+→ [Multi(method)s](#multimethods),
+→ [Records](#records);
 <br/>
-→ [Syntactic Sugar](#syntactic-sugar),
-→ [Primitives](#primitives),
-→ [Builtins](#builtins),
-→ [Prelude](#prelude);
+→ [Syntactic Sugar](#syntactic-sugar),
+→ [Primitives](#primitives),
+→ [Builtins](#builtins),
+→ [Prelude](#prelude);
 <br/>
-→ [Standard Library](#standard-library),
-→ [Possible Future Extensions](#possible-future-extensions)
+→ [Standard Library](#standard-library),
+→ [Possible Future Extensions](#possible-future-extensions)
 
 A program is a sequence of tokens.  Each token represents a function
 that takes a scope and a stack and returns an (updated) stack.
@@ -758,13 +758,13 @@ interpreter but could have been defined in the prelude instead.
 
 ### Prelude
 
-→ [Stack Shuffling](#stack-shuffling),
-→ [Combinators](#combinators),
-→ [Logic & Arithmetic](#logic--arithmetic);
+→ [Stack Shuffling](#stack-shuffling),
+→ [Combinators](#combinators),
+→ [Logic & Arithmetic](#logic--arithmetic);
 <br/>
-→ [Strings, Characters, Nil, Numbers & Pairs](#strings-characters-nil-numbers--pairs),
-→ [Lists, Dicts, Ranges & Sequences](#lists-dicts-ranges--sequences),
-→ [Miscellaneous](#miscellaneous)
+→ [Strings, Characters, Nil, Numbers & Pairs](#strings-characters-nil-numbers--pairs),
+→ [Lists, Dicts, Ranges & Sequences](#lists-dicts-ranges--sequences),
+→ [Miscellaneous](#miscellaneous)
 
 A small set of standard definitions that is available automatically in
 all modules.
