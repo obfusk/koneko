@@ -762,7 +762,7 @@ interpreter but could have been defined in the prelude instead.
 → [Combinators](#combinators),
 → [Logic & Arithmetic](#logic--arithmetic);
 <br/>
-→ [Strings, Characters, Nil, Numbers & Pairs](#strings-characters-nil-numbers--pairs),
+→ [Strings, Chars, Nil, Numbers & Pairs](#strings-chars-nil-numbers--pairs),
 → [Lists, Dicts, Ranges & Sequences](#lists-dicts-ranges--sequences),
 → [Miscellaneous](#miscellaneous)
 
@@ -837,7 +837,7 @@ See also: `when`, `min`, `max`.
 -5.0
 ```
 
-#### Strings, Characters, Nil, Numbers & Pairs
+#### Strings, Chars, Nil, Numbers & Pairs
 
 ```koneko
 >>> 0x732b chr
