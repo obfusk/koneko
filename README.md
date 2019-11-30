@@ -849,6 +849,10 @@ See also: `when`, `min`, `max`.
 ```koneko
 >>> nil [ "<nil>" ] [ type show ] ~nil
 "<nil>"
+>>> ( 3 7 ) 'rest ~> 'first ~> [ 1 + ] ~>
+8
+>>> ( 7 3 ) ( 'rest 'first [ 1 + ] ) ~~>
+4
 ```
 
 See also: `num?`, `~neg`, `~zero`, `~pos`, `^pair`.
@@ -965,6 +969,16 @@ Hi!
 ```koneko
 >>> "" 0.0 0.0 / show ![ '1 ++ ] 10 times " batman!" ++ say!
 NaNNaNNaNNaNNaNNaNNaNNaNNaNNaN batman!
+```
+
+```koneko
+>>> , :join [ d . [ "" ] [ swap [ 'd swap ++ ++ ] foldl ] ^seq ] def
+>>> "foo" ->list ", " join
+"f, o, o"
+```
+
+```
+>>> , :readlines [ "" ask! [ 'readlines lseq1 ] ~> ] def
 ```
 
 ```koneko
