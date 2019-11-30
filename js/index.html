@@ -38,69 +38,68 @@
     </script>
     <script src="koneko.js"></script>
     <script>
-      window.addEventListener("load", () => {
+      window.addEventListener("load", async () => {
         const elem = id => document.getElementById(id)
         const [line, cons, st] = ["line", "console", "stack"].map(elem)
         const history = []; let hist_idx = 0
         line.value = stack.value = ""; cons.value = ""
-        koneko.loadPrelude().then(() => {
-          const print = text => {
-            cons.value += text + "\n"
-            cons.scrollTop = cons.scrollHeight
-          }
-          koneko.overrides.say = print
-          koneko.overrides.nya = () => { window.open("nya/tabby.png") }
-          const c = koneko.initContext(); let s = koneko.emptyStack()
-          s = koneko.evalText(":clear-stack '__clear-stack__ def", c, s)
-          const f = () => {
-            const l = line.value
-            hist_idx = 0; line.value = ""
-            if (l) {
-              if (l != history.slice(-1)[0]) { history.push(l) }
-              try {
-                s = koneko.evalText(l, c, s)
-              } catch(e) {
-                if (e instanceof koneko.KonekoError) {
-                  print("*** ERROR: " + e.message)
-                } else {
-                  throw e
-                }
-              }
-              const vs = s.map(koneko.show); vs.reverse()
-              st.value = vs.join("\n")
+        await koneko.loadPrelude()
+        const print = text => {
+          cons.value += text + "\n"
+          cons.scrollTop = cons.scrollHeight
+        }
+        koneko.overrides.say = print
+        koneko.overrides.ask = s => window.prompt(s)
+        koneko.overrides.nya = () => { window.open("nya/tabby.png") }
+        const c = koneko.initContext(); let s = koneko.emptyStack()
+        await koneko.evalText(":clear-stack '__clear-stack__ def", c, s)
+        const f = async () => {                               //  {{{1
+          const l = line.value
+          hist_idx = 0; line.value = ""
+          if (!l) { return }
+          if (l != history.slice(-1)[0]) { history.push(l) }
+          try {
+            s = await koneko.evalText(l, c, s)
+          } catch(e) {
+            if (e instanceof koneko.KonekoError) {
+              print("*** ERROR: " + e.message)
+            } else {
+              throw e
             }
           }
-          const hist_scroll = () => {
-            line.value = history[history.length - hist_idx] || ""
-          }
-          const hist_up = () => {
-            hist_idx = Math.min(hist_idx + 1, history.length)
-            hist_scroll()
-          }
-          const hist_down = () => {
-            hist_idx = Math.max(hist_idx - 1, 0)
-            hist_scroll()
-          }
-          elem("eval").addEventListener("click", f)
-          line.addEventListener("keyup", event => {
-            if (event.key == "Enter" && !event.shiftKey) { f() }
-          })
-          line.addEventListener("keydown", event => {
-            switch (event.key) {
-              case "Enter":
-                if (!event.shiftKey) { event.preventDefault() }
-                break
-              case "Up":
-              case "ArrowUp":
-                hist_up()
-                break
-              case "Down":
-              case "ArrowDown":
-                hist_down()
-                break
-            }
-          })
+          const vs = s.map(koneko.show); vs.reverse()
+          st.value = vs.join("\n")
+        }                                                     //  }}}1
+        const hist_scroll = () => {
+          line.value = history[history.length - hist_idx] || ""
+        }
+        const hist_up = () => {
+          hist_idx = Math.min(hist_idx + 1, history.length)
+          hist_scroll()
+        }
+        const hist_down = () => {
+          hist_idx = Math.max(hist_idx - 1, 0)
+          hist_scroll()
+        }
+        elem("eval").addEventListener("click", f)
+        line.addEventListener("keyup", event => {
+          if (event.key == "Enter" && !event.shiftKey) { f() }
         })
+        line.addEventListener("keydown", event => {           //  {{{1
+          switch (event.key) {
+            case "Enter":
+              if (!event.shiftKey) { event.preventDefault() }
+              break
+            case "Up":
+            case "ArrowUp":
+              hist_up()
+              break
+            case "Down":
+            case "ArrowDown":
+              hist_down()
+              break
+          }
+        })                                                    //  }}}1
       })
     </script>
   </head>

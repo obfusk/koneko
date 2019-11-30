@@ -2,7 +2,7 @@
 //
 //  File        : koneko.js
 //  Maintainer  : Felix C. Stegerman <flx@obfusk.net>
-//  Date        : 2019-11-29
+//  Date        : 2019-11-30
 //
 //  Copyright   : Copyright (C) 2019  Felix C. Stegerman
 //  Version     : v0.0.1
@@ -34,8 +34,7 @@ class KonekoError extends Error {
     if (Error.captureStackTrace) {
       Error.captureStackTrace(this, KonekoError)
     }
-    this.name = "KonekoError"
-    this.type = type
+    this.name = "KonekoError"; this.type = type
     for (const k in info) { this["info_"+k] = info[k] }
   }
 }
@@ -168,9 +167,10 @@ const record = (rectype, values) => {
 
 const thunk = f => {                                          //  {{{1
   let v
-  const run = () => {
+  // NB: Promise
+  const run = async () => {
     if (f) {
-      const vs = f()
+      const vs = await f()
       if (vs.length != 1) {
         throw new KE(...E.Expected("thunk to produce exactly 1 value"))
       }
@@ -351,7 +351,7 @@ const parseOne = (s, p0 = 0, end = null) => {                 //  {{{1
   ))
 }                                                             //  }}}1
 
-const parseMany = (s, p, end = null) => {
+const parseMany = (s, p, end = null) => {                     //  {{{1
   const vs = []; let v
   while (p < s.length) {
     [p, ...v] = parseOne(s, p, end)
@@ -364,7 +364,7 @@ const parseMany = (s, p, end = null) => {
     ))
   }
   return [p, vs]
-}
+}                                                             //  }}}1
 
 // TODO: show line number
 const parseErrorContext = (s, p) => {
@@ -442,6 +442,7 @@ class Eval {
 }
 
 // TODO
+// NB: maybe Promise, maybe Eval (if tailPos)
 const call = (c0, s0, tailPos = false) => {                   //  {{{1
   debug(c0, () => putErr("*** call ***"))
   const [[x], s1] = stack.pop(s0, "_"), xv = x.value
@@ -617,13 +618,15 @@ const call = (c0, s0, tailPos = false) => {                   //  {{{1
       return stack.push(s2, x.values[i])
     }
     case "thunk":
-      return stack.push(s1, x.run())
+      // OK b/c call() always returns a Promise
+      return x.run().then(y => stack.push(s1, y))
     default:
       throw new KE(...E.UncallableType(x.type))
   }
 }                                                             //  }}}1
 
 // TODO
+// NB: maybe Promise
 const apply = (c0, s0) => {                                   //  {{{1
   debug(c0, () => putErr("*** apply ***"))
   const [[x], s1] = stack.pop(s0, "_"), xv = x.value
@@ -642,8 +645,9 @@ const apply = (c0, s0) => {                                   //  {{{1
       const as = new Map(zip(nparms, l1).concat(sparms_.map(p => [p, nil]))
                                         .concat([["&", list(l2)]]))
       const c1 = scope.fork(x.scope, as)
-      const s3 = evaluate(x.code)(c1, stack.empty())
-      return stack.push(s2, ...s3)
+      return evaluate(x.code)(c1, stack.empty()).then(
+        s3 => stack.push(s2, ...s3)
+      )
     }
     case "multi":
       throw new KE(...E.NotImplementedError("apply multi"))
@@ -657,6 +661,7 @@ const apply = (c0, s0) => {                                   //  {{{1
 }                                                             //  }}}1
 
 // TODO
+// NB: maybe Promise
 const apply_dict = (c0, s0) => {                              //  {{{1
   debug(c0, () => putErr("*** apply-dict ***"))
   const [[x], s1] = stack.pop(s0, "_"), xv = x.value
@@ -672,8 +677,9 @@ const apply_dict = (c0, s0) => {                              //  {{{1
       const as = new Map(zip(nparms, vs).concat(sparms_.map(p => [p, nil]))
                                         .concat([["&&", d_]]))
       const c1 = scope.fork(x.scope, as)
-      const s3 = evaluate(x.code)(c1, stack.empty())
-      return stack.push(s2, ...s3)
+      return evaluate(x.code)(c1, stack.empty()).then(
+        s3 => stack.push(s2, ...s3)
+      )
     }
     case "multi":
       throw new KE(...E.NotImplementedError("apply-dict multi"))
@@ -693,8 +699,9 @@ const apply_dict = (c0, s0) => {                              //  {{{1
   }
 }                                                             //  }}}1
 
+// NB: Promise
 const evaluate = code0 =>                                     //  {{{1
-  (c = scope.new(), s = stack.empty()) => {
+  async (c = scope.new(), s = stack.empty()) => {
     let code = code0
     for (let i = 0; i < code.length; ++i) {
       const x = code[i]
@@ -702,11 +709,11 @@ const evaluate = code0 =>                                     //  {{{1
         putErr(`==> eval ${show(x)}`)
         putErr("--> " + s.map(show).join(" "))
       })
-      const [deferred, s_] = evl[x.type](x)(c, s); s = s_
+      const [deferred, s_] = evl[x.type](x)(c, s); s = await s_
       debug(c, () => putErr("<-- " + s.map(show).join(" ")))
       if (deferred) {
         const tailPos = i == code.length - 1
-        s = call(c, s, tailPos)
+        s = await call(c, s, tailPos)
         if (tailPos && s instanceof Eval) {
           debug(c, () => putErr("*** tail call ***"))
           code = s.code; c = s.scope; s = s.stack; i = -1
@@ -716,14 +723,18 @@ const evaluate = code0 =>                                     //  {{{1
     return s
   }                                                           //  }}}1
 
+// -> [boolean, stack | Promise]
 const evl = {
   nil: pushSelf, bool: pushSelf, int: pushSelf, float: pushSelf,
   str: pushSelf, kwd: pushSelf, quot: pushIdent,
-  list:  x => (c, s) => [false, stack.push(s, list(evaluate(x.value)(c)))],
+  list:  x => (c, s) => [false, evaluate(x.value)(c).then(
+                                  l => stack.push(s, list(l))
+                                )],
   ident: x => (c, s) => [true , pushIdent(x)(c, s)[1]],
   block: x => (c, s) => [false, stack.push(s, { ...x, scope: c })],
 }
 
+// NB: Promise
 const evalText = (text, c = undefined, s = undefined) =>
   evaluate(read(text))(c, s)
 
@@ -1025,8 +1036,11 @@ modules.set("__prim__", new Map([                             //  {{{1
   mkPrim("__swap__", pop2push((x, y) => [y, x])),
   mkPrimPP("__show__", x => [str(show(x))], "_"),
   mkPrimPP("__say!__", x => { say(x.list.join("")); return [] }, "str"),
-  mkPrim("__ask!__", (c, s) => {
-    throw new KE(...E.NotImplementedError("__ask!__"))
+  mkPrim("__ask!__", (c, s0) => {
+    const [[x], s1] = stack.pop(s0, "str")
+    return ask(x.list.join("")).then(
+      r => stack.push(s1, r == null ? nil : str(r))
+    )
   }),
   mkPrimPP("__type__", x => [kwd(x.type, "_")], "_"),
   mkPrimPP("__callable?__",
@@ -1110,7 +1124,7 @@ modules.set("__prim__", new Map([                             //  {{{1
     return s
   }),
   mkPrim("__clear-stack__", (c, s) => stack.empty()),
-  mkPrim("__nya!__", (c, s) => { nya(); return s }),
+  mkPrim("__nya!__", (c, s) => nya().then(() => s)),
 ]))                                                           //  }}}1
 
 const getModule = m => {
@@ -1147,8 +1161,6 @@ const zip = (xs, ys) => xs.map((x, i) => [x, ys[i]])
 
 /* === files === */
 
-// TODO: handle errors
-
 const baseDir =
   _req ? _req("path").dirname(module.filename) + "/../" : ""
 
@@ -1156,17 +1168,21 @@ const baseDir =
 const requestFile = fname => new Promise((resolve, reject) => {
   const r = new XMLHttpRequest()
   r.addEventListener("load", () => resolve(r.responseText))
+  r.addEventListener("error", reject)
   r.open("GET", fname)
   r.send()
 })
 
 // NB: node.js only; Promise
 const readFile = fname => new Promise((resolve, reject) => {
-  _req("fs").readFile(fname, "utf8", (err, data) => resolve(data))
-});
+  _req("fs").readFile(fname, "utf8", (err, data) => {
+    if (err) { reject(err) }
+    resolve(data)
+  })
+})
 
-// NB: node.js only; Promise
 // TODO
+// NB: node.js only; Promise
 const fileLines = fname => readFile(fname).then(
   text => text.split("\n").map((line, i) => [i+1, line])
 )
@@ -1179,9 +1195,11 @@ const evalFile = (fname, c = undefined, s = undefined) => {
 }
 
 // NB: Promise
-const loadPrelude = (fname = baseDir + "lib/prelude.knk") =>
-  modules.get("__prld__").get("def") ?
-    new Promise((resolve, reject) => resolve()) : evalFile(fname)
+const loadPrelude = async (fname = baseDir + "lib/prelude.knk") => {
+  if (!modules.get("__prld__").get("def")) {
+    return await evalFile(fname)
+  }
+}
 
 /* === output === */
 
@@ -1197,10 +1215,12 @@ const repl_init = c => ["clear-stack", "show-stack"].forEach(x =>
   scope.define(c, x, scope.lookup(c, "__" + x + "__"))
 )
 
-const repl_process_line = (line, c, s, stdout, stderr) => {     // {{{1
-  if (line) {
+// NB: Promise
+const repl_process_line =                                     //  {{{1
+  async (line, c, s, stdout, stderr) => {
+    if (!line) { return s }
     try {
-      s = evalText(line, c, s)
+      s = await evalText(line, c, s)
       if (!stack.null(s) && !",;".includes(line[0])) {
         stdout.write(show(stack.top(s)) + "\n")
       }
@@ -1211,25 +1231,27 @@ const repl_process_line = (line, c, s, stdout, stderr) => {     // {{{1
         throw e
       }
     }
-  }
-  return s
-}                                                             //  }}}1
+    return s
+  }                                                           //  }}}1
 
+// NB: Promise
 const repl = (verbose = false) => {                           //  {{{1
   if (!process.stdin.isTTY) {
-    evalFile("/dev/stdin")                                    //  TODO
-    return
+    return evalFile("/dev/stdin")                             //  TODO
   }
   const c = scope.new(); let s = stack.empty(); repl_init(c)
   if (verbose) { scope.define(c, "__debug__", T) }
   const rl = _req("readline").createInterface({
     input: process.stdin, output: process.stdout, prompt: ">>> "
   })
-  rl.on("line", line => {
-    s = repl_process_line(line, c, s, process.stdout, process.stderr)
+  return new Promise((resolve, _) => {
+    rl.on("line", line => {
+      repl_process_line(line, c, s, process.stdout, process.stderr).then(
+        s_ => { s = s_; rl.prompt() }
+      )
+    }).on("close", () => { putOut(); resolve() })
     rl.prompt()
-  }).on("close", () => { putOut() })
-  rl.prompt()
+  })
 }                                                             //  }}}1
 
 /* === doctest === */
@@ -1240,27 +1262,27 @@ const repl = (verbose = false) => {                           //  {{{1
 const doctest = (files, verbose = false) =>
   testFiles(files, verbose).then(([t,o,fail]) => fail == 0)
 
+// NB: Promise
 const doctest_ = (files, verbose = false) =>
   doctest(files, verbose).then(ok => ok || process.exit(1))
 
 // NB: Promise
-const testFiles = (files, verbose = false) => {               //  {{{1
+const testFiles = async (files, verbose = false) => {         //  {{{1
   let total = 0, ok = 0, fail = 0
   const nl = fname => fileLines(fname).then(lines => [fname, lines])
-  return Promise.all(files.map(nl)).then(fs => {
-    for (const [fname, lines] of fs) {
-      const md      = /\.md$/u.test(fname)
-      const test    = md ? testMarkdownFile : testKonekoFile
-      putOut(`=== Testing ${fname} (${md ? "markdown" : "koneko"}) ===`)
-      const [t,o,f] = test(fname, lines, verbose)
-      total += t; ok += o; fail += f
-      putOut()
-    }
-    putOut("=== Summary ===")
-    putOut(`Files: ${files.length}.`)
-    printTestSummary(total, ok, fail)
-    return [total, ok, fail]
-  })
+  const fs = await Promise.all(files.map(nl))
+  for (const [fname, lines] of fs) {
+    const md      = /\.md$/u.test(fname)
+    const test    = md ? testMarkdownFile : testKonekoFile
+    putOut(`=== Testing ${fname} (${md ? "markdown" : "koneko"}) ===`)
+    const [t,o,f] = await test(fname, lines, verbose)
+    total += t; ok += o; fail += f
+    putOut()
+  }
+  putOut("=== Summary ===")
+  putOut(`Files: ${files.length}.`)
+  printTestSummary(total, ok, fail)
+  return [total, ok, fail]
 }                                                             //  }}}1
 
 const blocksToExamples = (fname, blocks) =>
@@ -1324,10 +1346,11 @@ const mdCodeBlocks = lines => {                               //  {{{1
   return bs
 }                                                             //  }}}1
 
-const testExamples = (es, verbose = false) => {               //  {{{1
+// NB: Promise
+const testExamples = async (es, verbose = false) => {         //  {{{1
   let total = 0, ok = 0, fail = 0
   for (const g of es) {
-    const [t,o,f] = testExampleGroup(g, verbose)
+    const [t,o,f] = await testExampleGroup(g, verbose)
     total += t; ok += o; fail += f
   }
   if (verbose) {
@@ -1337,15 +1360,16 @@ const testExamples = (es, verbose = false) => {               //  {{{1
   return [total, ok, fail]
 }                                                             //  }}}1
 
-const testExampleGroup = (g, verbose = false) => {            //  {{{1
+// NB: Promise
+const testExampleGroup = async (g, verbose = false) => {      //  {{{1
   const wr = l => ({ write: s => l.push(s.slice(0, -1)) })
   modules.set("__main__", new Map())                          //  TODO
   const c = scope.new(); let s = stack.empty(); repl_init(c)
   let ok = 0, fail = 0
   for (const e of g) {
     const out = [], err = []
-    overrides.say = s => out.push(s)
-    s = repl_process_line(e.input, c, s, wr(out), wr(err))
+    overrides.say = s => out.push(s)                          //  TODO
+    s = await repl_process_line(e.input, c, s, wr(out), wr(err))
     if (compareExampleOutput(e.output, out, err)) {
       ok +=1
       if (verbose) { printSucc(e) }
@@ -1359,9 +1383,9 @@ const testExampleGroup = (g, verbose = false) => {            //  {{{1
   return [g.length, ok, fail]
 }                                                             //  }}}1
 
+// NB: Promise
 const _testFile = f => (fname, lines, verbose = false) =>
   testExamples(blocksToExamples(fname, f(lines)), verbose)
-
 const testKonekoFile    = _testFile(knkCommentBlocks)
 const testMarkdownFile  = _testFile(mdCodeBlocks)
 
@@ -1405,8 +1429,14 @@ const printFail = (ex, out, err) => {                         //  {{{1
 
 // NB: node.js only
 
+// NB: Promise
+const main = () =>
+  main_().catch(e => { console.error(e); process.exit(1) })
+
 // TODO: use args; --eval, --interactive, ...
-const main = () => loadPrelude().then(() => {
+// NB: Promise
+const main_ = async () => {                                   //  {{{1
+  await loadPrelude()
   const argv    = process.argv.slice(2)
   const opts    = argv.filter(a =>  a.startsWith("-"))
   const args    = argv.filter(a => !a.startsWith("-"))
@@ -1415,26 +1445,36 @@ const main = () => loadPrelude().then(() => {
     const version = require(baseDir + "package.json").version
     putOut(`koneko 「子猫」 ${version}`)
   } else if (opts.includes("--doctest")) {
-    doctest_(args, verbose).catch(e => {
-      console.error(e); process.exit(1)
-    })
+    return await doctest_(args, verbose)
   } else if (args.length) {
-    evalFile(args[0])
+    return await evalFile(args[0])
   } else {
-    repl(verbose)
+    return await repl(verbose)
   }
-})
+}                                                             //  }}}1
 
 /* === exports & overrides === */
 
 const say = s => (overrides.say || (_req ? putOut : console.log))(s)
 
 // TODO
-const nya = () => {
+// NB: Promise
+const ask = async s => {
+  if (overrides.ask) {
+    return await overrides.ask(s)
+  } else {
+    throw new KE(...E.NotImplementedError("__ask!__"))
+  }
+}
+
+// NB: Promise
+const nya = async () => {
   if (overrides.nya) {
-    overrides.nya()
+    return await overrides.nya()
   } else if (_req) {
-    putOut(_req("fs").readFileSync(baseDir + "nya/tabby.cat", "utf8"), "")
+    return readFile(baseDir + "nya/tabby.cat", "utf8").then(
+      data => putOut(data, "")
+    )
   } else {
     throw new KE(...E.NotImplementedError("__nya__"))
   }
