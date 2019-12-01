@@ -2,7 +2,7 @@
 --
 --  File        : Koneko/Read.hs
 --  Maintainer  : Felix C. Stegerman <flx@obfusk.net>
---  Date        : 2019-11-25
+--  Date        : 2019-11-30
 --
 --  Copyright   : Copyright (C) 2019  Felix C. Stegerman
 --  Version     : v0.0.1
@@ -40,7 +40,7 @@ import Control.Exception (throw)
 import Control.Monad (replicateM)
 import Control.Monad.Fail (MonadFail)
 import Data.Functor
-import Data.List (foldl')
+import Data.List (foldl', init)
 import Data.Maybe (fromJust) -- careful!
 import Data.Text.Lazy (Text)
 import Prelude hiding (quot, read)
@@ -125,10 +125,17 @@ block_ = try $ do
 
 -- parser: sugar --
 
-ellipsis, hdot, hbang, qdig, ddig, qdot, qbang, dot, bang, dict, key,
-  apply, applyDict :: Parser [KValue]
+ellipsis, modid, qmodid, hdot, hbang, qdig, ddig, qdot, qbang, dot,
+  bang, dict, key, apply, applyDict :: Parser [KValue]
 
 ellipsis = [_IDENT "ellipsis"] <$ symbol "..."
+
+modid = try $ do
+  m <- D.kwd . D.unIdent <$> identNL <* char '.'
+  i <- D.kwd . D.unIdent <$> ident_
+  return [i, m, _IDENT "module-get", _IDENT "call"]
+
+qmodid = try $ char '\'' >> init <$> modid                    -- safe!
 
 -- TODO
 hdot  = try $ char '.' >>                         _wrap  <$> block_
@@ -179,8 +186,10 @@ _ap op cl = do
   return (q, D.list vs)
 
 sugar :: Parser [KValue]
-sugar = choice [ellipsis, hdot, hbang, qdig, ddig, qdot, qbang,
-                dot, bang, dict, key, apply, applyDict]
+sugar = choice [
+    ellipsis, modid, qmodid, hdot, hbang, qdig, ddig, qdot, qbang,
+    dot, bang, dict, key, apply, applyDict
+  ]
 
 -- parser: multiple values & program --
 
@@ -204,8 +213,9 @@ shebang = void $ string "#!" >> many (satisfy (/= '\n')) >> newline
 
 -- parser: miscellaneous --
 
-ident_ :: Parser Ident
-ident_ = lexeme $ pIdent >>= identOrFail
+ident_, identNL :: Parser Ident
+ident_  = lexeme $ identNL
+identNL = pIdent >>= identOrFail
 
 -- TODO
 sugarIdent :: Char -> Parser Identifier

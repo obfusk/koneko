@@ -2,7 +2,7 @@
 
     File        : README.md
     Maintainer  : Felix C. Stegerman <flx@obfusk.net>
-    Date        : 2019-11-29
+    Date        : 2019-11-30
 
     Copyright   : Copyright (C) 2019  Felix C. Stegerman
     Version     : v0.0.1
@@ -281,7 +281,7 @@ prelude are `__prim__`, `__bltn__`, and `__prld__` respectively.
 >>> , ( :x :y ) :foo import-from  ; copy specific idents from a module
 ```
 
-TODO: load modules from files.
+TODO: load modules from files (`:foo require`).
 
 ### Primitive Data Types
 
@@ -648,6 +648,15 @@ Point{ :x 1 =>, :y 2 => }
 ( 1 3 4 )
 >>> ( 1 2 3 ) [ 3 * 2 div ] map ->list      ; equivalent
 ( 1 3 4 )
+```
+
+```koneko
+>>> '__prld__.say!                          ; module access
+#<primitive:__say!__>
+>>> :say! :__prld__ __module-get__          ; desugared
+#<primitive:__say!__>
+>>> , "hi!" __prld__.say!                   ; unquoted -> call
+hi!
 ```
 
 ```koneko
