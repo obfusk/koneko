@@ -41,24 +41,18 @@ script: |
     nvm use v11.0.0
     set -x
 
-    cabal_build() {
-      cabal v2-build --write-ghc-environment-files=always --enable-tests
-    }
     if [ "$WARNALL" = yes ]; then
       sed -i 's/-fno-warn-unused-imports//' koneko.cabal
-      cabal_build || {
+      make cabal_build || {
         sed -i 's/-Werror//' koneko.cabal
-        cabal_build
+        make cabal_build
         false
       }
     else
-      cabal_build
+      make cabal_build
     fi
 
-    cabal v2-run doctests   # nicer output than v2-test
-    cabal v2-run koneko -- --doctest lib/*.knk README.md
-
-    node js/koneko --doctest lib/*.knk README.md
+    make test
   )
 
 cache:

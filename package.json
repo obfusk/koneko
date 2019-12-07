@@ -27,7 +27,7 @@
   "bin"         : "./js/cli.js",
   "files"       : [
     "js/koneko.js", "js/cli.js", "lib/*.knk", "nya/*.cat",
-    "README.md"
+    "README.md", "doc/*.md"
   ],
 
   "engines"     : { "node" : ">=10.17.0" }

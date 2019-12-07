@@ -41,7 +41,8 @@ build-type:          Simple
 
 -- Extra files to be distributed with the package, such as examples or a
 -- README.
-extra-source-files:  CHANGELOG.md, README.md, LICENSE.LGPLv3.STDLIB
+extra-source-files:  CHANGELOG.md, README.md, LICENSE.LGPLv3.STDLIB,
+                     doc/*.md
 
 data-files:          lib/*.knk nya/*.cat
 
