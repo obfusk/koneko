@@ -2,7 +2,7 @@
 
     File        : README.md
     Maintainer  : Felix C. Stegerman <flx@obfusk.net>
-    Date        : 2019-12-06
+    Date        : 2019-12-07
 
     Copyright   : Copyright (C) 2019  Felix C. Stegerman
     Version     : v0.0.1
@@ -293,6 +293,26 @@ Details:
 ```koneko
 >>> "" 0.0 0.0 / show ![ '1 ++ ] 10 times " batman!" ++ say!
 NaNNaNNaNNaNNaNNaNNaNNaNNaNNaN batman!
+```
+
+```koneko
+>>> 15 [1-n] [ dup 3 "fizz" 5 "buzz" .[ '1 mod 0 = '2 "" ? ] 2bi$ bi
+...            ++ dup empty? [ drop show ] 'nip if say! ] each
+1
+2
+fizz
+4
+buzz
+fizz
+7
+8
+fizz
+buzz
+11
+fizz
+13
+14
+fizzbuzz
 ```
 
 ## Language Reference
