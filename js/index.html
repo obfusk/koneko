@@ -1,5 +1,16 @@
 <!doctype html>
 <html lang="en">
+  <!-- {{{1
+
+    File        : index.html
+    Maintainer  : Felix C. Stegerman <flx@obfusk.net>
+    Date        : 2019-12-08
+
+    Copyright   : Copyright (C) 2019  Felix C. Stegerman
+    Version     : v0.0.1
+    License     : GPLv3+
+
+  }}}1 -->
   <head>
     <meta charset="UTF-8"/>
     <meta name="viewport"
@@ -63,12 +74,14 @@
           } catch(e) {
             if (e instanceof koneko.KonekoError) {
               print("*** ERROR: " + e.message)
+              return
             } else {
               throw e
             }
           }
-          const vs = s.map(koneko.show); vs.reverse()
-          st.value = vs.join("\n")
+          st.value  = ">>> " + l + "\n" + "--- STACK ---\n" +
+                      s.map(x => koneko.show(x) + "\n").reverse().join("") +
+                      "\n" + st.value
         }                                                     //  }}}1
         const hist_scroll = () => {
           line.value = history[history.length - hist_idx] || ""
