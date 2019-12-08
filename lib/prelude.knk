@@ -380,6 +380,16 @@
 :ord    '.ord     def
 :chr    '__chr__  def
 
+; >>> "foo" ->str
+; "foo"
+; >>> :foo ->str
+; ":foo"
+; >>> 42 ->str
+; "42"
+
+:->str  ( :str  ) [       ] defmulti
+:->str  ( :_    ) [ show  ] defmulti
+
                                                                 ; }}}1
 
 ; -- nil, num, & pair --                                        ; {{{1
@@ -420,10 +430,13 @@
 ; 0 zero
 ; >>> 0 [ " positive" ] [ " non-positive" ] ~pos  'show dip ++ say!
 ; 0 non-positive
+; >>> 4 [ :neg ] [ :zero ] [ :pos ] ~int
+; :pos
 
 :~neg   [ [ dup 0 < ] 2dip if ] def
 :~zero  [ [ dup 0 = ] 2dip if ] def
 :~pos   [ [ dup 0 > ] 2dip if ] def
+:~int   [ ![ [ '1 '2 ~zero ] ~neg ] call ] def
 
 ; TODO: floats
 
@@ -495,13 +508,13 @@
 ; ( 1 2 3 )
 
 :seq    ( :nil    ) [ ] defmulti
-:seq    ( :str    ) [ _empty?->nil '->list if ] defmulti        ; TODO
-:seq    ( :list   ) [ _empty?->nil when       ] defmulti
-:seq    ( :dict   ) [ _empty?->nil '.pairs if ] defmulti        ; TODO
-:seq    ( :Range  ) [ _empty?->nil when       ] defmulti
+:seq    ( :str    ) [ '->list _~seq->nil ] defmulti             ; TODO
+:seq    ( :list   ) [ [ ]     _~seq->nil ] defmulti
+:seq    ( :dict   ) [ '.pairs _~seq->nil ] defmulti             ; TODO
+:seq    ( :Range  ) [ [ ]     _~seq->nil ] defmulti
 :seq    ( :LSeq   ) [ dup .chunk empty? [ !thunk seq ] when ] defmulti
 
-:_empty?->nil [ dup empty? [ drop nil ] ] def
+:_~seq->nil [ [ drop nil ] swap ~seq ] def
 
 ; unseq <=> 'first 'rest bi
 ;
@@ -518,8 +531,9 @@
 ; 1
 
 :unseq  ( :list   ) [ [ nil nil ] [ ] ^list ] defmulti
-:unseq  ( :Range  ) [ dup empty? [ drop nil nil ]
-                      [ [ [ dup 1 + ] dip Range ] ^Range ] if ] defmulti
+:unseq  ( :Range  ) [ [ drop nil nil ]
+                      [ [ [ dup 1 + ] dip Range ] ^Range ] ~seq
+                    ] defmulti
 :unseq  ( :LSeq   ) [ [ c t .
                       'c seq [ 'c unseq 't LSeq ] [ t unseq ] if
                     ] ^LSeq ] defmulti
@@ -617,9 +631,12 @@
 ; 1
 ; >>> () [ "empty" ] 'drop ^seq
 ; "empty"
+; >>> ( 4 5 ) [ "empty" ] 'head^ ~seq
+; 4
 
 :^list  [ f g . dup .empty? [ drop f ] [ .uncons^ g ] if ] def
 :^seq   [ 'seq 2dip ![ unseq .1 ] ~nil ] def
+:~seq   [ [ dup empty? ] 2dip if ] def
 
 ; >>> () 'len when-seq
 ; nil
@@ -754,8 +771,8 @@
 :head^    '.head^ def
 :tail^    '.tail^ def
 
-:head     [ _empty?->nil 'head^ if ] def
-:tail     [ _empty?->nil 'tail^ if ] def
+:head     [ 'head^ _~seq->nil ] def
+:tail     [ 'tail^ _~seq->nil ] def
 
 :uncons^  '.uncons^ def
 :cons     '!cons    def

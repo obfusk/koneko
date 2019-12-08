@@ -2,7 +2,7 @@
 
     File        : README.md
     Maintainer  : Felix C. Stegerman <flx@obfusk.net>
-    Date        : 2019-12-07
+    Date        : 2019-12-08
 
     Copyright   : Copyright (C) 2019  Felix C. Stegerman
     Version     : v0.0.1
@@ -297,7 +297,7 @@ NaNNaNNaNNaNNaNNaNNaNNaNNaNNaN batman!
 
 ```koneko
 >>> 15 [1-n] [ dup 3 "fizz" 5 "buzz" .[ '1 mod 0 = '2 "" ? ] 2bi$ bi
-...            ++ dup empty? [ drop show ] 'nip if say! ] each
+...            ++ [ drop show ] 'nip ~seq say! ] each
 1
 2
 fizz
