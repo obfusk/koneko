@@ -858,6 +858,16 @@
 
                                                                 ; }}}1
 
+; -- "macros" --                                                ; {{{1
+
+; >>> { x: 1, y: 2 } [ 'y 'x + ] let
+; 3
+
+:let    [ [ '.values '.keys bi ] dip '__block-code__ [ ] bi __block__
+          apply ] def                                           ; TODO
+
+                                                                ; }}}1
+
 ; -- miscellaneous --                                           ; {{{1
 
 ; >>> , [ "Hi!" say! ] 5 times

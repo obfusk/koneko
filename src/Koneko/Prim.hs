@@ -2,7 +2,7 @@
 --
 --  File        : Koneko/Prim.hs
 --  Maintainer  : Felix C. Stegerman <flx@obfusk.net>
---  Date        : 2019-11-27
+--  Date        : 2019-12-08
 --
 --  Copyright   : Copyright (C) 2019  Felix C. Stegerman
 --  Version     : v0.0.1
@@ -57,7 +57,8 @@ initCtx ctxMain call apply apply_dict callBlock = do
       chr_, intToFloat, recordToDict,
       recordType, recordVals,
       recordTypeName, recordTypeFields,
-      thunk_ callBlock, fail_,
+      mkThunk callBlock, fail_,
+      mkIdent, mkQuot, mkBlock, blockParams, blockCode,
       showStack, clearStack, nya
     ]
 
@@ -213,8 +214,8 @@ recordTypeFields  = mkPrim "record-type-fields" $ pop1push1
 
 -- primitives: thunk --
 
-thunk_ :: (Block -> Evaluator) -> Builtin
-thunk_ callBlock = mkPrim "thunk" $ \c s -> do
+mkThunk :: (Block -> Evaluator) -> Builtin
+mkThunk callBlock = mkPrim "thunk" $ \c s -> do
   (b, s') <- pop' s
   t <- thunk $ do
     l <- callBlock b c emptyStack
@@ -226,6 +227,33 @@ thunk_ callBlock = mkPrim "thunk" $ \c s -> do
 fail_ :: Builtin
 fail_ = mkPrim "fail" $ \_ s -> do
   (msg, _) <- pop' s; throwIO $ Fail $ T.unpack msg
+
+-- primitives: homoiconicity --
+
+mkIdent, mkQuot, mkBlock, blockParams, blockCode :: Builtin
+
+mkIdent = _mkIQ "ident" KIdent
+mkQuot  = _mkIQ "quot"  KQuot
+
+-- NB: must use existing block to provide Scope
+mkBlock = mkPrim "block" $ \_ s -> do
+  ((ps, code, b), s') <- pop3' s
+  ps' <- traverse _mkId =<< unKwds ps
+  rpush1 s' $ block ps' code $ blkScope b
+
+blockParams = mkPrim "block-params" $ pop1push1 $
+  list . map (kwd . unIdent) . blkParams
+
+blockCode = mkPrim "block-code" $ pop1push1 blkCode
+
+_mkIQ :: Identifier -> (Ident -> KValue) -> Builtin
+_mkIQ n f = mkPrim n $ \_ s -> do
+  (Kwd k, s') <- pop' s; rpush1 s' =<< f <$> _mkId k
+
+_mkId :: Identifier -> IO Ident
+_mkId k = maybe err return $ ident k
+  where
+    err = throwIO $ expected $ T.unpack k ++ " to be a valid ident"
 
 -- repl --
 

@@ -2,7 +2,7 @@
 //
 //  File        : koneko.js
 //  Maintainer  : Felix C. Stegerman <flx@obfusk.net>
-//  Date        : 2019-11-30
+//  Date        : 2019-12-08
 //
 //  Copyright   : Copyright (C) 2019  Felix C. Stegerman
 //  Version     : v0.0.1
@@ -75,6 +75,11 @@ const expect = (x, t, msg = `${t} on stack`) => {
   return x
 }
 
+const chkIdent = i => {
+  if (isIdent(i)) { return i }
+  throw new KE(...E.Expected(`${i} to be a valid ident`))
+}
+
 const applyMissing = (x, op) =>
   `block to have parameter named ${x} for ${op}`
 
@@ -144,8 +149,8 @@ const pair  = (key, value) => ({ type: "pair", key, value })
 const list  = l => _tv("list", l)
 const dict  = ps => dict_(new Map(ps.map(p => [p.key.value, p.value])))
 const dict_ = m => _tv("dict", m)
-const ident = i => _tv("ident", i)
-const quot  = i => _tv("quot", i)
+const ident = i => _tv("ident", chkIdent(i))
+const quot  = i => _tv("quot" , chkIdent(i))
 
 const block = (params, code, scope = null) =>
   ({ type: "block", params, code, scope })
@@ -1122,6 +1127,15 @@ modules.set("__prim__", new Map([                             //  {{{1
     const [[msg], s1] = stack.pop(s0, "str")
     throw new KE(...E.Fail(msg.list.join("")))
   }),
+  mkPrimPP("__ident__", x => [ident(x.value)], "kwd"),
+  mkPrimPP("__quot__" , x => [quot (x.value)], "kwd"),
+  mkPrimPP("__block__", (ps, code, b) => {
+    for (const x of ps.value) { expect(x, "kwd") }
+    const params = ps.value.map(x => chkIdent(x.value))
+    return [block(params, code.value, b.scope)]
+  }, "list", "list", "block"),
+  mkPrimPP("__block-params__", x => [list(x.params.map(kwd))], "block"),
+  mkPrimPP("__block-code__"  , x => [list(x.code)]           , "block"),
   mkPrim("__show-stack__", (c, s) => {
     for (const x of stack.toArray(s)) { say(show(x)) }
     return s
