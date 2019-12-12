@@ -2,7 +2,7 @@
 ;
 ; File        : prelude.knk
 ; Maintainer  : Felix C. Stegerman <flx@obfusk.net>
-; Date        : 2019-12-11
+; Date        : 2019-12-12
 ;
 ; Copyright   : Copyright (C) 2019  Felix C. Stegerman
 ; Version     : v0.0.1
@@ -214,7 +214,7 @@
 ; 3
 ; 6
 ; >>> clear-stack
-; >>> ( 1 2 3 :x :y :z .[ '1 swap => ] tri$ tri~ )
+; >>> ( 1 2 3 :x :y :z '[ '1 swap => ] tri$ tri~ )
 ; ( :x 1 => :y 2 => :z 3 => )
 
 :bi~    [ x y f g     . 'x f 'y g       ] def ; [ 'dip dip call ]
@@ -228,7 +228,7 @@
 ; 9
 ; 4
 
-:bi*    [ [ ![ '1 bi$ ] 2keep ] dip bi$ ] def
+:bi*    [ [ .[ '1 bi$ ] 2keep ] dip bi$ ] def
 
 ; >>> , 1 2 '+ '- 2bi show-stack
 ; -1
@@ -271,7 +271,7 @@
 ; >>> #t 42 37 ?
 ; 42
 
-:?      [ .[ '1 ] bi$ if ] def
+:?      [ '[ '1 ] bi$ if ] def
 
 ; >>> 1 2 = [ "oh no!" say! ] when
 ; >>> 1 1 = [ "good!"  say! ] when
@@ -410,9 +410,9 @@
 ; 5
 
 :~nil   [ x f g . 'x nil? 'f [ 'x g ] if ] def
-      ; [ <rot .[ '2 .1 ] 'nil? bi rot> if ]
+      ; [ <rot '[ '2 .1 ] 'nil? bi rot> if ]
 :~>     [ [ nil ] swap ~nil ] def
-:~~>    [ [ ] [ ![ .1 '2 ~~> ] ~> ] ^seq ] def
+:~~>    [ [ ] [ .[ .1 '2 ~~> ] ~> ] ^seq ] def
 
 ; >>> 1 num?
 ; #t
@@ -437,7 +437,7 @@
 :~neg   [ [ dup 0 < ] 2dip if ] def
 :~zero  [ [ dup 0 = ] 2dip if ] def
 :~pos   [ [ dup 0 > ] 2dip if ] def
-:~int   [ ![ [ '1 '2 ~zero ] ~neg ] call ] def
+:~int   [ .[ [ '1 '2 ~zero ] ~neg ] call ] def
 
 ; TODO: floats
 
@@ -610,7 +610,7 @@
 :++     ( :LSeq :list ) [ _lseq++                 ] defmulti
 :++     ( :LSeq :LSeq ) [ _lseq++                 ] defmulti
 
-:_lseq++ [ l . [ ![ .1 'l ++ ] lseq ] ^LSeq ] def
+:_lseq++ [ l . [ .[ .1 'l ++ ] lseq ] ^LSeq ] def
 
 ; >>> "foo" ->list
 ; ( "f" "o" "o" )
@@ -636,7 +636,7 @@
 ; 4
 
 :^list  [ f g . dup .empty? [ drop f ] [ .uncons^ g ] if ] def
-:^seq   [ 'seq 2dip ![ unseq .1 ] ~nil ] def
+:^seq   [ 'seq 2dip .[ unseq .1 ] ~nil ] def
 :~seq   [ [ dup empty? ] 2dip if ] def
 
 ; >>> () 'len when-seq
@@ -661,7 +661,7 @@
 ; ( 2 4 )
 
 :map    [ f . [ x xt . ( 'x f ) [ 'xt 'f map ] lseq ] with-seq ] def
-:filter [ ![ dup .1 not 'drop when ] map ] def
+:filter [ .[ dup .1 not 'drop when ] map ] def
 
 ; >>> ( 1 2 ) ( 3 4 5 ) '2list zip ->list
 ; ( ( 1 3 ) ( 2 4 ) )
@@ -683,7 +683,7 @@
 
 :foldl  [ f . swap [ ] [ rot> f 'f foldl             ] ^seq ] def
 :foldr  [ f . swap [ ] [ <rot 'f foldr f             ] ^seq ] def
-:foldr' [ f . swap [ ] [ <rot ![ '1 '2 'f foldr' ] f ] ^seq ] def
+:foldr' [ f . swap [ ] [ <rot .[ '1 '2 'f foldr' ] f ] ^seq ] def
 
 ; TODO: scanl, scanr
 ; TODO: any, all
@@ -722,11 +722,11 @@
 
 :cycle      [ repeat concat ] def
 :iterate    [ x f . 'x [ 'x f 'f iterate ] lseq1 ] def
-:repeat     [ dup ![ '1 repeat ] lseq1 ] def
+:repeat     [ dup .[ '1 repeat ] lseq1 ] def
 :replicate  [ 'repeat dip take-first ] def
 
 :take-first [ n . [
-              'n 0 > [ 'n 1 - ![ '1 '2 take-first ] lseq1 ]
+              'n 0 > [ 'n 1 - .[ '1 '2 take-first ] lseq1 ]
                 [ 2drop nil ] if
             ] with-seq ] def
 
@@ -878,7 +878,7 @@
 ; Hi!
 ; Hi!
 
-:times  [ [1-n] swap ![ drop .1 ] each ] def
+:times  [ [1-n] swap .[ drop .1 ] each ] def
 
 ; >>> , :temp [
 ; ...     dup

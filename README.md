@@ -2,7 +2,7 @@
 
     File        : README.md
     Maintainer  : Felix C. Stegerman <flx@obfusk.net>
-    Date        : 2019-12-08
+    Date        : 2019-12-12
 
     Copyright   : Copyright (C) 2019  Felix C. Stegerman
     Version     : v0.0.1
@@ -271,7 +271,7 @@ Hello!
 >>> '!x                             ; quoted field call
 [ :x __swap__ __call__ __call__ ]
 
->>> .[ 2 * '1 div ]                 ; "curried" block w/ "holes"
+>>> '[ 2 * '1 div ]                 ; "curried" block w/ "holes"
 [ __1__ . [ 2 * '__1__ div ] ]
 >>> 3 swap call                     ; "fill" the hole from the stack
 [ 2 * '__1__ div ]
@@ -291,12 +291,12 @@ Details:
 ```
 
 ```koneko
->>> "" 0.0 0.0 / show ![ '1 ++ ] 10 times " batman!" ++ say!
+>>> "" 0.0 0.0 / show .[ '1 ++ ] 10 times " batman!" ++ say!
 NaNNaNNaNNaNNaNNaNNaNNaNNaNNaN batman!
 ```
 
 ```koneko
->>> 15 [1-n] [ dup 3 "fizz" 5 "buzz" .[ '1 mod 0 = '2 "" ? ] 2bi$ bi
+>>> 15 [1-n] [ dup 3 "fizz" 5 "buzz" '[ '1 mod 0 = '2 "" ? ] 2bi$ bi
 ...            ++ [ drop show ] 'nip ~seq say! ] each
 1
 2

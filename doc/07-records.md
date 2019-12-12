@@ -2,7 +2,7 @@
 
     File        : doc/07-records.md
     Maintainer  : Felix C. Stegerman <flx@obfusk.net>
-    Date        : 2019-12-06
+    Date        : 2019-12-12
 
     Copyright   : Copyright (C) 2019  Felix C. Stegerman
     Version     : v0.0.1
@@ -48,7 +48,7 @@ x = 99, y = -1
 
 ; multis can have record names in their signatures
 >>> , :+ '+ def                   ; alias to extend
->>> , :+ ( :Point :Point ) [ '.x '.y .[ '1 bi$ + ] bi$ 2bi Point ] defmulti
+>>> , :+ ( :Point :Point ) [ '.x '.y '[ '1 bi$ + ] bi$ 2bi Point ] defmulti
 >>> Point( 1 2 ) Point( 3 4 ) +
 Point{ :x 4 =>, :y 6 => }
 

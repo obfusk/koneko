@@ -2,7 +2,7 @@
 --
 --  File        : Koneko/Read.hs
 --  Maintainer  : Felix C. Stegerman <flx@obfusk.net>
---  Date        : 2019-11-30
+--  Date        : 2019-12-12
 --
 --  Copyright   : Copyright (C) 2019  Felix C. Stegerman
 --  Version     : v0.0.1
@@ -110,9 +110,7 @@ list = try $ D.list <$> (a <|> b)
 
 -- | NB: also matches float and int (but they match earlier)
 ident = KIdent <$> ident_
-
 quot  = char '\'' >> KQuot <$> ident_
-
 block = KBlock <$> block_
 
 -- TODO
@@ -125,7 +123,7 @@ block_ = try $ do
 
 -- parser: sugar --
 
-ellipsis, modid, qmodid, hdot, hbang, qdig, ddig, qdot, qbang, dot,
+ellipsis, modid, qmodid, qhole, dhole, qdig, ddig, qdot, qbang, dot,
   bang, dict, key, apply, applyDict :: Parser [KValue]
 
 ellipsis = [_IDENT "ellipsis"] <$ symbol "..."
@@ -138,17 +136,17 @@ modid = try $ do
 qmodid = try $ char '\'' >> init <$> modid                    -- safe!
 
 -- TODO
-hdot  = try $ char '.' >>                         _wrap  <$> block_
-hbang = try $ char '!' >> ((++ [_IDENT "call"]) . _wrap) <$> block_
+qhole = try $ char '\'' >>                         _wrap  <$> block_
+dhole = try $ char '.'  >> ((++ [_IDENT "call"]) . _wrap) <$> block_
 
 qdig  = try $ char '\'' >> _dig (KQuot . _IDENT')             -- safe!
-ddig  = try $ char  '.' >> _dig _IDENT                        -- safe!
+ddig  = try $ char '.'  >> _dig          _IDENT               -- safe!
 
-qdot  = string "'." >> _blk <$> _isc []
-qbang = string "'!" >> _blk <$> _isc [_IDENT "call"]
+qdot  = string    "'."  >> _blk <$> _isc []
+qbang = string    "'!"  >> _blk <$> _isc [_IDENT "call"]
 
-dot   = char    '.' >>          _isc []
-bang  = char    '!' >>          _isc [_IDENT "call"]
+dot   = char       '.'  >>          _isc []
+bang  = char       '!'  >>          _isc [_IDENT "call"]
 
 dict  = try $ fmap ((:[_IDENT "dict"]) . D.list)
       $ symbol "{" *> manyValuesTill (symbol "}")
@@ -187,7 +185,7 @@ _ap op cl = do
 
 sugar :: Parser [KValue]
 sugar = choice [
-    ellipsis, modid, qmodid, hdot, hbang, qdig, ddig, qdot, qbang,
+    ellipsis, modid, qmodid, qhole, dhole, qdig, ddig, qdot, qbang,
     dot, bang, dict, key, apply, applyDict
   ]
 
@@ -199,11 +197,9 @@ oneValue = choice [prim, list, quot, block, ident]
 
 value_, manyValues, program :: Parser [KValue]
 
-value_ = sugar <|> (:[]) <$> oneValue
-
-manyValues = concat <$> many value_
-
-program = optional shebang *> sp *> manyValues <* eof
+value_      = sugar <|> (:[]) <$> oneValue
+manyValues  = concat <$> many value_
+program     = optional shebang *> sp *> manyValues <* eof
 
 manyValuesTill :: Parser a -> Parser [KValue]
 manyValuesTill end = concat <$> manyTill value_ end

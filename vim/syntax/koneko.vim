@@ -3,15 +3,15 @@
 " Maintainer: Felix C. Stegerman <flx@obfusk.net>
 " URL:        https://github.com/obfusk/koneko
 
-if exists("b:current_syntax")
+if exists('b:current_syntax')
   finish
 endif
 
-syn match   knkIdent      '[^':.! \t][^, \t]*[({[]\@1<!'
+syn match   knkIdent      '[^\':.! \t][^, \t]*[({[]\@1<!'
 
 syn match   knkLit        'nil\([, \t]\|$\)\@='
 syn match   knkBool       '#[tf]\([, \t]\|$\)\@='
-syn match   knkInt        '['.!]\@1<!-\?\d\+\([, \t]\|$\)\@='
+syn match   knkInt        '[\'.!]\@1<!-\?\d\+\([, \t]\|$\)\@='
 syn match   knkKwd        ':[^, \t]\+'
 syn match   knkKey        '[^, \t]\+:\([, \t]\|$\)\@='
 syn match   knkStr        '"\(\\.\|[^\\"]\)*"\([, \t]\|$\)\@='
@@ -21,7 +21,7 @@ syn match   knkPrim       '\(call\|apply\(-dict\)\?\|if\|def\|def\(multi\|record
 syn match   knkParen      '[(){}\[\]]\([, \t]\|$\)\@='
 syn match   knkSpecial    '[\'.!,]'
 
-syn match   knkQuot       '\(\'[.!]\?\)\@2<=[^.!, \t][^, \t]*'
+syn match   knkQuot       '\(\'\(\[\([, \t]\|$\)\)\@![.!]\?\)\@2<=[^.!, \t][^, \t]*'
 
 syn match   knkFloat      '-\?\d\+\(\.\d\+e\d\+\|\.\d\+\|e\d\+\)\([, \t]\|$\)\@='
 
@@ -51,4 +51,18 @@ hi def link knkComment    Comment
 hi def link knkTODO       Todo
 hi def link knkPrompt     Statement
 
-let b:current_syntax = "koneko"
+let b:current_syntax = 'koneko'
+
+" TODO
+if  exists('g:niji_matching_filetypes') &&
+  \ index(g:niji_matching_filetypes, 'koneko') == -1
+  let g:niji_matching_filetypes += ['koneko']
+  let g:niji_koneko_characters =
+    \ [[ '(\([, \t]\|$\)\@=',  ')\([, \t]\|$\)\@='],
+    \  ['\[\([, \t]\|$\)\@=', '\]\([, \t]\|$\)\@='],
+    \  [ '{\([, \t]\|$\)\@=',  '}\([, \t]\|$\)\@=']]
+  if !exists('g:niji_always_highlight')
+    let g:niji_always_highlight =
+      \ ['red', 'green', 'blue', 'brown', 'lightgray']
+  endif
+endif

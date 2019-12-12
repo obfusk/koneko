@@ -2,7 +2,7 @@
 
     File        : doc/08-syntactic-sugar.md
     Maintainer  : Felix C. Stegerman <flx@obfusk.net>
-    Date        : 2019-12-06
+    Date        : 2019-12-12
 
     Copyright   : Copyright (C) 2019  Felix C. Stegerman
     Version     : v0.0.1
@@ -63,28 +63,28 @@ Point{ :x 1 =>, :y 2 => }
 ```
 
 ```koneko
->>> .[ 2 * '1 div ]                         ; "curried" block w/ "holes"
+>>> '[ 2 * '1 div ]                         ; "curried" block w/ "holes"
 [ __1__ . [ 2 * '__1__ div ] ]
 >>> 3 swap call                             ; "fill" the hole from the stack
 [ 2 * '__1__ div ]
->>> 2 ![ 3 * '1 div ]                       ; "!" version calls immediately
+>>> 2 .[ 3 * '1 div ]                       ; "." version calls immediately
 [ 3 * '__1__ div ]
 >>> 5 swap call
 7
 >>> 5 [ 3 * 2 div ] call                    ; equivalent
 7
 
->>> .[ '2 .1 ]                              ; '2 is sugar for '__2__ (etc.)
+>>> '[ '2 .1 ]                              ; '2 is sugar for '__2__ (etc.)
 [ __1__ __2__ . [ '__2__ __1__ ] ]
->>> '+ 1 ![ '2 .1 ]                         ; .1 is sugar for __1__ (etc.)
+>>> '+ 1 .[ '2 .1 ]                         ; .1 is sugar for __1__ (etc.)
 [ '__2__ __1__ ]
 >>> 42 swap call
 43
 
->>> 1 2 '+ 'show ![ .1 .2 ] call            ; function composition
+>>> 1 2 '+ 'show .[ .1 .2 ] call            ; function composition
 "3"
 
->>> ( 1 2 3 ) '* ![ 3 .1 2 div ] map ->list
+>>> ( 1 2 3 ) '* .[ 3 .1 2 div ] map ->list
 ( 1 3 4 )
 >>> ( 1 2 3 ) [ 3 * 2 div ] map ->list      ; equivalent
 ( 1 3 4 )

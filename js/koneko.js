@@ -2,7 +2,7 @@
 //
 //  File        : koneko.js
 //  Maintainer  : Felix C. Stegerman <flx@obfusk.net>
-//  Date        : 2019-12-11
+//  Date        : 2019-12-12
 //
 //  Copyright   : Copyright (C) 2019  Felix C. Stegerman
 //  Version     : v0.0.1
@@ -337,10 +337,10 @@ const parseOne = (s, p0 = 0, end = null) => {                 //  {{{1
   } else if (t("('?)(" + _idt + ")\.(" + _idt + ")")) {
     return [p1, kwd(m[4]), kwd(m[3]), ident("__module-get__"),
             ...(m[2] ? [] : [ident("__call__")])]
-  } else if (t("([.!])\\[")) {
-    const bang = m[2] == "!"
-    const [p2, b] = parseBlock("[.!]")
-    const more = bang ? [ident("__call__")]: []
+  } else if (t("(['.])\\[")) {
+    const dot = m[2] == "."
+    const [p2, b] = parseBlock("['.]")
+    const more = dot ? [ident("__call__")] : []
     return [p2, block(digitParams(b), [b]), ...more]
   } else if (t("['.]([1-9])")) {
     return [p1, (m[1][0] == "'" ? quot : ident)("__"+m[2]+"__")]
