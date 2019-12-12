@@ -2,7 +2,7 @@
 
     File        : doc/03-primitive-data-types.md
     Maintainer  : Felix C. Stegerman <flx@obfusk.net>
-    Date        : 2019-12-06
+    Date        : 2019-12-12
 
     Copyright   : Copyright (C) 2019  Felix C. Stegerman
     Version     : v0.0.1
@@ -63,8 +63,8 @@ implementation does not intern them).
 <!--
 
 ```
->>> /cat|kitten/    ; regex -- TODO
-/cat|kitten/
+>>> #/cat|kitten/   ; regex -- TODO
+#/cat|kitten/
 ```
 
 -->
