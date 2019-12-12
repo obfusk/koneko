@@ -2,7 +2,7 @@
 
     File        : doc/09-primitives-builtins-and-prelude.md
     Maintainer  : Felix C. Stegerman <flx@obfusk.net>
-    Date        : 2019-12-06
+    Date        : 2019-12-11
 
     Copyright   : Copyright (C) 2019  Felix C. Stegerman
     Version     : v0.0.1
@@ -119,6 +119,13 @@ interpreter but could have been defined in the prelude instead.
 #t
 >>> :foo kwd?
 #t
+
+>>> "0x20" str->int
+32
+>>> "3.14" str->float
+3.14
+>>> "foo" str->int
+nil
 ```
 
 ### Prelude

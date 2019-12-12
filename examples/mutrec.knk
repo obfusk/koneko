@@ -1,0 +1,5 @@
+#!/usr/bin/env -S cabal -v0 v2-run koneko
+; ^ TODO
+:ping [ "ping" say! pong ] def
+:pong [ "pong" say! ping ] def
+ping

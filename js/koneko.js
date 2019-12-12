@@ -2,13 +2,20 @@
 //
 //  File        : koneko.js
 //  Maintainer  : Felix C. Stegerman <flx@obfusk.net>
-//  Date        : 2019-12-08
+//  Date        : 2019-12-11
 //
 //  Copyright   : Copyright (C) 2019  Felix C. Stegerman
 //  Version     : v0.0.1
 //  License     : GPLv3+
 //
 //  --                                                          ; }}}1
+
+// -- TODO --
+//
+// * fix memory leak in tailrec
+// * find efficient persistent data structures to use
+//
+// --
 
 "use strict";
 ((_mod, _exp, _req, Rx) => {
@@ -19,11 +26,13 @@ if (typeof BigInt === "undefined") {
   console.warn("no BigInt support, falling back to Number")
   mkInt     = i => i|0
   intToNum  = i => i
-  strToInt  = parseInt
+  strToInt  = s => s.startsWith("0b") || s.startsWith("0x") ?
+                   parseInt(s.slice(2), s.startsWith("0b") ? 2 : 16) :
+                   parseInt(s, 10)
 } else {
   mkInt     = BigInt
   intToNum  = Number
-  strToInt  = (s, b) => BigInt((b == 16 ? "0x" : b == 2 ? "0b" : "") + s)
+  strToInt  = BigInt
 }
 
 /* === error, stack, scope === */
@@ -83,7 +92,8 @@ const chkIdent = i => {
 const applyMissing = (x, op) =>
   `block to have parameter named ${x} for ${op}`
 
-const nilToDef = (x, d, t) => x.type == "nil" ? d : expect(x, t).value
+const nilToDef  = (x, d, t) => x.type == "nil" ? d : expect(x, t).value
+const maybe     = (f, x, d = nil) => x == null ? d : f(x)
 
 // TODO: inefficient implementation
 const stack = {                                               //  {{{1
@@ -143,7 +153,7 @@ const bool  = b => _tv("bool", !!b)
 const int   = i => _tv("int", mkInt(i))
 const float = f => _tv("float", f)
 const str   = s => str_([...s])
-const str_  = s => ({ type: "str", list: s })
+const str_  = s => ({ type: "str", list: s, _val: null })
 const kwd   = s => _tv("kwd", s)
 const pair  = (key, value) => ({ type: "pair", key, value })
 const list  = l => _tv("list", l)
@@ -186,14 +196,17 @@ const thunk = f => {                                          //  {{{1
   return { type: "thunk", run }
 }                                                             //  }}}1
 
+const strVal = s => {
+  if (s._val == null) { s._val = s.list.join("") }
+  return s._val
+}
+
 const T = bool(true), F = bool(false)
 
 const mkPrim    = (name, f) => [name, builtin(name, f)]
 const mkPrimPP  = (name, f, ...xs) => mkPrim(name, popPush(f, ...xs))
 const primPP    = (name, g = x => x) => (f, ...xs) =>
   g(builtin(name, popPush(f, ...xs)))
-const builtinPP = (name, g = x => x) => (f, ...xs) =>
-  g(builtin(name, popPush(f, ...xs), false))
 
 const freeVars = (vs, seen = {}, free = new Set()) => {       //  {{{1
   for (const v of vs) {
@@ -255,6 +268,9 @@ const _badId    = "['!:]|(?:[^\\s,]+[:({\\[]|[(){}\\[\\]]|"+
                   _int+"|"+_flt+")(?:"+_spc+"|$)"
 const _idt      = "(?:(?!"+_badId+")"+_naiveId+")"
 
+const pInt      = s => isInt  (s) ? strToInt  (s) : null
+const pFloat    = s => isFloat(s) ? parseFloat(s) : null
+
 const parseOne = (s, p0 = 0, end = null) => {                 //  {{{1
   let m, p1
   const t = pat => {
@@ -288,14 +304,12 @@ const parseOne = (s, p0 = 0, end = null) => {                 //  {{{1
 
   // primitives
   if (t("nil")) {
-    return [p1, nil ]
+    return [p1, nil]
   } else if (t("#t") || t("#f")) {
-    return [p1, bool(m[1] == "#t") ]
-  } else if (t("-?\\d+")) {
-    return [p1, int(strToInt(m[1], 10))]
-  } else if (t("(0x)(" + hd + "+)") || t("(0b)([01]+)")) {
-    return [p1, int(strToInt(m[3], m[2] == "0x" ? 16 : 2))]
-  } else if (t("-?\\d+(?:\\.\\d+e\\d+|\\.\\d+|e\\d+)")) {
+    return [p1, bool(m[1] == "#t")]
+  } else if (t(_int)) {
+    return [p1, int(strToInt(m[1]))]
+  } else if (t(_flt)) {
     return [p1, float(parseFloat(m[1]))]
   } else if (t('"(' + chr + '*)"')) {
     return [p1, str_(escapedStrBody(1))]
@@ -500,7 +514,7 @@ const call = (c0, s0, tailPos = false) => {                   //  {{{1
           return p(i => [bool(has(intToNum(i.value), xl.length))], "int")
         case "elem?":
           return p(y =>
-            [bool(xl.join("").includes(y.list.join("")))], "str"
+            [bool(strVal(x).includes(strVal(y)))], "str"
           )
         default:
           throw new KE(...E.UnknownField(op, x.type))
@@ -825,7 +839,7 @@ const toJS = x => {                                           //  {{{1
     case "kwd":
       return x.value
     case "str":
-      return x.list.join("")
+      return strVal(x)
     case "pair":
       return [x.key.value, toJS(x.value)]
     case "list":
@@ -976,10 +990,7 @@ const cmp_gte = c => bool(c ==  1 || c == 0)
 /* === modules & primitives === */
 
 const imports = new Map()
-
-const modules = new Map(
-  ["__bltn__", "__prld__", "__main__"].map(k => [k, new Map()])
-)
+const modules = new Map(["__prld__", "__main__"].map(k => [k, new Map()]))
 
 modules.set("__prim__", new Map([                             //  {{{1
   mkPrim("__call__", call),
@@ -1018,7 +1029,8 @@ modules.set("__prim__", new Map([                             //  {{{1
     for (const x of fs.value) { expect(x, "kwd") }
     const nm = k.value, t = record_type(nm, fs.value.map(x => x.value))
     const is_t = x => x.type == "record" && eq(x.rectype, t)
-    const pred = k => builtinPP(k)(x => [bool(is_t(x))], "_")
+    const notPrim = x => { x.prim = false; return x }
+    const pred = k => primPP(k, notPrim)(x => [bool(is_t(x))], "_")
     const mat = k => builtin(k, (c, s0) => {
       const [[x, f], s1] = stack.popN(s0, 2)
       if (!is_t(x)) {
@@ -1043,12 +1055,10 @@ modules.set("__prim__", new Map([                             //  {{{1
   }, "list"),
   mkPrim("__swap__", pop2push((x, y) => [y, x])),
   mkPrimPP("__show__", x => [str(show(x))], "_"),
-  mkPrimPP("__say!__", x => { say(x.list.join("")); return [] }, "str"),
+  mkPrimPP("__say!__", x => { say(strVal(x)); return [] }, "str"),
   mkPrim("__ask!__", (c, s0) => {
     const [[x], s1] = stack.pop(s0, "str")
-    return ask(x.list.join("")).then(
-      r => stack.push(s1, r == null ? nil : str(r))
-    )
+    return ask(strVal(x)).then(r => stack.push(s1, maybe(str, r)))
   }),
   mkPrimPP("__type__", x => [kwd(x.type, "_")], "_"),
   mkPrimPP("__callable?__",
@@ -1102,7 +1112,7 @@ modules.set("__prim__", new Map([                             //  {{{1
     if (y == 0) { throw new KE(...E.DivideByZero()) }
     return mkInt(x / y)
   })),
-  mkPrim("__mod__"   , opI((x, y) => x % y)),                //  TODO
+  mkPrim("__mod__"   , opI((x, y) => x % y)),                 //  TODO
   mkPrim("__float+__", opF((x, y) => x + y)),
   mkPrim("__float-__", opF((x, y) => x - y)),
   mkPrim("__float*__", opF((x, y) => x * y)),
@@ -1125,7 +1135,7 @@ modules.set("__prim__", new Map([                             //  {{{1
   }),
   mkPrim("__fail__", (c, s0) => {
     const [[msg], s1] = stack.pop(s0, "str")
-    throw new KE(...E.Fail(msg.list.join("")))
+    throw new KE(...E.Fail(strVal(msg)))
   }),
   mkPrimPP("__ident__", x => [ident(x.value)], "kwd"),
   mkPrimPP("__quot__" , x => [quot (x.value)], "kwd"),
@@ -1165,11 +1175,11 @@ const functionTypes = ["block", "builtin", "multi", "record-type"]
 const callableTypes =
   ["str", "pair", "list", "dict", "record", "thunk"].concat(functionTypes)
 
-for (const t of types) {
-  modules.get("__bltn__").set(t+"?", builtin(
-    t+"?", popPush(x => [bool(x.type == t)], "_"), false
-  ))
-}
+modules.set("__bltn__", new Map([
+  mkPrimPP("str->int"  , x => [maybe(int  , pInt  (strVal(x)))], "str"),
+  mkPrimPP("str->float", x => [maybe(float, pFloat(strVal(x)))], "str"),
+  ...types.map(t => mkPrimPP(t+"?", x => [bool(x.type == t)], "_"))
+]))
 
 /* === miscellaneous === */
 

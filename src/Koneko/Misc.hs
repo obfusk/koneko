@@ -2,7 +2,7 @@
 --
 --  File        : Koneko/Misc.hs
 --  Maintainer  : Felix C. Stegerman <flx@obfusk.net>
---  Date        : 2019-11-14
+--  Date        : 2019-12-11
 --
 --  Copyright   : Copyright (C) 2019  Felix C. Stegerman
 --  Version     : v0.0.1
@@ -15,7 +15,7 @@
 module Koneko.Misc (
   Parser, isIdent, pIdent, pIdent_, pInt, pFloat, isSpaceOrComma,
   lexeme, symbol, speof, sp, sp1, spaceOrComment, prompt', prompt,
-  firstJust
+  firstJust, parseMaybe
 ) where
 
 import Data.Char (isSpace)

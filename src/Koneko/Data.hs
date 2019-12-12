@@ -2,7 +2,7 @@
 --
 --  File        : Koneko/Data.hs
 --  Maintainer  : Felix C. Stegerman <flx@obfusk.net>
---  Date        : 2019-11-28
+--  Date        : 2019-12-11
 --
 --  Copyright   : Copyright (C) 2019  Felix C. Stegerman
 --  Version     : v0.0.1
@@ -61,15 +61,15 @@ module Koneko.Data (
   RecordT(..), Record, recType, recValues, record, Thunk, runThunk,
   thunk, Scope, modName, Context, ctxScope, KPrim(..), KValue(..),
   KType(..), Stack, freeVars, escapeFrom, escapeTo, ToVal, toVal,
-  FromVal, fromVal, toVals, fromVals, maybeToVal, maybeToNil,
-  eitherToVal, eitherToNil, emptyStack, push', push, rpush, rpush1,
-  pop, pop2, pop3, pop', pop2', pop3', popN', pop1push, pop2push,
-  pop1push1, pop2push1, primModule, bltnModule, prldModule,
-  mainModule, initMainContext, initModule, forkContext, forkScope,
-  defineIn, importIn, importFromIn, lookup, lookupModule', moduleKeys,
-  moduleNames, typeNames, typeOf, typeToKwd, typeToStr, isNil, isBool,
-  isInt, isFloat, isStr, isKwd, isPair, isList, isDict, isIdent,
-  isQuot, isBlock, isBuiltin, isMulti, isRecordT, isRecord, isThunk,
+  FromVal, fromVal, toVals, fromVals, maybeToVal, eitherToVal,
+  emptyStack, push', push, rpush, rpush1, pop, pop2, pop3, pop',
+  pop2', pop3', popN', pop1push, pop2push, pop1push1, pop2push1,
+  primModule, bltnModule, prldModule, mainModule, initMainContext,
+  initModule, forkContext, forkScope, defineIn, importIn,
+  importFromIn, lookup, lookupModule', moduleKeys, moduleNames,
+  typeNames, typeOf, typeToKwd, typeToStr, isNil, isBool, isInt,
+  isFloat, isStr, isKwd, isPair, isList, isDict, isIdent, isQuot,
+  isBlock, isBuiltin, isMulti, isRecordT, isRecord, isThunk,
   isCallable, isFunction, nil, false, true, bool, int, float, str,
   kwd, pair, list, dict, block, dictLookup, mkPrim, mkBltn, defPrim,
   defMulti, truthy, retOrThrow, recordTypeSig, underscored,
@@ -485,6 +485,12 @@ instance ToVal Builtin where
 instance ToVal KValue where
   toVal = id
 
+instance ToVal a => ToVal (Maybe a) where
+  toVal = maybeToVal nil
+
+instance ToVal a => ToVal (Either e a) where
+  toVal = eitherToVal nil
+
 -- NB: no ToVal for
 -- * ident, quot (both Ident)
 -- * multi, record(-type) (no point)
@@ -556,14 +562,8 @@ fromVals = traverse fromVal
 maybeToVal :: ToVal a => KValue -> Maybe a -> KValue
 maybeToVal = flip maybe toVal
 
-maybeToNil :: ToVal a => Maybe a -> KValue
-maybeToNil = maybeToVal nil
-
 eitherToVal :: ToVal a => KValue -> Either e a -> KValue
 eitherToVal = flip either toVal . const
-
-eitherToNil :: ToVal a => Either e a -> KValue
-eitherToNil = eitherToVal nil
 
 -- Stack functions --
 

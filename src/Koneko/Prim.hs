@@ -2,7 +2,7 @@
 --
 --  File        : Koneko/Prim.hs
 --  Maintainer  : Felix C. Stegerman <flx@obfusk.net>
---  Date        : 2019-12-08
+--  Date        : 2019-12-11
 --
 --  Copyright   : Copyright (C) 2019  Felix C. Stegerman
 --  Version     : v0.0.1
@@ -126,7 +126,7 @@ say = mkPrim "say!" $ \_ s -> do (x, s') <- pop' s; s' <$ T.putStrLn x
 
 -- NB: uses stdio
 ask = mkPrim "ask!" $ \_ s -> do
-  (x, s') <- pop' s; maybeToNil <$> prompt' x >>= rpush1 s'
+  (x, s') <- pop' s; prompt' x >>= rpush1 s'
 
 type_     = mkPrim "type"       $ pop1push1 $ typeToKwd . typeOf
 callable  = mkPrim "callable?"  $ pop1push1 isCallable
