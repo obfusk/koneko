@@ -2,7 +2,7 @@
 ;
 ; File        : prelude.knk
 ; Maintainer  : Felix C. Stegerman <flx@obfusk.net>
-; Date        : 2019-12-12
+; Date        : 2019-12-13
 ;
 ; Copyright   : Copyright (C) 2019  Felix C. Stegerman
 ; Version     : v0.0.1
@@ -515,7 +515,7 @@
 :seq    ( :Range  ) [ [ ]     _~seq->nil ] defmulti
 :seq    ( :LSeq   ) [ dup .chunk empty? [ !thunk seq ] when ] defmulti
 
-:_~seq->nil [ [ drop nil ] swap ~seq ] def
+:_~seq->nil [ [ nil ] swap ~seq ] def
 
 ; unseq <=> 'first 'rest bi
 ;
@@ -532,7 +532,7 @@
 ; 1
 
 :unseq  ( :list   ) [ [ nil nil ] [ ] ^list ] defmulti
-:unseq  ( :Range  ) [ [ drop nil nil ]
+:unseq  ( :Range  ) [ [ nil nil ]
                       [ [ [ dup 1 + ] dip Range ] ^Range ] ~seq
                     ] defmulti
 :unseq  ( :LSeq   ) [ [ c t .
@@ -637,7 +637,7 @@
 
 :^list  [ f g . dup .empty? [ drop f ] [ .uncons^ g ] if ] def
 :^seq   [ 'seq 2dip .[ unseq .1 ] ~nil ] def
-:~seq   [ [ dup empty? ] 2dip if ] def
+:~seq   [ '[ drop .1 ] dip [ dup empty? ] 2dip if ] def
 
 ; >>> () 'len when-seq
 ; nil
@@ -880,13 +880,18 @@
 
 :times  [ [1-n] swap .[ drop .1 ] each ] def
 
+; conditional expression
+;
+; Takes a value and a list of tests and exprs.  It evaluates each test
+; one at a time: functions are predicates and are called with the
+; value pushed onto the stack; the result -- or the test itself if not
+; a function -- is tested for truthiness.  If the test passes, its
+; corresponding expr is returned; and called if it's a block.
+;
 ; >>> , :temp [
-; ...     dup
-; ...     ( [ 15 < ]  [ "is cold!"  ]
-; ...       [ 25 > ]  [ "is warm!"  ]
-; ...       :else     [ "is ok!"    ]
-; ...     ) cond
-; ...     [ show " " ++ ] dip ++ say!
+; ...     [ show " is " ++ ]
+; ...     [ ( [ 15 < ] "cold!" [ 25 > ] "warm!" :else "ok!" ) cond ]
+; ...     bi ++ say!
 ; ...   ] def
 ; >>> 10 temp
 ; 10 is cold!
@@ -895,7 +900,7 @@
 ; >>> 30 temp
 ; 30 is warm!
 
-  :cond [ _cond call ] def                                      ; TODO
+  :cond [ _cond dup block? 'call when ] def                     ; TODO
  :_cond [ cons '_&cond apply ] def
 :_&cond [ x p? f & .
           'p? function? [ 'x p? ] [ 'p? ] if [ 'f ] [ 'x '& _cond ] if
