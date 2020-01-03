@@ -2,7 +2,7 @@
 
     File        : doc/more-examples.md
     Maintainer  : Felix C. Stegerman <flx@obfusk.net>
-    Date        : 2019-12-06
+    Date        : 2020-01-03
 
     Copyright   : Copyright (C) 2019  Felix C. Stegerman
     Version     : v0.0.1
@@ -16,6 +16,8 @@
 
 **NB: work in progress.**
 
+### Sequences
+
 ```koneko
 >>> , :join [ d . [ "" ] [ swap [ 'd swap ++ ++ ] foldl ] ^seq ] def
 >>> "foo" ->list ", " join
@@ -24,6 +26,19 @@
 
 ```
 >>> , :readlines [ "" ask! [ 'readlines lseq1 ] ~> ] def
+```
+
+### FP
+
+```koneko
+>>> , :fix '[ '1 fix .1 ] def             ; fixed point (Y combinator)
+>>> [ drop 9 ] fix call
+9
+>>> [ 3 swap lseq1 ] fix call 10 take-first ->list
+( 3 3 3 3 3 3 3 3 3 3 )
+>>> , :fac [ swap [ [ 1 - swap call ] keep * ] [ 2drop 1 ] ~pos ] fix def
+>>> 5 fac
+120
 ```
 
 ```koneko
@@ -78,6 +93,8 @@ Customer{ :orders ( Order{ :price 42 => } ) => }
 >>> ( '.orders [ 1 get ] '.price ) maybe
 nil
 ```
+
+### BYO Primitives
 
 ```koneko
 >>> , :myif [ 'and dip or call ] def

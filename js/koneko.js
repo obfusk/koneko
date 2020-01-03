@@ -2,7 +2,7 @@
 //
 //  File        : koneko.js
 //  Maintainer  : Felix C. Stegerman <flx@obfusk.net>
-//  Date        : 2019-12-12
+//  Date        : 2020-01-03
 //
 //  Copyright   : Copyright (C) 2019  Felix C. Stegerman
 //  Version     : v0.0.1
@@ -1242,13 +1242,18 @@ const repl_init = c => ["clear-stack", "show-stack"].forEach(x =>
   scope.define(c, x, scope.lookup(c, "__" + x + "__"))
 )
 
+// NB: not node.js only
+const repl_sugar = line =>
+  ({ "#ss": ",show-stack", "#cs": "clear-stack" }[line.trim()] || line)
+
 // NB: Promise
 const repl_process_line =                                     //  {{{1
   async (line, c, s, stdout, stderr) => {
-    if (!line) { return s }
+    const l = repl_sugar(line)
+    if (!l) { return s }
     try {
-      s = await evalText(line, c, s)
-      if (!stack.null(s) && !",;".includes(line[0])) {
+      s = await evalText(l, c, s)
+      if (!stack.null(s) && !",;".includes(l[0])) {
         stdout.write(show(stack.top(s)) + "\n")
       }
     } catch(e) {
@@ -1511,7 +1516,7 @@ const overrides = {}
 
 _mod[_exp] = {
   KonekoError, read, evaluate, evalText, show, toJS, fromJS,
-  loadPrelude, overrides,
+  loadPrelude, overrides, repl_sugar,
   initContext: scope.new, emptyStack: stack.empty,
   ...(_req ? { repl, doctest, doctest_, main } : {})
 }

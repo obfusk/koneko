@@ -4,7 +4,7 @@
 
     File        : index.html
     Maintainer  : Felix C. Stegerman <flx@obfusk.net>
-    Date        : 2019-12-08
+    Date        : 2020-01-03
 
     Copyright   : Copyright (C) 2019  Felix C. Stegerman
     Version     : v0.0.1
@@ -65,7 +65,7 @@
         const c = koneko.initContext(); let s = koneko.emptyStack()
         await koneko.evalText(":clear-stack '__clear-stack__ def", c, s)
         const f = async () => {                               //  {{{1
-          const l = line.value
+          const l = koneko.repl_sugar(line.value)
           hist_idx = 0; line.value = ""
           if (!l) { return }
           if (l != history.slice(-1)[0]) { history.push(l) }

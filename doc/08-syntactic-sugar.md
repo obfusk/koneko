@@ -2,7 +2,7 @@
 
     File        : doc/08-syntactic-sugar.md
     Maintainer  : Felix C. Stegerman <flx@obfusk.net>
-    Date        : 2019-12-12
+    Date        : 2020-01-03
 
     Copyright   : Copyright (C) 2019  Felix C. Stegerman
     Version     : v0.0.1
@@ -16,7 +16,7 @@
 
 ## Syntactic Sugar
 
-The parser provides some syntactic sugar.
+The reader (i.e. parser) provides some syntactic sugar.
 
 ```koneko
 >>> answer: 42                              ; pair w/ single-token value
@@ -102,6 +102,28 @@ hi!
 ```koneko
 >>> ...                                     ; sugar for __ellipsis__
 *** ERROR: name __ellipsis__ is not defined
+```
+
+## REPL Sugar
+
+There is some repl-only sugar as well.
+
+```koneko
+>>> , 1 2
+>>> ; sugar for ,show-stack
+>>> #ss
+2
+1
+>>> ; sugar for clear-stack
+>>> #cs
+```
+
+NB: this is not "proper" syntactic sugar and must be on a line by
+itself.
+
+```
+>>> 1 2 #ss                                 ; does not work
+*** ERROR: parse error: ...
 ```
 
 <!-- vim: set tw=70 sw=2 sts=2 et fdm=marker : -->

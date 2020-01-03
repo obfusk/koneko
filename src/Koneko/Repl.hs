@@ -2,7 +2,7 @@
 --
 --  File        : Koneko/Repl.hs
 --  Maintainer  : Felix C. Stegerman <flx@obfusk.net>
---  Date        : 2019-11-15
+--  Date        : 2020-01-03
 --
 --  Copyright   : Copyright (C) 2019  Felix C. Stegerman
 --  Version     : v0.0.1
@@ -41,9 +41,9 @@ repl' :: Bool -> Text -> Context -> Stack -> IO Stack
 repl' breakOnError pr ctx st = replDef ctx >> loop ctx st
   where
     loop :: Context -> Stack -> IO Stack
-    loop c s = prompt' pr >>= maybe (s <$ T.putStrLn "") process
+    loop c s = prompt' pr >>= maybe (s <$ T.putStrLn "") (f . sgr)
       where
-        process line = if T.null line then loop c s else do
+        f line = if T.null line then loop c s else do
           r <- tryK $ evalText "(repl)" line c s
           let err e = do  hPutStrLn stderr $ errorText ++ show e
                           if breakOnError then return s else loop c s
@@ -51,6 +51,9 @@ repl' breakOnError pr ctx st = replDef ctx >> loop ctx st
                             putStrLn $ show $ head s'         -- safe!
                           loop c s'
           either err ok r
+        sgr l = g $ T.strip l
+          where
+            g "#ss" = ",show-stack"; g "#cs" = "clear-stack"; g _ = l
 
 shouldSkip :: Stack -> Text -> Bool
 shouldSkip s line = null s || T.head line `elem` [',',';']    -- safe!
