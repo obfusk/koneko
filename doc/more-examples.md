@@ -36,9 +36,12 @@
 9
 >>> [ 3 swap lseq1 ] fix call 10 take-first ->list
 ( 3 3 3 3 3 3 3 3 3 3 )
->>> , :fac [ swap [ [ 1 - swap call ] keep * ] [ 2drop 1 ] ~pos ] fix def
+>>> , :fac [ .[ [ 1 - .1 ] keep * ] [ drop 1 ] ~pos ] fix def
 >>> 5 fac
 120
+>>> , :fib [ over 2 >= [ [ 1 - dup 1 - ] dip bi$ + ] when1 ] fix def
+>>> 6 fib                                 ; inefficient!
+8
 ```
 
 ```koneko
