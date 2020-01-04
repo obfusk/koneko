@@ -4,6 +4,7 @@ TESTFILES := lib/*.knk README.md doc/*.md
 .PHONY: test test_haskell doctest_hs doctest_knk_hs test_node doctest_knk_js
 .PHONY: cabal_build clean cleanup repl_haskell repl_node repl_browser
 .PHONY: link_vim_syntax copy_vim_syntax
+.PHONY: html_docs_vim
 
 test: test_haskell test_node
 
@@ -32,6 +33,7 @@ clean:
 	cabal v2-clean
 	rm -f .ghc.environment.*
 	[ ! -e dist ] || rmdir dist
+	[ ! -e lib-doc ] || rm -r lib-doc
 
 cleanup:
 	find -name '*~' -delete -print
@@ -56,3 +58,17 @@ copy_vim_syntax:
 	for dir in {ftdetect,ftplugin,syntax}; do \
 	  cp -vi -t ~/.vim/$$dir vim/$$dir/koneko.vim ; \
 	done
+
+html_docs_vim: $(patsubst lib/%.knk,lib-doc/%.knk.html,$(wildcard lib/*.knk))
+
+lib-doc/%.knk.html: lib/%.knk
+	mkdir -p lib-doc
+	vim -RE +'let g:html_dynamic_folds=1' +TOhtml +'w! $@' +'qa!' "$<"
+	sed -i -r \
+	  -e $$'/id=\'fold2\'/! s!class=\'closed-fold\'!class=\'open-fold\'!' \
+	  -e $$'s!.*DOCTYPE.*!<\!DOCTYPE html>!' \
+	  -e $$'/^body/ s!\}!text-align: center; }!' \
+	  -e $$'/^pre/ s!\}!text-align: left; display: inline-block; }!' \
+	  -e $$'s!.*<title>.*!<title>$(notdir $<)</title>!' \
+	  -e $$'s!^\\*.*!html { font-size: 1.2em; }!' \
+	  "$@"

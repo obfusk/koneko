@@ -2,9 +2,9 @@
 --
 --  File        : Koneko/Prim.hs
 --  Maintainer  : Felix C. Stegerman <flx@obfusk.net>
---  Date        : 2019-12-11
+--  Date        : 2020-01-04
 --
---  Copyright   : Copyright (C) 2019  Felix C. Stegerman
+--  Copyright   : Copyright (C) 2020  Felix C. Stegerman
 --  Version     : v0.0.1
 --  License     : GPLv3+
 --
@@ -50,6 +50,7 @@ initCtx ctxMain call apply apply_dict callBlock = do
       import_, importFrom,
       comp "=" (==), comp "not=" (/=), comp "<" (<),
       comp "<=" (<=), comp ">" (>), comp ">=" (>=),
+      spaceship,
       arithI "int+" (+), arithI "int-" (-), arithI "int*" (*),
       arithI "div" div, arithI "mod" mod,
       arithF "float+" (+), arithF "float-" (-),
@@ -165,6 +166,12 @@ importFrom = mkPrim "import-from" $ \c s -> do
 
 comp :: Identifier -> (KValue -> KValue -> Bool) -> Builtin
 comp name op = mkPrim name $ pop2push1 op
+
+spaceship :: Builtin
+spaceship = mkPrim "<=>" $ pop2push1 f
+  where
+    f :: KValue -> KValue -> Integer
+    f x y = case compare x y of LT -> -1; EQ -> 0; GT -> 1
 
 -- primitives: arithmetic --
 

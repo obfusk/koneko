@@ -2,7 +2,7 @@
 //
 //  File        : koneko.js
 //  Maintainer  : Felix C. Stegerman <flx@obfusk.net>
-//  Date        : 2020-01-03
+//  Date        : 2020-01-04
 //
 //  Copyright   : Copyright (C) 2020  Felix C. Stegerman
 //  Version     : v0.0.1
@@ -1105,6 +1105,7 @@ modules.set("__prim__", new Map([                             //  {{{1
   mkPrim("__<=__",    pop2push((x, y) => [cmp_lte(cmp(x, y))])),
   mkPrim("__>__",     pop2push((x, y) => [cmp_gt (cmp(x, y))])),
   mkPrim("__>=__",    pop2push((x, y) => [cmp_gte(cmp(x, y))])),
+  mkPrim("__<=>__",   pop2push((x, y) => [int    (cmp(x, y))])),
   mkPrim("__int+__"  , opI((x, y) => x + y)),
   mkPrim("__int-__"  , opI((x, y) => x - y)),
   mkPrim("__int*__"  , opI((x, y) => x * y)),
