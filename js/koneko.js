@@ -4,7 +4,7 @@
 //  Maintainer  : Felix C. Stegerman <flx@obfusk.net>
 //  Date        : 2020-01-03
 //
-//  Copyright   : Copyright (C) 2019  Felix C. Stegerman
+//  Copyright   : Copyright (C) 2020  Felix C. Stegerman
 //  Version     : v0.0.1
 //  License     : GPLv3+
 //
@@ -1243,8 +1243,9 @@ const repl_init = c => ["clear-stack", "show-stack"].forEach(x =>
 )
 
 // NB: not node.js only
-const repl_sugar = line =>
-  ({ "#ss": ",show-stack", "#cs": "clear-stack" }[line.trim()] || line)
+const repl_sugar  = line => _REPL_SUGAR.get(line.trim()) || line
+const _REPL_SUGAR = new Map([["#ss", ",show-stack"],
+                             ["#cs", "clear-stack"]])
 
 // NB: Promise
 const repl_process_line =                                     //  {{{1

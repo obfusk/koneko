@@ -2,9 +2,9 @@
 
     File        : doc/09-primitives-builtins-and-prelude.md
     Maintainer  : Felix C. Stegerman <flx@obfusk.net>
-    Date        : 2019-12-11
+    Date        : 2020-01-03
 
-    Copyright   : Copyright (C) 2019  Felix C. Stegerman
+    Copyright   : Copyright (C) 2020  Felix C. Stegerman
     Version     : v0.0.1
     License     : GPLv3+
 
@@ -162,8 +162,8 @@ with definitions and examples.
 2
 ```
 
-See also: `rot>`, `<rot`, `2dup`, `2drop`, `nip`, `over`, `2over`,
-`over2`.
+See also: `rot>`, `<rot`, `2dup`, `2drop`, `3drop`, `nip`, `over`,
+`2over`, `over2`.
 
 #### Combinators
 
@@ -177,10 +177,20 @@ See also: `rot>`, `<rot`, `2dup`, `2drop`, `nip`, `over`, `2over`,
 
 >>> 3 '+ dip *                    ; pop x, call f, push x
 237
+
+>>> 41 1 '+ $ call                ; partial function application
+42
+>>> 41 [ 1 + ] call
+42
+
+>>> 2 [ 1 + ] [ 3 * ] @ call      ; function composition
+9
+>>> 2 [ 1 + 3 * ] call
+9
 ```
 
-See also: `2dip`, `3dip`, `keep`, `2keep`, `tri`, `bi$`, `tri$`,
-`bi~`, `tri~`, `bi*`, `2bi`, `2tri`, `2bi$`, `2bi~`.
+See also: `2$`, `3$`, `%`, `2dip`, `3dip`, `keep`, `2keep`, `tri`,
+`bi$`, `tri$`, `bi~`, `tri~`, `bi*`, `2bi`, `2tri`, `2bi$`, `2bi~`.
 
 #### Logic & Arithmetic
 
@@ -194,6 +204,9 @@ nil
 
 >>> #t 42 37 ?
 42
+
+>>> 19 [ 2 div ] [ 3 * 1 + ] 'even? ~?
+58
 ```
 
 See also: `when`, `min`, `max`.
@@ -207,6 +220,8 @@ See also: `when`, `min`, `max`.
 2
 >>> 5.0 neg
 -5.0
+>>> 37 odd?
+#t
 ```
 
 #### Strings, Chars, Nil, Numbers & Pairs

@@ -2,9 +2,9 @@
 
     File        : README.md
     Maintainer  : Felix C. Stegerman <flx@obfusk.net>
-    Date        : 2019-12-13
+    Date        : 2020-01-03
 
-    Copyright   : Copyright (C) 2019  Felix C. Stegerman
+    Copyright   : Copyright (C) 2020  Felix C. Stegerman
     Version     : v0.0.1
     License     : GPLv3+, LGPLv3+
 
@@ -296,7 +296,7 @@ NaNNaNNaNNaNNaNNaNNaNNaNNaNNaN batman!
 ```
 
 ```koneko
->>> 15 [1-n] [ dup 3 "fizz" 5 "buzz" '[ '1 mod 0 = '2 "" ? ] 2bi$ bi
+>>> 15 [1-n] [ dup 3 "fizz" 5 "buzz" '[ '1 div? '2 "" ? ] 2bi$ bi
 ...            ++ 'show 'nip ~seq say! ] each
 1
 2

@@ -4,7 +4,7 @@
     Maintainer  : Felix C. Stegerman <flx@obfusk.net>
     Date        : 2020-01-03
 
-    Copyright   : Copyright (C) 2019  Felix C. Stegerman
+    Copyright   : Copyright (C) 2020  Felix C. Stegerman
     Version     : v0.0.1
     License     : GPLv3+
 

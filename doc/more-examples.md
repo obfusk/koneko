@@ -4,7 +4,7 @@
     Maintainer  : Felix C. Stegerman <flx@obfusk.net>
     Date        : 2020-01-03
 
-    Copyright   : Copyright (C) 2019  Felix C. Stegerman
+    Copyright   : Copyright (C) 2020  Felix C. Stegerman
     Version     : v0.0.1
     License     : GPLv3+
 
@@ -36,11 +36,16 @@
 9
 >>> [ 3 swap lseq1 ] fix call 10 take-first ->list
 ( 3 3 3 3 3 3 3 3 3 3 )
->>> , :fac [ .[ [ 1 - .1 ] keep * ] [ drop 1 ] ~pos ] fix def
+
+>>> , :fac [ .[ dup 1 - .1 * ] [ drop 1 ] ~pos ] fix def
 >>> 5 fac
 120
->>> , :fib [ over 2 >= [ [ 1 - dup 1 - ] dip bi$ + ] when1 ] fix def
->>> 6 fib                                 ; inefficient!
+
+>>> , :fib1 [ .[ 1 2 [ - .1 ] '$ $ bi$ bi + ] [] 2 ~[>=] ] fix def
+>>> , :fib2 [ .[ 1 - dup 1 - '1 bi$ + ] [] 2 ~[>=] ] fix def
+>>> 6 fib1                                ; inefficient!
+8
+>>> 6 fib2                                ; inefficient!
 8
 ```
 
@@ -78,7 +83,7 @@
 ```
 
 ```koneko
->>> , :mymap [ f . dup empty? [ ] [ uncons^ 'f dip 'f mymap cons ] if ] def
+>>> , :mymap [ f . dup empty? [] [ uncons^ 'f dip 'f mymap cons ] if ] def
 >>> ( 1 2 3 ) [ dup * ] mymap
 ( 1 4 9 )
 ```
