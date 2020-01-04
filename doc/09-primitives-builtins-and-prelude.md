@@ -2,7 +2,7 @@
 
     File        : doc/09-primitives-builtins-and-prelude.md
     Maintainer  : Felix C. Stegerman <flx@obfusk.net>
-    Date        : 2020-01-03
+    Date        : 2020-01-04
 
     Copyright   : Copyright (C) 2020  Felix C. Stegerman
     Version     : v0.0.1
@@ -141,8 +141,9 @@ nil
 A small set of standard definitions that is available automatically in
 all modules.
 
-See [`lib/prelude.knk`](../lib/prelude.knk) for the complete prelude
-with definitions and examples.
+See [`lib/prelude.knk`](../lib/prelude.knk) -- or the syntax
+highlighted [HTML export](https://koneko.dev/lib-doc/prelude.knk.html)
+thereof -- for the complete prelude with definitions and examples.
 
 #### Stack Shuffling
 
