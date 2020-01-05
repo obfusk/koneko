@@ -9,7 +9,7 @@ PRELUDE   := lib/prelude.knk
 LIBS      := $(wildcard lib/*.knk)
 MOD_DEFS  := __module-defs__ [ show say! ] each
 
-export LC_COLLATE=C.UTF-8
+export LC_ALL=C.UTF-8
 
 .PHONY: test test_haskell doctest_hs doctest_knk_hs
 .PHONY: test_node doctest_knk_js test_prim_bltn test_prld
