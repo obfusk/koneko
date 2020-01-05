@@ -2,7 +2,7 @@
 
     File        : README.md
     Maintainer  : Felix C. Stegerman <flx@obfusk.net>
-    Date        : 2020-01-03
+    Date        : 2020-01-04
 
     Copyright   : Copyright (C) 2020  Felix C. Stegerman
     Version     : v0.0.1
@@ -218,7 +218,9 @@ Details:
 ### Primitives & Prelude
 
 Details:
-→ [Primitives, Builtins & Prelude](doc/09-primitives-builtins-and-prelude.md)
+→ [Primitives, Builtins & Prelude](doc/09-primitives-builtins-and-prelude.md),
+→ [Prelude: Syntax Highlighted Source](https://koneko.dev/lib-doc/prelude.knk.html),
+→ [Prelude: Function Index](https://koneko.dev/lib-doc/prelude.knk.index.html)
 
 ```koneko
 >>> , :inc [ 1 + ] def          ; naming things
@@ -338,6 +340,11 @@ fizzbuzz
 → [10: Standard Library](doc/10-standard-library.md),
 <br/>
 → [11: Possible Future Extensions](doc/11-future.md)
+
+### Prelude
+
+→ [Syntax Highlighted Source](https://koneko.dev/lib-doc/prelude.knk.html),
+→ [Function Index](https://koneko.dev/lib-doc/prelude.knk.index.html)
 
 ## More Examples
 

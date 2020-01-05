@@ -141,9 +141,11 @@ nil
 A small set of standard definitions that is available automatically in
 all modules.
 
-See [`lib/prelude.knk`](../lib/prelude.knk) -- or the syntax
-highlighted [HTML export](https://koneko.dev/lib-doc/prelude.knk.html)
-thereof -- for the complete prelude with definitions and examples.
+See [`lib/prelude.knk`](../lib/prelude.knk) for the complete prelude
+with definitions and examples:
+<br/>
+→ [Syntax Highlighted Source](https://koneko.dev/lib-doc/prelude.knk.html),
+→ [Function Index](https://koneko.dev/lib-doc/prelude.knk.index.html)
 
 #### Stack Shuffling
 

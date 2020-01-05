@@ -1,12 +1,22 @@
 SHELL     := bash
 TESTFILES := lib/*.knk README.md doc/*.md
 
-.PHONY: test test_haskell doctest_hs doctest_knk_hs test_node doctest_knk_js
-.PHONY: cabal_build clean cleanup repl_haskell repl_node repl_browser
-.PHONY: link_vim_syntax copy_vim_syntax
-.PHONY: html_docs_vim
+RUN_HS_   := cabal v2-run koneko
+RUN_HS    := $(RUN_HS_) --
+RUN_JS    := node js/koneko
 
-test: test_haskell test_node
+PRELUDE   := lib/prelude.knk
+LIBS      := $(wildcard lib/*.knk)
+MOD_DEFS  := __module-defs__ [ show say! ] each
+
+.PHONY: test test_haskell doctest_hs doctest_knk_hs
+.PHONY: test_node doctest_knk_js test_prim_bltn test_prld
+.PHONY: cabal_build clean cleanup
+.PHONY: repl_haskell repl_node repl_browser
+.PHONY: link_vim_syntax copy_vim_syntax
+.PHONY: html html_docs_vim html_index html_links
+
+test: test_haskell test_node test_prim_bltn test_prld
 
 test_haskell: doctest_hs doctest_knk_hs
 
@@ -14,13 +24,35 @@ doctest_hs:
 	cabal v2-run doctests   # nicer output than v2-test
 
 doctest_knk_hs:
-	cabal v2-run koneko -- --doctest $(TESTFILES)
+	$(RUN_HS) --doctest $(TESTFILES)
 
 test_node: doctest_knk_js
 
 doctest_knk_js:
 	@echo
-	node js/koneko --doctest $(TESTFILES)
+	$(RUN_JS) --doctest $(TESTFILES)
+
+test_prim_bltn:
+	set -e; \
+	for x in __prim__ __bltn__; do \
+	  echo "$$x"; expr=":$$x"' $(MOD_DEFS)'; \
+	  hs_list () { $(RUN_HS_) -v0 -- -e "$$expr"; }; \
+	  hs_list | fmt -$${COLUMNS:-80}; hs_list | wc -l; \
+	  diff -Naur <( hs_list ) <( $(RUN_JS) <<< "$$expr" ); \
+	done
+
+test_prld:
+	set -e; \
+	src_list () { \
+	  grep -Eo '^\s{,4}:\S+' $(PRELUDE) | \
+	    sed 's!\s*!!g' | grep -v ^:_ | sort -u; \
+	}; \
+	hs_list () { \
+	  $(RUN_HS_) -v0 -- -e ':__prld__ $(MOD_DEFS)' | grep -v ^:_ | \
+	    grep -Ev ':([A-Z].*\?$$|[~^][A-Z])'; \
+	}; \
+	hs_list | fmt -$${COLUMNS:-80}; hs_list | wc -l; \
+	diff -Naur <( hs_list ) <( src_list )
 
 cabal_build:
 	if cabal v2-build --help | grep -q write-ghc-environment-files; then \
@@ -39,10 +71,10 @@ cleanup:
 	find -name '*~' -delete -print
 
 repl_haskell:
-	rlwrap cabal v2-run koneko --
+	rlwrap $(RUN_HS)
 
 repl_node:
-	node js/koneko
+	$(RUN_JS)
 
 repl_browser:
 	cd js && python3 -m http.server
@@ -59,16 +91,24 @@ copy_vim_syntax:
 	  cp -vi -t ~/.vim/$$dir vim/$$dir/koneko.vim ; \
 	done
 
-html_docs_vim: $(patsubst lib/%.knk,lib-doc/%.knk.html,$(wildcard lib/*.knk))
+html: html_docs_vim html_index html_links
+
+html_docs_vim: $(patsubst lib/%.knk,lib-doc/%.knk.html,$(LIBS))
 
 lib-doc/%.knk.html: lib/%.knk
 	mkdir -p lib-doc
-	vim -RE +'let g:html_dynamic_folds=1' +TOhtml +'w! $@' +'qa!' "$<"
-	sed -i -r \
-	  -e $$'/id=\'fold2\'/! s!class=\'closed-fold\'!class=\'open-fold\'!' \
-	  -e $$'s!.*DOCTYPE.*!<\!DOCTYPE html>!' \
-	  -e $$'/^body/ s!\}!text-align: center; }!' \
-	  -e $$'/^pre/ s!\}!text-align: left; display: inline-block; }!' \
-	  -e $$'s!.*<title>.*!<title>$(notdir $<)</title>!' \
-	  -e $$'s!^\\*.*!html { font-size: 1.2em; }!' \
-	  "$@"
+	scripts/knk2html "$<" "$@"
+
+html_index: $(patsubst lib/%.knk,lib-doc/%.knk.index.html,$(LIBS))
+
+lib-doc/%.knk.index.html: lib-doc/%.knk.index.md
+	pandoc -M title="Index of $$(basename "$<" .index.md)" \
+	  -s -f gfm -t html "$<" > "$@"
+
+lib-doc/%.knk.index.md: lib/%.knk
+	mkdir -p lib-doc
+	scripts/knk2index "$<" > "$@"
+
+# TODO
+html_links: $(LIBS)
+	@echo TODO
