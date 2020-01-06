@@ -1,2 +1,4 @@
 #!/bin/bash
-pygmentize -l misc/pygments/lexers/koneko.py:KonekoLexer -x -O style=native "$@"
+lexer=misc/pygments/lexers/koneko.py:KonekoLexer
+pyg () { pygmentize -l "$lexer" -x -O style=native "$@"; }
+if tty -s; then pyg "$@" | less -R; else pyg "$@"; fi
