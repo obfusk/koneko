@@ -76,9 +76,9 @@ class KonekoLexer(RegexLexer):
 
             # kwd + key
             (r'(:'+nonsp+'+)'+sep,
-             bygroups(Operator, Text)),
+             bygroups(String.Other, Text)),
             (r'('+nonsp+'+:)'+sep,
-             bygroups(Comment.Preproc, Text)),
+             bygroups(String.Other, Text)),
 
             # str
             (r'("(?:\.|[^\"])*")'+sep,
@@ -92,16 +92,16 @@ class KonekoLexer(RegexLexer):
             (r"[.!,]", Punctuation),
 
             # primitives
-            (builtin_prims, Keyword.Type),
+            (builtin_prims, Keyword),
             (r'(__'+nonsp+r'+__)'+sep,
-             bygroups(Keyword.Type, Text)),
+             bygroups(Keyword, Text)),
 
             # ident
             (r"([^':.!, \t]"+nonsp+r'*)'+sep,
-             bygroups(Keyword, Text)),
+             bygroups(Name.Function, Text)),
 
             # quot
             (r"(')([.!]?)([^':.!, \t]"+nonsp+r'*)'+sep,
-             bygroups(Punctuation, Punctuation, Comment.Preproc, Text)),
+             bygroups(Punctuation, Punctuation, Name.Variable, Text)),
         ]
     }
