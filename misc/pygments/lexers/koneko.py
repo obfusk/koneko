@@ -88,7 +88,9 @@ class KonekoLexer(RegexLexer):
             (r'([(){}\[\]])'+sep,
              bygroups(Punctuation, Text)),
 
-            # special
+            # special (& .1)
+            (r"([.!])([1-9])"+sep,
+             bygroups(Punctuation, Name.Function, Text)),
             (r"[.!,]", Punctuation),
 
             # primitives
@@ -100,7 +102,9 @@ class KonekoLexer(RegexLexer):
             (r"([^':.!, \t]"+nonsp+r'*)'+sep,
              bygroups(Name.Function, Text)),
 
-            # quot
+            # quot (& '[)
+            (r"(')(\[)"+sep,
+             bygroups(Punctuation, Punctuation, Text)),
             (r"(')([.!]?)([^':.!, \t]"+nonsp+r'*)'+sep,
              bygroups(Punctuation, Punctuation, Name.Variable, Text)),
         ]
