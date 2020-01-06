@@ -50,7 +50,6 @@ class KonekoLexer(RegexLexer):
         ],
         'base': [
             (r'\n', Text),
-            (r';'+space+r'*', Comment, 'comment'),
             include('value'),
         ],
         'comment': [
@@ -63,6 +62,7 @@ class KonekoLexer(RegexLexer):
         ],
         'value': [
             (space+r'+', Text),
+            (r';'+space+r'*', Comment, 'comment'),
 
             # nil & bool
             (words("nil #t #f".split(), suffix=sep),

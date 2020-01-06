@@ -1,15 +1,39 @@
 #!/bin/bash
 set -e
 
-src_list () {
-  grep -Eno '^\s{,4}:\S+' "$1" | \
-    sed 's!\s*!!g' | sed -r 's!^([0-9]+)::(.*)!\2 \1!' | \
-    grep -v ^:_ | sort | awk '!_[$1]++'
-}
-
 [ $# -eq 1 ] || [ $# -eq 2 ] || exit 1
 file="$1" url="$2"
 
-src_list "$file" | while read -r ident lineno; do
-  echo "* [\`$ident\`]($url$(basename "$file").html#L$lineno)"
+src_list () {
+  grep -Eno '^\s{,4}:\S+|^; -- .* --' "$1" \
+    | sed -r -e 's!^([0-9]+):\s*:(.*)!def \1 \2!' \
+             -e 's!^([0-9]+):; -- (.*) --!sec \1 \2!' \
+    | grep -Ev '^def [0-9]+ _' | awk '$1 == "sec" || !_[$3]++'
+}
+
+mk_link () {
+  local link="$url$(basename "$file").html#L$2"
+  if [ "$1" = sec ]; then
+    if [ "$3" != TODO ] && [ "$3" != END ]; then
+      echo
+      echo "### [$3]($link)"
+      echo
+    fi
+  else
+    echo "[\`$3\`]($link)"
+  fi
+}
+
+echo "## By Section"
+echo
+src_list "$file" | while read -r what line name; do
+  mk_link "$what" "$line" "$name"
 done
+echo
+
+echo "## Sorted"
+echo
+src_list "$file" | sort -k3 | while read -r what line name; do
+  [ "$what" = sec ] || mk_link "$what" "$line" "$name"
+done
+echo

@@ -29,7 +29,7 @@ syn match   knkTODO       'TODO\|\.\.\.'
 syn match   knkPrompt     '\(>>>\|\.\.\.\) ' contained
 
 syn region  knkComment    start=';' end='$' keepend contains=knkDoctest,knkTODO
-syn region  knkDoctest    start='\(>>>\|\.\.\.\) ' end='$' keepend contains=ALLBUT,knkComment,knkDoctest
+syn region  knkDoctest    start='\(>>>\|\.\.\.\) ' end='$' keepend contains=ALL
 
 hi def link knkIdent      Identifier
 

@@ -69,6 +69,7 @@ lib-doc/%.knk.html: lib/%.knk
 	scripts/knk2html "$<" "$@"
 
 html_index: $(patsubst lib/%.knk,lib-doc/%.knk.index.html,$(LIBS))
+# .SECONDARY: $(patsubst lib/%.knk,lib-doc/%.knk.index.md,$(LIBS))
 
 lib-doc/%.knk.index.html: lib-doc/%.knk.index.md
 	pandoc -M title="Index of $$(basename "$<" .index.md)" \
