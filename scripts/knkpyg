@@ -1,0 +1,2 @@
+#!/bin/bash
+pygmentize -l misc/pygments/lexers/koneko.py:KonekoLexer -x -O style=native "$@"

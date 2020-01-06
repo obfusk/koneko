@@ -1,0 +1,11 @@
+#!/bin/bash
+set -e
+if [ "$1" = copy ]; then
+  cmd=( cp -vi )
+else
+  cmd=( ln -vsr )
+fi
+mkdir -p ~/.vim/{ftdetect,ftplugin,syntax}
+for dir in {ftdetect,ftplugin,syntax}; do
+  "${cmd[@]}" -t ~/.vim/"$dir" misc/vim/"$dir"/koneko.vim
+done

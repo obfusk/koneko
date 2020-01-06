@@ -1,24 +1,15 @@
 SHELL     := bash
 TESTFILES := lib/*.knk README.md doc/*.md
-
-RUN_HS_   := cabal v2-run koneko
-RUN_HS    := $(RUN_HS_) --
-RUN_JS    := node js/koneko
-
-PRELUDE   := lib/prelude.knk
 LIBS      := $(wildcard lib/*.knk)
-MOD_DEFS  := __module-defs__ [ show say! ] each
-
-export LC_ALL=C.UTF-8
 
 .PHONY: test test_haskell doctest_hs doctest_knk_hs
-.PHONY: test_node doctest_knk_js test_prim_bltn test_prld
+.PHONY: test_node doctest_knk_js test_diff
 .PHONY: cabal_build clean cleanup
 .PHONY: repl_haskell repl_node repl_browser
 .PHONY: link_vim_syntax copy_vim_syntax
 .PHONY: html html_docs_vim html_index html_links
 
-test: test_haskell test_node test_prim_bltn test_prld
+test: test_haskell test_node test_diff
 
 test_haskell: doctest_hs doctest_knk_hs
 
@@ -26,41 +17,23 @@ doctest_hs:
 	cabal v2-run doctests   # nicer output than v2-test
 
 doctest_knk_hs:
-	$(RUN_HS) --doctest $(TESTFILES)
+	cabal v2-run koneko -- --doctest $(TESTFILES)
 
 test_node: doctest_knk_js
 
 doctest_knk_js:
 	@echo
-	$(RUN_JS) --doctest $(TESTFILES)
+	node js/koneko --doctest $(TESTFILES)
 
-test_prim_bltn:
-	set -e; \
-	for x in __prim__ __bltn__; do \
-	  echo "$$x"; expr=":$$x"' $(MOD_DEFS)'; \
-	  hs_list () { $(RUN_HS_) -v0 -- -e "$$expr"; }; \
-	  hs_list | fmt -$${COLUMNS:-80}; hs_list | wc -l; \
-	  diff -Naur <( hs_list ) <( $(RUN_JS) <<< "$$expr" ); \
-	done
-
-test_prld:
-	set -e; \
-	src_list () { \
-	  grep -Eo '^\s{,4}:\S+' $(PRELUDE) | \
-	    sed 's!\s*!!g' | grep -v ^:_ | sort -u; \
-	}; \
-	hs_list () { \
-	  $(RUN_HS_) -v0 -- -e ':__prld__ $(MOD_DEFS)' | grep -v ^:_ | \
-	    grep -Ev ':([A-Z].*\?$$|[~^][A-Z])'; \
-	}; \
-	hs_list | fmt -$${COLUMNS:-80}; hs_list | wc -l; \
-	diff -Naur <( hs_list ) <( src_list )
+test_diff:
+	scripts/test-diff
 
 cabal_build:
-	if cabal v2-build --help | grep -q write-ghc-environment-files; then \
-	  cabal v2-build --write-ghc-environment-files=always --enable-tests ; \
+	build="cabal v2-build" env=write-ghc-environment-files; \
+	if $$build --help | grep -q $$env; then \
+	  $$build --$$env=always --enable-tests; \
 	else \
-	  cabal v2-build --enable-tests ; \
+	  $$build --enable-tests; \
 	fi
 
 clean:
@@ -73,25 +46,19 @@ cleanup:
 	find -name '*~' -delete -print
 
 repl_haskell:
-	rlwrap $(RUN_HS)
+	scripts/repl_hs
 
 repl_node:
-	$(RUN_JS)
+	scripts/repl_js
 
 repl_browser:
 	cd js && python3 -m http.server
 
 link_vim_syntax:
-	mkdir -p ~/.vim/{ftdetect,ftplugin,syntax}
-	for dir in {ftdetect,ftplugin,syntax}; do \
-	  ln -vsr -t ~/.vim/$$dir vim/$$dir/koneko.vim ; \
-	done
+	scripts/copy-or-link-vim-syntax link
 
 copy_vim_syntax:
-	mkdir -p ~/.vim/{ftdetect,ftplugin,syntax}
-	for dir in {ftdetect,ftplugin,syntax}; do \
-	  cp -vi -t ~/.vim/$$dir vim/$$dir/koneko.vim ; \
-	done
+	scripts/copy-or-link-vim-syntax copy
 
 html: html_docs_vim html_index html_links
 

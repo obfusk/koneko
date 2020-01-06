@@ -1,0 +1,38 @@
+#!/bin/bash
+set -e
+export LC_ALL=C.UTF-8   # sort properly & consistently
+
+run_hs () { cabal v2-run koneko -v0 -- "$@"; }
+run_js () { node js/koneko "$@"; }
+
+mod_defs () { echo ":$1"' __module-defs__ [ show say! ] each'; }
+
+fmt_wc () {
+  echo "defs (hs):"
+  run_hs -e "$1" | fmt -${COLUMNS:-80}
+  echo "#defs: $( run_hs -e "$1" | wc -l )"
+}
+
+defs_src () {
+  grep -Eo '^\s{,4}:\S+' "$1" | \
+    sed 's!\s*!!g' | grep -v ^:_ | sort -u
+}
+
+defs_hs () {
+  # exclude automatically generated ~Rec, ^Rec, Rec?
+  run_hs -e "$1" | grep -v ^:_ | grep -Ev ':([A-Z].*\?$|[~^][A-Z])'
+}
+
+for mod in __prim__ __bltn__ __prld__; do
+  echo "==> $mod"
+  exp="$(mod_defs "$mod")"
+  fmt_wc "$exp"
+  if [ "$mod" = __prld__ ]; then
+    echo "diffing src & hs..."
+    diff -Naur <( defs_src lib/prelude.knk ) <( defs_hs "$exp" )
+  else
+    echo "diffing hs & js..."
+    diff -Naur <( run_hs -e "$exp" ) <( run_js <<< "$exp" )
+  fi
+  echo
+done

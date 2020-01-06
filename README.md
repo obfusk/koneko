@@ -2,7 +2,7 @@
 
     File        : README.md
     Maintainer  : Felix C. Stegerman <flx@obfusk.net>
-    Date        : 2020-01-04
+    Date        : 2020-01-06
 
     Copyright   : Copyright (C) 2020  Felix C. Stegerman
     Version     : v0.0.1
@@ -391,8 +391,8 @@ TODO: haddock
 ## Vim Syntax Highlighting
 
 ```bash
-$ make link_vim_syntax    # symlinks vim/ files from ~/.vim
-$ make copy_vim_syntax    # copies   vim/ files to   ~/.vim
+$ make link_vim_syntax    # symlinks misc/vim/ files from ~/.vim
+$ make copy_vim_syntax    # copies   misc/vim/ files to   ~/.vim
 ```
 
 ## TODO

@@ -1,0 +1,2 @@
+#!/bin/bash
+exec rlwrap cabal v2-run koneko -- "$@"
