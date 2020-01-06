@@ -25,16 +25,18 @@ syn match   knkQuot       '\(\'\(\[\([, \t]\|$\)\)\@![.!]\?\)\@2<=[^.!, \t][^, \
 
 syn match   knkFloat      '-\?\d\+\(\.\d\+e\d\+\|\.\d\+\|e\d\+\)\([, \t]\|$\)\@='
 
-syn match   knkComment    ';.*' contains=knkTODO,knkPrompt
-syn match   knkTODO       '\.\.\.\|TODO'
-syn match   knkPrompt     '>>>' contained
+syn match   knkTODO       'TODO\|\.\.\.'
+syn match   knkPrompt     '\(>>>\|\.\.\.\) ' contained
+
+syn region  knkComment    start=';' end='$' keepend contains=knkDoctest,knkTODO
+syn region  knkDoctest    start='\(>>>\|\.\.\.\) ' end='$' keepend contains=ALLBUT,knkComment,knkDoctest
 
 hi def link knkIdent      Identifier
 
 hi def link knkLit        Constant
 hi def link knkBool       Constant
 hi def link knkInt        Constant
-hi def link knkKwd        Statement
+hi def link knkKwd        Type
 hi def link knkKey        PreProc
 hi def link knkStr        Constant
 
@@ -47,9 +49,10 @@ hi def link knkQuot       Statement
 
 hi def link knkFloat      Constant
 
-hi def link knkComment    Comment
 hi def link knkTODO       Todo
 hi def link knkPrompt     Statement
+
+hi def link knkComment    Comment
 
 let b:current_syntax = 'koneko'
 
