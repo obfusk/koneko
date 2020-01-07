@@ -314,26 +314,41 @@
 
                                                                 ; }}}1
 
-; -- Logic & Order --                                           ; {{{1
+; -- Conditionals, Logic & Order --                             ; {{{1
 
+; conditional expression that takes two values (instead of functions)
+;
+; foo bar ? ≈ [ foo ] [ bar ] if
+; foo bar ? ⇔ foo [] $ bar [] $ if
+;
+; NB: foo and bar are always evaluated.
+;
 ; >>> #t 42 37 ?
 ; 42
 
 :?      [ '[ '1 ] bi$ if ] def
 
-; >>> 1 2 = [ "oh no!" say! ] when
+; conditional w/ implicit "else branch" (that drops values -- if
+; necessary -- to match the arity of the "if branch")
+;
+; >>> 1 2 = [ "oh no!" say! ] when                    ; -0 +0 = 0
 ; >>> 1 1 = [ "good!"  say! ] when
 ; good!
-; >>> , 42 dup 2 mod 0 = [ 2 div ] when1 show-stack
+; >>> , 42 dup 2 mod 0 = [ 2 div ] when show-stack    ; -1 +1 = 0
 ; 21
 ; >>> clear-stack
-; >>> 1 2 2dup = '+ when2
+; >>> 1 2 2dup = '+ when1                             ; -2 +1 = 1
+; 1
+; >>> 2 2 2 2dup = [ + * ] when2                      ; -3 +1 = 2
+; 8
 
 :when   [ []     if ] def
 :when1  [ 'drop  if ] def
 :when2  [ '2drop if ] def
 
 ; predicate "branch"
+;
+; dup p? [ foo ] [ bar ] if ⇔ [ foo ] [ bar ] 'p? ~?
 ;
 ; >>> , :collatz [
 ; ...     [ [ 2 div ] [ 3 * 1 + ] 'even? ~? ]
@@ -344,6 +359,11 @@
 
 :~?     [ 'dup % 2dip if ] def
 
+; logical inverse, conjunction & disjunction
+;
+; NB: "and" and "or" return one of their operands (which are tested
+; for "truthyness", but may not be bools).
+;
 ; >>> 5 not
 ; #f
 ; >>> nil not
@@ -357,13 +377,15 @@
 ; >>> 2 3 and
 ; 3
 
-:not    [ #f #t ?     ] def
-:and    [ over ?      ] def
-:or     [ 'dup dip ?  ] def
+:not    [ #f #t    ? ] def
+:and    [ over     ? ] def
+:or     [ 'dup dip ? ] def
 
 ; comparison "branch"
 ;
 ; >>> 41 'inc 'dec 41 ~[=]
+; 42
+; >>> 41 'dec 'inc 41 ~[not=]
 ; 42
 ; >>> 41 'inc 'dec 99 ~[<]
 ; 42
@@ -378,16 +400,21 @@
 ; 79
 ; >>> 37 [ :< ] [ := ] [ :> ] 42 ~[<=>] nip
 ; :<
+;
+; NB: ~<=> leaves both operands, ~[<=>] only the "left"
 
-:~[=]   [ '=  $ ~? ] def
-:~[<]   [ '<  $ ~? ] def
-:~[<=]  [ '<= $ ~? ] def
-:~[>]   [ '>  $ ~? ] def
-:~[>=]  [ '>= $ ~? ] def
+:~[=]     [ '=    $ ~? ] def
+:~[not=]  [ 'not= $ ~? ] def
+:~[<]     [ '<    $ ~? ] def
+:~[<=]    [ '<=   $ ~? ] def
+:~[>]     [ '>    $ ~? ] def
+:~[>=]    [ '>=   $ ~? ] def
 
 :~<=>   [ f g h . 2dup <=> [ drop g ] [ 0 < 'f 'h if ] 0 ~[=] ] def
 :~[<=>] [ y . [ 'y ] 3dip [ 'drop % ] tri$ ~<=> ] def
 
+; minimum & maximum
+;
 ; >>> 1 2 min
 ; 1
 ; >>> -1 -2 max
@@ -400,6 +427,11 @@
 
 ; -- Arithmetic --                                              ; {{{1
 
+; addition, subtraction & multiplication
+;
+; NB: when mixing ints and floats, ints are coerced to floats and may
+; lose precision.
+;
 ; >>> 1 2 +
 ; 3
 ; >>> 4 3 -
@@ -428,6 +460,8 @@
 :* ( :int   :float  ) [ 'int->float dip * ] defmulti
 :* ( :float :int    ) [  int->float     * ] defmulti
 
+; negation (additive inverse)
+;
 ; >>> 10 neg
 ; -10
 ; >>> -10 neg
@@ -438,6 +472,8 @@
 :neg ( :int   ) [ 0   swap - ] defmulti
 :neg ( :float ) [ 0.0 swap - ] defmulti
 
+; division & modulo
+;
 ; >>> 1.0 2.0 /
 ; 0.5
 ; >>> 8 3 div
@@ -445,10 +481,12 @@
 ; >>> 8 3 mod
 ; 2
 
-:/      '__float/__ def ; aliases
+:/      '__float/__ def
 :div    '__div__    def
 :mod    '__mod__    def
 
+; common predicates
+;
 ; >>> 10 3 div?
 ; #f
 ; >>> 42 7 div?
@@ -462,6 +500,8 @@
 :even?  [ 2 div?    ] def
 :odd?   [ even? not ] def
 
+; increment & decrement
+;
 ; >>> 41 inc
 ; 42
 ; >>> dec
@@ -470,16 +510,22 @@
 :inc    [ 1 + ] def
 :dec    [ 1 - ] def
 
-; TODO:
-;   * div/mod vs quot/rem
-;   * abs, floor, ceil, round**, trunc, ...
-;   * pi, exp, log, sqrt, sin, cos, ...
-;   * ^ :math import ?!
+; -- TODO --
+;
+; * div/mod vs quot/rem
+; * abs, floor, ceil, round**, trunc, ...
+; * pi, exp, log, sqrt, sin, cos, ...
+; * ^ :math import ?!
+;
+; --
 
                                                                 ; }}}1
 
 ; -- Strings & Characters --                                    ; {{{1
 
+; conversion between char (i.e. string of length 1) & int
+; (representing a unicode codepoint)
+;
 ; >>> "猫" ord
 ; 29483
 ; >>> 0x732b chr
@@ -488,6 +534,10 @@
 :ord    '.ord     def
 :chr    '__chr__  def
 
+; convert to str
+;
+; >>> "foo" show
+; "\"foo\""
 ; >>> "foo" ->str
 ; "foo"
 ; >>> :foo ->str
@@ -509,6 +559,7 @@
 ; nil!
 ; >>> 42 f
 ; :int
+;
 ; >>> ( 1 ) 'rest ~> 'first ~> [ 1 + ] ~>
 ; nil
 ; >>> ( 1 2 ) 'rest ~> 'first ~> [ 1 + ] ~>
@@ -517,12 +568,11 @@
 ; 5
 
 :~nil   [ [ 'drop % ] dip 'nil? ~? ] def
-      ; [ x f g . 'x nil? 'f [ 'x g ] if ]
-      ; [ <rot '[ '2 .1 ] 'nil? bi rot> if ]
-
 :~>     [ [ nil ] swap ~nil ] def
 :~~>    [ [] [ .[ .1 '2 ~~> ] ~> ] ^seq ] def
 
+; int? or float?
+;
 ; >>> 1 num?
 ; #t
 ; >>> 3.14 num?
