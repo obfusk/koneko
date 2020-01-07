@@ -411,7 +411,7 @@
 :~[>=]    [ '>=   $ ~? ] def
 
 :~<=>   [ f g h . 2dup <=> [ drop g ] [ 0 < 'f 'h if ] 0 ~[=] ] def
-:~[<=>] [ y . [ 'y ] 3dip [ 'drop % ] tri$ ~<=> ] def
+:~[<=>] [ [] $ 3dip [ 'drop % ] tri$ ~<=> ] def
 
 ; minimum & maximum
 ;
@@ -571,7 +571,7 @@
 :~>     [ [ nil ] swap ~nil ] def
 :~~>    [ [] [ .[ .1 '2 ~~> ] ~> ] ^seq ] def
 
-; int? or float?
+; is int or float?
 ;
 ; >>> 1 num?
 ; #t
@@ -619,6 +619,27 @@
 ; NB: inclusive; infinite if stop is nil
 :Range ( :start :stop ) defrecord
 
+; ranges
+;
+; >>> 2 10 [m-n] ->list
+; ( 2 3 4 5 6 7 8 9 10 )
+; >>> 2 10 [m-n) ->list
+; ( 2 3 4 5 6 7 8 9 )
+; >>> 4 [m-) 10 take-first ->list
+; ( 4 5 6 7 8 9 10 11 12 13 )
+; >>> 10 [0-n] ->list
+; ( 0 1 2 3 4 5 6 7 8 9 10 )
+; >>> 10 [0-n) ->list
+; ( 0 1 2 3 4 5 6 7 8 9 )
+; >>> [0-) 10 take-first ->list
+; ( 0 1 2 3 4 5 6 7 8 9 )
+; >>> 10 [1-n] ->list
+; ( 1 2 3 4 5 6 7 8 9 10 )
+; >>> 10 [1-n) ->list
+; ( 1 2 3 4 5 6 7 8 9 )
+; >>> [1-) 10 take-first ->list
+; ( 1 2 3 4 5 6 7 8 9 10 )
+
 :[m-n]  'Range            def
 :[m-n)  [ dec    [m-n]  ] def
 :[m-)   [ nil    [m-n]  ] def
@@ -629,6 +650,8 @@
 :[1-n)  [ 1 swap [m-n)  ] def
 :[1-)   [ 1 nil  [m-n]  ] def
 
+; small lists
+;
 ; >>> 42 1list
 ; ( 42 )
 ; >>> :x :y 2list
@@ -637,9 +660,20 @@
 :1list  [ () cons     ] def
 :2list  [ 1list cons  ] def
 
-; lazy sequence
+; lazy sequences
 ;
-; >>> , [ "evaluated once" say!, ( 1 2 3 ) ] lazy-seq
+;             list    block (lazy rest)         append
+; >>> , :fibs ( 0 1 ) [ 'fibs dup rest '+ zip ] lseq def
+; >>> 'fibs 10 take-first ->list
+; ( 0 1 1 2 3 5 8 13 21 34 )
+;
+; >>> :head [ ( :tail :is :lazy ) ] lseq1 ->list      ; singleton
+; ( :head :tail :is :lazy )
+;
+; NB: use of side-effects is for demonstration purposes only and
+; should be avoided in most code
+;
+; >>> , [ "evaluated once" say!, ( 1 2 3 ) ] lazy-seq ; completely lazy
 ; >>> dup !thunk
 ; evaluated once
 ; ( 1 2 3 )
@@ -652,21 +686,31 @@
 :lseq1    [ '1list dip lseq ] def
 :lazy-seq [ () swap    lseq ] def
 
-; seq returns either the sequence (when not empty) or nil
+; "as sequence"
+;
+; * returns nil if empty
+; * converts to a proper sequence type if needed
+;   (e.g. strings & dicts to lists)
+; * otherwise returns the sequence unmodified
+;
+; NB: whether conversion is performed and to what type may change; the
+; only guarantee is that a "proper" sequence type is returned
 ;
 ; >>> nil seq
 ; nil
-; >>> "foo" seq
+; >>> "foo" seq                   ; str becomes a list
 ; ( "f" "o" "o" )
 ; >>> ( 1 2 3 ) seq
 ; ( 1 2 3 )
+; >>> "" seq
+; nil
 ; >>> () seq
 ; nil
-; >>> { x: 1, y: 2 } seq
+; >>> { x: 1, y: 2 } seq          ; dict becomes a list
 ; ( :x 1 => :y 2 => )
-; >>> 10 [1-n] dup seq =
-; #t
-; >>> [ ( 1 2 3 ) ] lazy-seq seq
+; >>> 10 [1-n] seq ->list
+; ( 1 2 3 4 5 6 7 8 9 10 )
+; >>> [ ( 1 2 3 ) ] lazy-seq seq  ; checking emptiness forces evaluation
 ; ( 1 2 3 )
 
 :seq    ( :nil    ) [ ] defmulti
@@ -678,14 +722,16 @@
 
 :_~seq->nil [ [ nil ] swap ~seq ] def
 
+; generic "uncons"
+;
 ; unseq ⇔ 'first 'rest bi
 ;
 ; >>> , ( 1 2 ) unseq show-stack
 ; ( 2 )
 ; 1
 ; >>> clear-stack
-; >>> , 3 10 [m-n] unseq len show-stack
-; 7
+; >>> , 3 10 [m-n] unseq ->list show-stack
+; ( 4 5 6 7 8 9 10 )
 ; 3
 ; >>> clear-stack
 ; >>> , [ ( 1 2 ) ] lazy-seq unseq show-stack
@@ -696,21 +742,27 @@
 :unseq  ( :Range  ) [ [ nil nil ]
                       [ [ [ dup inc ] dip Range ] ^Range ] ~seq
                     ] defmulti
-:unseq  ( :LSeq   ) [ [ t .
-                      [ unseq 't LSeq ] [ drop t unseq ] 'seq ~?
-                    ] ^LSeq ] defmulti
+:unseq  ( :LSeq   ) [ [ t . [ t unseq ] [ unseq 't LSeq ] ~seq ] ^LSeq
+                    ] defmulti
 
-; first and rest resturn the first element (or nil) and the rest of
-; the sequence (or nil), respectively
+; generic "head" & "tail"
+;
+; 'first 'rest bi ⇔ unseq
+;
+; * first returns the first element
+; * rest returns the rest of the sequence
+; * both return nil if the sequence is empty
 ;
 ; >>> ( 1 2 3 ) first
 ; 1
-; >>> ( 1 2 3 ) rest
-; ( 2 3 )
+; >>> 4 [1-n] rest ->list
+; ( 2 3 4 )
 
 :first  ( :_ ) [ unseq drop ] defmulti
 :rest   ( :_ ) [ unseq nip  ] defmulti
 
+; is the sequence empty?
+;
 ; empty? ⇔ seq not
 ;
 ; >>> "foo" empty?
@@ -730,6 +782,10 @@
 :empty? ( :Range  ) [ [ [ drop #f ] '> ~nil ] ^Range ] defmulti
 :empty? ( :_      ) [ seq not ] defmulti
 
+; sequence length
+;
+; NB: sequence must be finite (or a range)
+;
 ; >>> "foo" len
 ; 3
 ; >>> ( 1 2 ) len
@@ -738,9 +794,9 @@
 ; 1
 ; >>> 37 42 [m-n) len
 ; 5
-; >>> 42 [m-) len
+; >>> 42 [m-) len                                     ; infinite
 ; nil
-; >>> ( 1 2 3 ) [ 2 >= ] filter len
+; >>> ( 1 2 3 ) [ 2 >= ] filter len                   ; ->list len
 ; 2
 
 :len    ( :str    ) [ .len        ] defmulti
@@ -753,27 +809,32 @@
 
 ; append two sequences
 ;
+; NB: to merge two dicts, use update
+;
 ; >>> "foo" "bar" ++
 ; "foobar"
 ; >>> ( 1 2 3 ) ( 4 5 ) ++
 ; ( 1 2 3 4 5 )
-
-:++     ( :str  :str  ) [ !append ] defmulti
-:++     ( :list :list ) [ !append ] defmulti
-
+;
 ; >>> ( 1 2 3 ) [ ( 4 5 ) ] lazy-seq ++ ->list
 ; ( 1 2 3 4 5 )
 ; >>> [ ( 1 2 3 ) ] lazy-seq ( 4 5 ) ++ ->list
 ; ( 1 2 3 4 5 )
 
-:++     ( :nil  :list ) [ nip                     ] defmulti    ; TODO
-:++     ( :nil  :LSeq ) [ nip                     ] defmulti
-:++     ( :list :LSeq ) [ [ '++ dip LSeq ] ^LSeq  ] defmulti
-:++     ( :LSeq :list ) [ _lseq++                 ] defmulti
-:++     ( :LSeq :LSeq ) [ _lseq++                 ] defmulti
+:++     ( :str  :str  ) [ !append ] defmulti
+:++     ( :list :list ) [ !append ] defmulti
 
-:_lseq++ [ l . [ [ 'l ++ ] @ lseq ] ^LSeq ] def
+:++     ( :nil  :list ) [ nip ] defmulti                        ; TODO
+:++     ( :nil  :LSeq ) [ nip ] defmulti
 
+:++     ( :list :LSeq ) [ [ '++ dip LSeq ] ^LSeq ] defmulti
+:++     ( :LSeq :list ) [ _lseq++ ] defmulti
+:++     ( :LSeq :LSeq ) [ _lseq++ ] defmulti
+
+:_lseq++ [ .[ [ '1 ++ ] @ lseq ] ^LSeq ] def
+
+; convert to list
+;
 ; >>> "foo" ->list
 ; ( "f" "o" "o" )
 ; >>> ( 1 2 3 ) ->list
@@ -788,7 +849,10 @@
 :->list ( :_    ) [ xs . ( 'xs [] each ) ] defmulti             ; TODO
                 ; [ [ () ] [ ->list cons ] ^seq ]
 
-; list & seq "pattern match"
+; list & sequence "pattern match"
+;
+; * ^seq uses seq and "unseq"s the sequence when not empty
+; * ~seq uses empty? and returns the original sequence when not empty
 ;
 ; >>> ( 1 2 3 ) [ "empty" ] [ hd tl . 'hd ] ^list     ; head or "empty"
 ; 1
@@ -796,11 +860,20 @@
 ; "empty"
 ; >>> ( 4 5 ) [ "empty" ] 'head^ ~seq
 ; 4
+; >>> "foo" [ () ] 'nip ^seq
+; ( "o" "o" )
+; >>> "foo" [ "" ] [] ~seq
+; "foo"
 
-:^list  [ f g . [ drop f ] [ .uncons^ g ] '.empty? ~? ] def
+:^list  [ [ 'drop % ] dip '.uncons^ % '.empty? ~? ] def
 :^seq   [ 'seq 2dip 'unseq % ~nil ] def
 :~seq   [ [ 'drop % ] dip 'empty? ~? ] def
 
+; sequence conditional & "pattern match"
+;
+; NB: the difference between when-seq and with-seq is that the latter
+; "unseq"s the sequence when not empty
+;
 ; >>> () 'len when-seq
 ; nil
 ; >>> ( 1 2 3 ) 'len when-seq
@@ -817,16 +890,20 @@
 ;
 ; >>> ( 1 2 3 ) [ dup * ] map ->list
 ; ( 1 4 9 )
-; >>> ( 1 2 3 ) 'dup map ->list
+; >>> ( 1 2 3 ) 'dup map ->list         ; multiple return values is OK
 ; ( 1 1 2 2 3 3 )
-; >>> ( 1 2 3 4 ) [ 2 mod 0 = ] filter ->list
+; >>> ( 1 2 3 4 ) 'even? filter ->list
 ; ( 2 4 )
 
 :map    [ f . [ x xt . ( 'x f ) [ 'xt 'f map ] lseq ] with-seq ] def
 :filter [ .[ [] 'drop '1 ~? ] map ] def
 
-; >>> ( 1 2 ) ( 3 4 5 ) '2list zip ->list
-; ( ( 1 3 ) ( 2 4 ) )
+; zip(with)
+;
+; >>> ( :x :y ) ( 1 2 3 ) '2list zip ->list
+; ( ( :x 1 ) ( :y 2 ) )
+; >>> ( :x :y ) ( 1 2 3 ) [] zip ->list ; multiple return values is OK
+; ( :x 1 :y 2 )
 ; >>> [1-) ( :x :y ) [ swap => ] zip ->list dict
 ; { :x 1 =>, :y 2 => }
 
