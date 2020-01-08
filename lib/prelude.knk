@@ -2,7 +2,7 @@
 ;
 ; File        : prelude.knk
 ; Maintainer  : Felix C. Stegerman <flx@obfusk.net>
-; Date        : 2020-01-06
+; Date        : 2020-01-08
 ;
 ; Copyright   : Copyright (C) 2020  Felix C. Stegerman
 ; Version     : v0.0.1
@@ -401,7 +401,7 @@
 ; >>> 37 [ :< ] [ := ] [ :> ] 42 ~[<=>] nip
 ; :<
 ;
-; NB: ~<=> leaves both operands, ~[<=>] only the "left"
+; NB: ~<=> leaves both operands, ~[<=>] only the "left".
 
 :~[=]     [ '=    $ ~? ] def
 :~[not=]  [ 'not= $ ~? ] def
@@ -548,6 +548,18 @@
 :->str  ( :str  ) [       ] defmulti
 :->str  ( :_    ) [ show  ] defmulti
 
+; join a sequence of strings (separated by a separator)
+;
+; >>> "foobar" ->list
+; ( "f" "o" "o" "b" "a" "r" )
+; >>> join
+; "foobar"
+; >>> ( "Hello" "World" ) ", " join-with
+; "Hello, World"
+
+:join       [ "" join-with ] def                                ; TODO
+:join-with  [ d . [ "" ] [ swap [ 'd swap ++ ++ ] foldl ] ^seq ] def
+
                                                                 ; }}}1
 
 ; -- Nil, Num & Pair --                                         ; {{{1
@@ -600,7 +612,7 @@
 
 :~int   [ 0 ~[<=>] ] def
 
-; TODO: floats
+; TODO: float
 
 ; pair "pattern match"
 ;
@@ -614,9 +626,9 @@
 
 ; -- Sequences, Lists & Ranges --                               ; {{{1
 
-; TODO: step, floats
+; TODO: step, float
 
-; NB: inclusive; infinite if stop is nil
+; NB: inclusive; infinite if stop is nil.
 :Range ( :start :stop ) defrecord
 
 ; ranges
@@ -671,7 +683,7 @@
 ; ( :head :tail :is :lazy )
 ;
 ; NB: use of side-effects is for demonstration purposes only and
-; should be avoided in most code
+; should be avoided in most code.
 ;
 ; >>> , [ "evaluated once" say!, ( 1 2 3 ) ] lazy-seq ; completely lazy
 ; >>> dup !thunk
@@ -694,7 +706,7 @@
 ; * otherwise returns the sequence unmodified
 ;
 ; NB: whether conversion is performed and to what type may change; the
-; only guarantee is that a "proper" sequence type is returned
+; only guarantee is that a "proper" sequence type is returned.
 ;
 ; >>> nil seq
 ; nil
@@ -784,7 +796,7 @@
 
 ; sequence length
 ;
-; NB: sequence must be finite (or a range)
+; NB: sequence must be finite (or a range).
 ;
 ; >>> "foo" len
 ; 3
@@ -809,7 +821,7 @@
 
 ; append two sequences
 ;
-; NB: to merge two dicts, use update
+; NB: to merge two dicts, use update.
 ;
 ; >>> "foo" "bar" ++
 ; "foobar"
@@ -872,7 +884,7 @@
 ; sequence conditional & "pattern match"
 ;
 ; NB: the difference between when-seq and with-seq is that the latter
-; "unseq"s the sequence when not empty
+; "unseq"s the sequence when not empty.
 ;
 ; >>> () 'len when-seq
 ; nil
@@ -913,30 +925,56 @@
 
 ; TODO: unzip
 
-; >>> ( 2 3 4 ) 10 '- foldl
+; folding (left- and right-associative)
+;
+; NB: foldr' only partially applies the recursive step, allowing
+; short-circuiting/laziness.
+;
+; >>> ( 2 3 4 ) 10 '- foldl                         ; ⇔ 10 2 - 3 - 4 -
 ; 1
-; >>> ( 2 3 4 ) () [ [ 1 + ] dip cons ] foldr         ; "strict"
+; >>> ( 2 3 4 ) 10 '- foldr                         ; ⇔ 2 3 4 10 - - -
+; -7
+; >>> ( 2 3 4 ) () [ [ 1 + ] dip cons ] foldr       ; "strict"
 ; ( 3 4 5 )
-; >>> ( 2 3 4 ) () [ [ 1 + ] dip call cons ] foldr'   ; "lazy"
+; >>> ( 2 3 4 ) () [ [ 1 + ] dip call cons ] foldr' ; "lazy"
 ; ( 3 4 5 )
 
 :foldl  [ f . swap [] [ rot> f 'f foldl      ] ^seq ] def
 :foldr  [ f . swap [] [ <rot 'f foldr f      ] ^seq ] def
 :foldr' [ f . swap [] [ <rot 'f 'foldr' 3$ f ] ^seq ] def
-      ; [ f . swap [] [ <rot .[ '1 '2 'f foldr' ] f ] ^seq ]
 
 ; TODO: scanl, scanr
 ; TODO: any, all
 ; TODO: min, max, sum, prod
 
-; >>> ( ( 1 2 3 ) dup [ dup * ] map ) concat ->list
-; ( 1 2 3 1 4 9 )
-; >>> ( 1 2 3 ) reverse                               ; "strict"
+; concatenation of all elements
+;
+; >>> ( ( 1 2 3 ) dup [ dup * ] map dup 'even? filter ) concat ->list
+; ( 1 2 3 1 4 9 4 )
+
+:concat [ () [ lazy-seq ++ ] foldr' ] def
+
+; reverse order of elements; "strict"
+;
+; NB: reversing a list or str is guaranteed to return a value of the
+; same type; reversing (most) other sequences returns a list.
+;
+; >>> ( 1 2 3 ) reverse
 ; ( 3 2 1 )
+; >>> ( 1 2 3 ) [ dup * ] map reverse
+; ( 9 4 1 )
+; >>> "foobar" reverse
+; "raboof"
 
-:concat   [ () [ lazy-seq ++ ] foldr' ] def
-:reverse  ( :_ ) [ () [ swap cons ] foldl ] defmulti
+:reverse  ( :str  ) [ reverse-as-list join ] defmulti
+:reverse  ( :_    ) [ reverse-as-list      ] defmulti
 
+; TODO: finite range
+
+:reverse-as-list [ () [ swap cons ] foldl ] def
+
+; iterating over a sequence
+;
 ; >>> , ( "Hello" "World" ) 'say! each
 ; Hello
 ; World
@@ -949,6 +987,8 @@
 
 :each   [ f . [] [ 'f dip 'f each ] ^seq ] def
 
+; generating (infinite) sequences & taking subsequences
+;
 ; >>> ( 1 2 3 ) cycle 10 take-first ->list
 ; ( 1 2 3 1 2 3 1 2 3 1 )
 ; >>> 0 'inc iterate 10 take-first 2 drop-first ->list
@@ -1151,6 +1191,29 @@
 :_&cond [ x p? f & .
           'x 'p? 'call 'nip 'function? ~? [ 'f ] [ 'x '& _cond ] if
         ] def
+
+                                                                ; }}}1
+
+; -- Unicode Aliases --                                         ; {{{1
+
+:←      'def      def   ; ^k<- (vim digraph)
+
+:≠      'not=     ←     ; ^k!=
+:≤      '<=       ←     ; ^k=<
+:≥      '>=       ←     ; ^k=>
+
+:∘      '%        ←     ; ^kOb
+
+:¬      'not      ←     ; ^kNO
+:∧      'and      ←     ; ^kAN
+:∨      'or       ←     ; ^kOR
+
+:~[≠]   '~[not=]  ←
+:~[≤]   '~[<=]    ←
+:~[≥]   '~[>=]    ←
+
+:∋      'elem?    ←     ; ^k-)
+:∌      [ ∋ not ] ←
 
                                                                 ; }}}1
 
