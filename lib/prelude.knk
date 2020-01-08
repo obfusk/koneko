@@ -751,11 +751,10 @@
 ; 1
 
 :unseq  ( :list   ) [ [ nil nil ] [] ^list ] defmulti
-:unseq  ( :Range  ) [ [ nil nil ]
-                      [ [ [ dup inc ] dip Range ] ^Range ] ~seq
-                    ] defmulti
-:unseq  ( :LSeq   ) [ [ t . [ t unseq ] [ unseq 't LSeq ] ~seq ] ^LSeq
-                    ] defmulti
+:unseq  ( :Range  ) [ [ nil nil ] [ [ [ dup inc ] dip Range ] ^Range ]
+                      ~seq ] defmulti
+:unseq  ( :LSeq   ) [ [ t . [ t unseq ] [ unseq 't LSeq ] ~seq ]
+                      ^LSeq ] defmulti
 
 ; generic "head" & "tail"
 ;
@@ -1005,19 +1004,13 @@
 :repeat     [ dup 'repeat $ lseq1 ] def
 :replicate  [ 'repeat dip take-first ] def
 
-:take-first [ n . [
-              'n [ dec 'take-first 2$ lseq1 ] [ 3drop nil ] ~pos
-            ] with-seq ] def
-
-:drop-first [ n . [
-              'n 0 > [ rest 'n dec drop-first ] when
-            ] when-seq ] def
+:take-first [ .[ '1 [ dec 'take-first 2$ lseq1 ] [ 3drop nil ] ~pos ]
+              with-seq ] def
+:drop-first [ .[ '1 0 > [ rest '1 dec drop-first ] when ] when-seq ] def
 
 :take-while [ p? . nil [ over p? 'lseq1 [ 2drop nil ] if ] foldr' ] def
-
-:drop-while [ p? . [
-              dup first p? [ rest 'p? drop-while ] when
-            ] when-seq ] def
+:drop-while [ p? . [ dup first p? [ rest 'p? drop-while ] when ]
+              when-seq ] def
 
 ; TODO: split-at, split-w/, ...
 ; TODO: last, init
