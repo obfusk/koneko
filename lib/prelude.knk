@@ -2,7 +2,7 @@
 ;
 ; File        : prelude.knk
 ; Maintainer  : Felix C. Stegerman <flx@obfusk.net>
-; Date        : 2020-01-08
+; Date        : 2020-01-09
 ;
 ; Copyright   : Copyright (C) 2020  Felix C. Stegerman
 ; Version     : v0.0.1
@@ -80,6 +80,7 @@
 ; 2
 
 :swap   [ x y . 'y 'x ] def                   ; ⇔ '__swap__
+:><     'swap           def
 
 ; rotate top 3 values
 ;
@@ -359,11 +360,13 @@
 
 :~?     [ 'dup % 2dip if ] def
 
-; logical inverse, conjunction & disjunction
+; bool, logical inverse, conjunction & disjunction
 ;
 ; NB: "and" and "or" return one of their operands (which are tested
 ; for "truthyness", but may not be bools).
 ;
+; >>> 5 bool
+; #t
 ; >>> 5 not
 ; #f
 ; >>> nil not
@@ -377,6 +380,7 @@
 ; >>> 2 3 and
 ; 3
 
+:bool   [ #t #f    ? ] def
 :not    [ #f #t    ? ] def
 :and    [ over     ? ] def
 :or     [ 'dup dip ? ] def
@@ -422,6 +426,32 @@
 
 :min    [ 2dup <= 'drop 'nip if ] def
 :max    [ 2dup >= 'drop 'nip if ] def
+
+; conditional expression
+;
+; Takes a value and a list of tests and exprs.  It evaluates each test
+; one at a time: functions are predicates and are called (with the
+; value pushed onto the stack); the result -- or the test itself if
+; not a function -- is tested for truthiness.  If the test passes, its
+; corresponding expr is returned and called (if it's a block).
+;
+; >>> , :temp [
+; ...     [ show " is " ++ ]
+; ...     [ ( [ 15 < ] "cold!" [ 25 > ] "warm!" :else "ok!" ) cond ]
+; ...     bi ++ say!
+; ...   ] def
+; >>> 10 temp
+; 10 is cold!
+; >>> 20 temp
+; 20 is ok!
+; >>> 30 temp
+; 30 is warm!
+
+  :cond [ _cond dup block? 'call when ] def                     ; TODO
+ :_cond [ cons '_&cond apply ] def
+:_&cond [ x p? f & .
+          'x 'p? 'call 'nip 'function? ~? [ 'f ] [ 'x '& _cond ] if
+        ] def
 
                                                                 ; }}}1
 
@@ -1015,10 +1045,26 @@
 ; TODO: split-at, split-w/, ...
 ; TODO: last, init
 
+; searching
+;
+; NB: see also elem?
+;
+; >>> [1-) [ 4 > ] find
+; 5
+; >>> 10 [1-n] [ 0 < ] find
+; nil
+
+:find   [ filter 'drop with-seq ] def
+
                                                                 ; }}}1
 
 ; -- Lists, Dicts & Indexing --                                 ; {{{1
 
+; lists: head & tail ("safe" & "unsafe"), (un)cons
+;
+; NB: ^seq/first/rest is usually a better choice than
+; uncons^/head/tail.
+;
 ; >>> ( 1 2 3 )
 ; ( 1 2 3 )
 ; >>> dup head^
@@ -1030,7 +1076,8 @@
 ; 1
 ; >>> cons
 ; ( 1 2 3 )
-; >>> () head^
+;
+; >>> () head^                                      ; partial function
 ; *** ERROR: list.head^: empty list
 ; >>> () tail^
 ; *** ERROR: list.tail^: empty list
@@ -1038,8 +1085,6 @@
 ; nil
 ; >>> () tail
 ; nil
-; >>> ( 4 2 1 3 ) sort
-; ( 1 2 3 4 )
 
 :head^    '.head^ def
 :tail^    '.tail^ def
@@ -1049,19 +1094,43 @@
 
 :uncons^  '.uncons^ def
 :cons     '!cons    def
+
+; sorted list
+;
+; >>> ( 4 2 1 3 ) sort
+; ( 1 2 3 4 )
+
 :sort     '.sort    def
 
+; merge dicts & update record
+;
 ; >>> { x: 1, y: 2 } { x: 99 } update
 ; { :x 99 =>, :y 2 => }
+;
+; >>> , :Point ( :x :y ) defrecord
+; >>> Point( 1 2 )
+; Point{ :x 1 =>, :y 2 => }
+; >>> { y: 3 } update
+; Point{ :x 1 =>, :y 3 => }
 
 :update ( :dict :dict ) [ !merge ] defmulti
 :update ( :_    :_    ) [ over [ 'record->dict dip !merge ] dip
                           record-type apply-dict ] defmulti     ; TODO
 
+; TODO: update-with function
+
+; keys & values
+;
 ; >>> { x: 1, y: 2 } dup keys
 ; ( :x :y )
 ; >>> drop values
 ; ( 1 2 )
+;
+; >>> clear-stack
+; >>> , :Point ( :x :y ) defrecord
+; >>> , Point( 1 2 ) 'keys 'values bi show-stack
+; ( 1 2 )
+; ( :x :y )
 
 :keys   ( :dict   ) [ .keys   ] defmulti
 :values ( :dict   ) [ .values ] defmulti
@@ -1069,6 +1138,8 @@
 :keys   ( :_      ) [ record-type record-type-fields  ] defmulti
 :values ( :_      ) [ record-values                   ] defmulti
 
+; slicing
+;
 ; >>> "0123456789" 5 [i-)
 ; "56789"
 ; >>> "0123456789" -5 [-j)
@@ -1081,6 +1152,8 @@
 ; ( 0 1 2 3 4 )
 ; >>> 10 20 [m-n] 2 -2 [i-j) ->list
 ; ( 12 13 14 15 16 17 18 )
+; >>> [1-) 10 [-j) ->list
+; ( 1 2 3 4 5 6 7 8 9 10 )
 
 :[i-j)  [ x i j . 'i 'j 1 'x slice  ] def                       ; TODO
 :[i-)   [ nil      [i-j)            ] def
@@ -1099,10 +1172,11 @@
               ] def
 :range-relidx [ [ drop nil ] [ [ 'len dip + ] 'nip ~neg ] ~nil ] def
 :range-drop   [ [ '+ dip Range ] ^Range ] def
-:range-take   [ [ <rot [] [
-                swap [ over + dec ] dip [] 'min ~nil
-              ] ~nil Range ] ^Range ] def
+:range-take   [ [ <rot [] [ swap [ over + dec ] dip [] 'min ~nil ]
+                  ~nil Range ] ^Range ] def
 
+; get value at key/index & membership test
+;
 ; >>> ( :one :two :three ) 1 get^
 ; :two
 ; >>> () 0 get^
@@ -1111,10 +1185,39 @@
 ; 2
 ; >>> () 0 get
 ; nil
+;
+; >>> { x: 1, y: 2 } dup :x get
+; 1
+; >>> drop :z get
+; nil
+; >>> "foobar" 3 get
+; "b"
+; >>> "foobar" 10 get
+; nil
+; >>> [1-) 10 get
+; 11
+; >>> 10 [1-n] 10 get
+; nil
+;
 ; >>> ( :one :two :three ) 1 has?                     ; valid index of
 ; #t
 ; >>> ( :one :two :three ) :two elem?                 ; element of
 ; #t
+; >>> { x: 1, y: 2 } :y has?
+; #t
+; >>> "foobar" 3 has?
+; #t
+; >>> "hypotheekofferte" "theekoffer" elem?           ; is substring
+; #t
+;
+; >>> [1-) 0 has?
+; #t
+; >>> [1-) 0 elem?
+; #f
+; >>> [1-) 99 elem?
+; #t
+; >>> 100 [1-n) 100 elem?
+; #f
 
 :get    [ 2dup has? 'get^ [ 2drop nil ] if ] def
 
@@ -1126,23 +1229,62 @@
 :has?'  ( :_ ) [ !has?  ] defmulti
 :elem?' ( :_ ) [ !elem? ] defmulti
 
-; TODO
-:elem?' ( :Range ) [ 'dup dip [ '>= '<= 2bi~' and ] ^Range ] defmulti
+:get^'  ( :Range )  [ [ '+ [ [ + dup ] dip <= swap nil ? ] ~nil ]
+                      ^Range ] defmulti
+:has?'  ( :Range )  [ get^' nil? not ] defmulti
+:elem?' ( :Range )  [ [ '>= [ 'over dip '>= '<= 2bi~ and ] ~nil ]
+                      ^Range ] defmulti                         ; TODO
+
+; first & second element
+;
+; >>> :x :y 2list
+; ( :x :y )
+; >>> , '1st '2nd bi show-stack
+; :y
+; :x
+
+:1st    'first def
+:2nd    [ rest 'first ~> ] def
+
+; nth element
+;
+; >>> [1-) 10 nth
+; 11
+; >>> [1-) [ dup * ] map 10 nth
+; 121
+
+:nth    [ swap nth' ] def                                       ; TODO
+
+:nth'   ( :_    ) [ swap get ] defmulti
+:nth'   ( :LSeq ) [ [ drop nil ]
+                    [ x xt . [ dec 'xt nth' ] [ drop 'x ] ~pos ]
+                    ^seq ] defmulti
+
+; pair each element with its index
+;
+; >>> "foo" indexed ->list
+; ( ( 0 "f" ) ( 1 "o" ) ( 2 "o" ) )
+
+:indexed  [ [0-) swap '2list zip ] def
 
                                                                 ; }}}1
 
 ; -- "Quasi-Macros" --                                          ; {{{1
 
+; lexical bindings
+;
 ; >>> { x: 1, y: 2 } [ 'y 'x + ] let
 ; 3
 
-:let    [ [ '.values '.keys bi ] dip '__block-code__ [] bi __block__
+:let    [ [ '.values '.keys bi ] dip '__block-code__ keep __block__
           apply ] def                                           ; TODO
 
                                                                 ; }}}1
 
 ; -- Miscellaneous --                                           ; {{{1
 
+; identity function
+;
 ; >>> id
 ; >>> []
 ; [ ]
@@ -1150,41 +1292,27 @@
 :id     [     ] def
 :[]     [ 'id ] def
 
+; call n times
+;
 ; >>> , [ "Hi!" say! ] 5 times
 ; Hi!
 ; Hi!
 ; Hi!
 ; Hi!
 ; Hi!
+; >>> 0 1 [ '+ keep swap ] 5 times
+; 8
 
 :times  [ [1-n] swap 'drop % each ] def
 
-; conditional expression
+; print str or value to stdout
 ;
-; Takes a value and a list of tests and exprs.  It evaluates each test
-; one at a time: functions are predicates and are called with the
-; value pushed onto the stack; the result -- or the test itself if not
-; a function -- is tested for truthiness.  If the test passes, its
-; corresponding expr is returned; and called if it's a block.
-;
-; >>> , :temp [
-; ...     [ show " is " ++ ]
-; ...     [ ( [ 15 < ] "cold!" [ 25 > ] "warm!" :else "ok!" ) cond ]
-; ...     bi ++ say!
-; ...   ] def
-; >>> 10 temp
-; 10 is cold!
-; >>> 20 temp
-; 20 is ok!
-; >>> 30 temp
-; 30 is warm!
+; >>> 42 display!
+; 42
+; >>> "foo" display!
+; foo
 
-  :cond [ _cond dup block? 'call when ] def                     ; TODO
- :_cond [ cons '_&cond apply ] def
-:_&cond [ x p? f & .
-          'x 'p? 'call 'nip 'function? ~? [ 'f ] [ 'x '& _cond ] if
-        ] def
-
+:display! [ ->str say! ] def
                                                                 ; }}}1
 
 ; -- Unicode Aliases --                                         ; {{{1
