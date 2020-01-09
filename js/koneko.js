@@ -2,7 +2,7 @@
 //
 //  File        : koneko.js
 //  Maintainer  : Felix C. Stegerman <flx@obfusk.net>
-//  Date        : 2020-01-04
+//  Date        : 2020-01-09
 //
 //  Copyright   : Copyright (C) 2020  Felix C. Stegerman
 //  Version     : v0.0.1
@@ -508,7 +508,7 @@ const call = (c0, s0, tailPos = false) => {                   //  {{{1
             if (!has(i_, xl.length)) {
               throw new KE(...E.IndexError(op, i_))
             }
-            return [xl[i_]]
+            return [str(xl[i_])]
           }, "int")
         case "has?":
           return p(i => [bool(has(intToNum(i.value), xl.length))], "int")
@@ -600,7 +600,7 @@ const call = (c0, s0, tailPos = false) => {                   //  {{{1
             }
             return [xv.get(k.value)]
           }, "kwd")
-        case "has":
+        case "has?":
           return p(k => [bool(xv.has(k.value))], "kwd")
         default:
           throw new KE(...E.UnknownField(op, x.type))
