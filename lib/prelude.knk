@@ -2,7 +2,7 @@
 ;
 ; File        : prelude.knk
 ; Maintainer  : Felix C. Stegerman <flx@obfusk.net>
-; Date        : 2020-01-09
+; Date        : 2020-01-10
 ;
 ; Copyright   : Copyright (C) 2020  Felix C. Stegerman
 ; Version     : v0.0.1
@@ -837,16 +837,17 @@
 ; 5
 ; >>> 42 [m-) len                                     ; infinite
 ; nil
-; >>> ( 1 2 3 ) [ 2 >= ] filter len                   ; ->list len
+; >>> ( 1 2 3 ) [ 2 >= ] filter len
 ; 2
 
-:len    ( :str    ) [ .len        ] defmulti
-:len    ( :list   ) [ .len        ] defmulti
-:len    ( :dict   ) [ .len        ] defmulti
-:len    ( :Range  ) [ range-len   ] defmulti
-:len    ( :_      ) [ ->list len  ] defmulti                    ; TODO
+:len    ( :str    ) [ .len      ] defmulti
+:len    ( :list   ) [ .len      ] defmulti
+:len    ( :dict   ) [ .len      ] defmulti
+:len    ( :Range  ) [ range-len ] defmulti
+:len    ( :_      ) [ seq-len   ] defmulti
 
-:range-len [ [ [ drop nil ] [ swap - inc 0 max ] ~nil ] ^Range ] def
+:range-len  [ [ [ drop nil ] [ swap - inc 0 max ] ~nil ] ^Range ] def
+:seq-len    [ 0 swap [ drop inc ] each ] def
 
 ; append two sequences
 ;
@@ -1100,7 +1101,20 @@
 ; >>> ( 4 2 1 3 ) sort
 ; ( 1 2 3 4 )
 
-:sort     '.sort    def
+:sort     [ ->list .sort ] def
+
+; TODO: sort-by
+
+; remove consecutive duplicates
+;
+; >>> ( 1 2 2 3 2 ) uniq ->list
+; ( 1 2 3 2 )
+; >>> ( 1 2 2 3 2 ) sort uniq ->list
+; ( 1 2 3 )
+
+:uniq     [ '= uniq-by ] def
+:uniq-by  [ f . [ over .[ '1 [ '2 swap f ] drop-while 'f uniq-by ]
+                  lseq1 ] with-seq ] def
 
 ; merge dicts & update record
 ;
@@ -1313,6 +1327,11 @@
 ; foo
 
 :display! [ ->str say! ] def
+
+; read lines from stdin
+
+:lines! [ "" ask! [ 'lines! lseq1 ] ~> ] def                    ; TODO
+
                                                                 ; }}}1
 
 ; -- Unicode Aliases --                                         ; {{{1

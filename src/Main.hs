@@ -2,9 +2,9 @@
 --
 --  File        : Main.hs
 --  Maintainer  : Felix C. Stegerman <flx@obfusk.net>
---  Date        : 2019-10-15
+--  Date        : 2020-01-10
 --
---  Copyright   : Copyright (C) 2019  Felix C. Stegerman
+--  Copyright   : Copyright (C) 2020  Felix C. Stegerman
 --  Version     : v0.0.1
 --  License     : GPLv3+
 --
@@ -24,7 +24,7 @@ import System.Console.CmdArgs hiding (args)
 import qualified Data.Text.Lazy as T
 import qualified System.Console.CmdArgs as CA
 
-import Koneko.Data (defineIn, emptyStack, true)
+import Koneko.Data (defineIn, emptyStack, list, true)
 import Koneko.Eval (initContext, evalFile, evalStdin, evalText)
 import Koneko.Repl (repl)
 import Koneko.Test (doctest')
@@ -42,7 +42,6 @@ data KonekoCmd = KonekoCmd {
   interactive :: Bool
 } deriving (Data, Eq, Show, Typeable)
 
--- TODO: use args
 main :: IO ()
 main = do
     KonekoCmd{..} <- cmdArgs cmd
@@ -50,12 +49,13 @@ main = do
     else do
       isatty <- stdinTTY; ctx <- initContext
       let st = emptyStack; int = when interactive . repl ctx
+          sa = defineIn ctx "__args__" . list . map T.pack
+          go = if isatty || interactive then repl else evalStdin
       isLoud >>= flip when (defineIn ctx "__debug__" true)
       case (eval, args) of
-        (Nothing, [])       -> (if isatty || interactive then repl
-                                else evalStdin) ctx st
-        (Nothing, script:_) -> evalFile script ctx st >>= int
-        (Just code, _)      -> evalString code ctx st >>= int
+        (Nothing, [])       -> sa [] >> go ctx st
+        (Nothing, script:a) -> sa a  >> evalFile script ctx st >>= int
+        (Just code, a)      -> sa a  >> evalString code ctx st >>= int
   where
     evalString = evalText "(code)" . T.pack
     cmd = KonekoCmd {

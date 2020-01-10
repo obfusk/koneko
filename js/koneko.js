@@ -2,7 +2,7 @@
 //
 //  File        : koneko.js
 //  Maintainer  : Felix C. Stegerman <flx@obfusk.net>
-//  Date        : 2020-01-09
+//  Date        : 2020-01-10
 //
 //  Copyright   : Copyright (C) 2020  Felix C. Stegerman
 //  Version     : v0.0.1
@@ -943,7 +943,7 @@ const cmp = (x, y) => {                                       //  {{{1
     case "str":
       return cmpArray(x.list, y.list, cmpPrim)
     case "pair":
-      return cmp(x.key, y.key) && cmp(a, b)
+      return cmpArray([x.key, a], [y.key, b], cmp)
     case "list":
       return cmpArray(a, b, cmp)
     case "dict":
@@ -1481,7 +1481,9 @@ const main_ = async () => {                                   //  {{{1
   } else if (opts.includes("--doctest")) {
     return await doctest_(args, verbose)
   } else if (args.length) {
-    return await evalFile(args[0])
+    const c = scope.new()
+    // scope.define(c, "__args__", list(args.slice(1).map(str)))
+    return await evalFile(args[0], c)
   } else {
     return await repl(verbose)
   }
