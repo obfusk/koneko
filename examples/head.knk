@@ -1,4 +1,4 @@
 #!/usr/bin/env -S cabal -v0 v2-run koneko
 ; ^ TODO
-{ n: [ '__args__ 1st [ 10 ] 'str->int ~nil ] }
-[ lines! n take-first 'say! each ] let
+{ :n '__args__ 1st [ 10 ] 'str->int ~nil => }
+[ lines! 'n take-first 'say! each ] let

@@ -1147,6 +1147,10 @@ modules.set("__prim__", new Map([                             //  {{{1
   }, "list", "list", "block"),
   mkPrimPP("__block-params__", x => [list(x.params.map(kwd))], "block"),
   mkPrimPP("__block-code__"  , x => [list(x.code)]           , "block"),
+  mkPrimPP("__rx-match__", (s, r) => {
+    const m = Rx(strVal(r), "u").exec(strVal(s))
+    return [m ? list(m.map(str)) : nil]
+  }, "str", "str"),
   mkPrim("__show-stack__", (c, s) => {
     for (const x of stack.toArray(s)) { say(show(x)) }
     return s

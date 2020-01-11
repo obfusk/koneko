@@ -2,7 +2,7 @@
 
     File        : README.md
     Maintainer  : Felix C. Stegerman <flx@obfusk.net>
-    Date        : 2020-01-06
+    Date        : 2020-01-10
 
     Copyright   : Copyright (C) 2020  Felix C. Stegerman
     Version     : v0.0.1
@@ -374,8 +374,8 @@ See `koneko.cabal` for the dependencies.
 
 ```bash
 $ apt install haskell-platform libghc-cmdargs-dev libghc-doctest-dev \
-  libghc-hashtables-dev libghc-megaparsec-dev libghc-safe-dev \
-  libghc-silently-dev                         # Haskell version
+  libghc-hashtables-dev libghc-megaparsec-dev libghc-regex-pcre-dev \
+  libghc-safe-dev libghc-silently-dev         # Haskell version
 $ apt install nodejs                          # Node.js version
 ```
 

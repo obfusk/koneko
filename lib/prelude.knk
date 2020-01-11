@@ -66,6 +66,8 @@
 
 :fail               '__fail__                 def
 
+:rx-match           '__rx-match__             def
+
                                                                 ; }}}1
 
 ; -- Stack Shuffling --                                         ; {{{1

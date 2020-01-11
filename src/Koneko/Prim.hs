@@ -2,7 +2,7 @@
 --
 --  File        : Koneko/Prim.hs
 --  Maintainer  : Felix C. Stegerman <flx@obfusk.net>
---  Date        : 2020-01-04
+--  Date        : 2020-01-10
 --
 --  Copyright   : Copyright (C) 2020  Felix C. Stegerman
 --  Version     : v0.0.1
@@ -19,6 +19,7 @@ module Koneko.Prim (initCtx, replDef) where
 import Control.DeepSeq (force, NFData)
 import Control.Exception (catch, evaluate, throwIO)
 import Control.Monad (unless)
+import Data.Bits ((.|.))
 import Data.Char (chr)
 import Data.Foldable (traverse_)
 import Data.List (isSuffixOf, sort)
@@ -29,8 +30,11 @@ import System.FilePath ((</>))
 import System.Random (getStdRandom, randomR)
 
 import qualified Control.Exception as E
+import qualified Data.Array as A
 import qualified Data.Text.Lazy as T
+import qualified Data.Text.Lazy.Encoding as LE
 import qualified Data.Text.Lazy.IO as T
+import qualified Text.Regex.PCRE as RE
 
 import Koneko.Data
 import Koneko.Misc (prompt')
@@ -60,6 +64,7 @@ initCtx ctxMain call apply apply_dict callBlock = do
       recordTypeName, recordTypeFields,
       mkThunk callBlock, fail_,
       mkIdent, mkQuot, mkBlock, blockParams, blockCode,
+      rxMatch,
       showStack, clearStack, nya
     ]
 
@@ -261,6 +266,18 @@ _mkId :: Identifier -> IO Ident
 _mkId k = maybe err return $ ident k
   where
     err = throwIO $ expected $ T.unpack k ++ " to be a valid ident"
+
+-- primitives: regex --
+
+-- TODO: handle errors, ...
+rxMatch :: Builtin
+rxMatch = mkPrim "rx-match" $ pop2push1 f
+  where
+    f s r = g $ RE.matchOnceText (rx $ e r) (e s)
+    g     = fmap $ \(_, m, _) -> list $ map (d . fst) $ A.elems m
+    rx    = RE.makeRegexOpts (RE.defaultCompOpt .|. RE.compUTF8)
+            RE.defaultExecOpt
+    e     = LE.encodeUtf8; d = LE.decodeUtf8
 
 -- repl --
 
