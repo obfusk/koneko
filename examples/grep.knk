@@ -1,4 +1,4 @@
 #!/usr/bin/env -S cabal -v0 v2-run koneko
 ; ^ TODO
-{ :p? '__args__ 1st 'rx-match $ => }
-[ lines! 'p? filter 'say! each ] let
+{ :rx '__args__ 1st => }
+[ lines! 'rx grep 'say! each ] let

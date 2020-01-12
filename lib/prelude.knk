@@ -2,7 +2,7 @@
 ;
 ; File        : prelude.knk
 ; Maintainer  : Felix C. Stegerman <flx@obfusk.net>
-; Date        : 2020-01-10
+; Date        : 2020-01-12
 ;
 ; Copyright   : Copyright (C) 2020  Felix C. Stegerman
 ; Version     : v0.0.1
@@ -1282,6 +1282,17 @@
 ; ( ( 0 "f" ) ( 1 "o" ) ( 2 "o" ) )
 
 :indexed  [ [0-) swap '2list zip ] def
+
+                                                                ; }}}1
+
+; -- Regexes --                                                 ; {{{1
+
+; filter using rx-match
+;
+; >>> ( "one" "two" "three" ) "^o|ee" grep ->list
+; ( "one" "three" )
+
+:grep   [ 'rx-match $ filter ] def
 
                                                                 ; }}}1
 
