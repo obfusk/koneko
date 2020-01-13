@@ -225,13 +225,12 @@ instance NFData Thunk where
 
 data Scope = Scope {
   modName :: Identifier,
-  parent  :: Maybe Scope,
   table   :: ScopeLookupTable
 }
 
 -- TODO
 instance NFData Scope where
-  rnf Scope{..} = (modName, parent) `deepseq` ()
+  rnf Scope{..} = modName `deepseq` ()
 
 data Context = Context {
   modules   :: HashTable Identifier Module,
@@ -678,12 +677,18 @@ forkContext m c = do
     mkMod = HT.new >>= HT.insert (modules c) m
 
 _newScope :: Identifier -> Scope
-_newScope m = Scope m Nothing H.empty
+_newScope m = Scope m H.empty
 
-forkScope :: Args -> Context -> Scope -> Context
-forkScope [] c s  = c { ctxScope = s }
-forkScope l  c s  = c { ctxScope = s { parent = Just s,
-                                       table  = H.fromList l } }
+-- TODO
+forkScope :: Args -> Context -> Block -> IO Context
+forkScope l c Block{..} = do
+    s <- maybe (throwIO EvalScopelessBlock) return blkScope
+    let t0 = table s
+        t1 = H.union (H.fromList l) $ H.filterWithKey p t0
+        t2 = if null l && H.size t1 == H.size t0 then t0 else t1
+    return c { ctxScope = s { table = t2 } }
+  where
+    fv = freeVars blkCode; p k _ = S.member k fv
 
 -- TODO: error if already exists (or prim, etc.)
 -- throws ModuleNotFound
@@ -715,13 +720,12 @@ lookup c k = do
                  lookupPrld, lookupBltn]
   where
     s = ctxScope c; m = modName s
-    lookupScope x = maybe (f x) (return . Just) $ H.lookup k $ table x
-    f x           = maybe (look m) lookupScope $ parent x
-    lookupPrim    = look primModule
-    lookupBltn    = look bltnModule
-    lookupPrld    = look prldModule
-    look          = lookupModule c k
-    lookupImp     = M.firstJust . map look
+    lookupScope = maybe (look m) (return . Just) . H.lookup k . table
+    lookupPrim  = look primModule
+    lookupBltn  = look bltnModule
+    lookupPrld  = look prldModule
+    look        = lookupModule c k
+    lookupImp   = M.firstJust . map look
 
 -- throws ModuleNotFound
 lookupModule :: Context -> Identifier -> Identifier -> IO (Maybe KValue)

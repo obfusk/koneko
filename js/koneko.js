@@ -121,20 +121,22 @@ const stack = {                                               //  {{{1
 const scope = {                                               //  {{{1
   new: (module = "__main__") => {
     if (!modules.has(module)) { modules.set(module, new Map()) }
-    return { module, parent: null, table: new Map() }
+    return { module, table: new Map() }
   },
-  fork: (c, table) =>
-    table.size ? { module: c.module, parent: c, table } : c,
+  fork: (b, table) => {
+    const c = b.scope, fv = freeVars(b.code), n = table.size
+    for (const k of c.table.keys()) {
+      if (!table.has(k) && fv.has(k)) { table.set(k, c.table.get(k)) }
+    }
+    return !n && table.size == c.table.size ? c :
+      { module: c.module, table }
+  },
   define: (c, k, v) => modules.get(c.module).set(k, v),
   lookup: (c, k, d = undefined) => {
     if (modules.get("__prim__").has(k)) {
       return modules.get("__prim__").get(k)
     }
-    let c_ = c
-    while (c_) {
-      if (c_.table.has(k)) { return c_.table.get(k) }
-      c_ = c_.parent
-    }
+    if (c.table.has(k)) { return c.table.get(k) }
     const imps = imports.get(c.module) || []
     for (const m of [c.module, ...imps, "__prld__", "__bltn__"]) {
       const mod = modules.get(m)
@@ -611,7 +613,7 @@ const call = (c0, s0, tailPos = false) => {                   //  {{{1
       const [sparms, nparms] = partitionSpecial(x.params)
       const [ps, s2] = popArgs(s1, nparms)
       const as = new Map(ps.concat(sparms.map(p => [p, nil])))
-      const c1 = scope.fork(x.scope, as)
+      const c1 = scope.fork(x, as)
       return tailPos ? new Eval(x.code, c1, s2)
                      : evaluate(x.code)(c1, s2)
     }
@@ -667,7 +669,7 @@ const apply = (c0, s0) => {                                   //  {{{1
       const l2 = l.value.slice(nparms.length)
       const as = new Map(zip(nparms, l1).concat(sparms_.map(p => [p, nil]))
                                         .concat([["&", list(l2)]]))
-      const c1 = scope.fork(x.scope, as)
+      const c1 = scope.fork(x, as)
       return evaluate(x.code)(c1, stack.empty()).then(
         s3 => stack.push(s2, ...s3)
       )
@@ -699,7 +701,7 @@ const apply_dict = (c0, s0) => {                              //  {{{1
       const d_ = dictWithout(d, nparms)
       const as = new Map(zip(nparms, vs).concat(sparms_.map(p => [p, nil]))
                                         .concat([["&&", d_]]))
-      const c1 = scope.fork(x.scope, as)
+      const c1 = scope.fork(x, as)
       return evaluate(x.code)(c1, stack.empty()).then(
         s3 => stack.push(s2, ...s3)
       )

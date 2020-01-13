@@ -2,9 +2,9 @@
 --
 --  File        : Koneko/Eval.hs
 --  Maintainer  : Felix C. Stegerman <flx@obfusk.net>
---  Date        : 2019-11-27
+--  Date        : 2020-01-13
 --
---  Copyright   : Copyright (C) 2019  Felix C. Stegerman
+--  Copyright   : Copyright (C) 2020  Felix C. Stegerman
 --  Version     : v0.0.1
 --  License     : GPLv3+
 --
@@ -286,22 +286,23 @@ apply_dict c s = do
 
 -- TODO
 callBlock :: Block -> Evaluator
-callBlock Block{..} c s0 = do
-    sc          <- getScope blkScope
-    (s1, args)  <- popArgs [] s0 $ reverse nparms
-    evl blkCode (forkScope (args ++ map (,nil) sparms) c sc) s1
+callBlock b@Block{..} c s0 = do
+    (s1, args) <- popArgs [] s0 $ reverse nparms
+    sc <- forkScope (args ++ map (,nil) sparms) c b
+    evl blkCode sc s1
   where
     (sparms, nparms) = partitionSpecial $ map unIdent blkParams
 
 -- TODO
 applyBlock :: Block -> Evaluator
-applyBlock Block{..} c s0 = do
-    sc <- getScope blkScope; (l, s1) <- pop' s0; let ll = length l
+applyBlock b@Block{..} c s0 = do
+    (l, s1) <- pop' s0; let ll = length l
     when (ll < lnp) $ throwIO $ expected $ show lnp ++ " arg(s) for apply"
     when (ll > lnp && "&" `notElem` sparms) $ throwIO $ applyMissing False
     let (l1, l2)  = splitAt lnp l
         args      = zip nparms l1 ++ map (,nil) sparms' ++ [("&", list l2)]
-    (++ s1) <$> evl blkCode (forkScope args c sc) emptyStack
+    sc <- forkScope args c b
+    (++ s1) <$> evl blkCode sc emptyStack
   where
     (sparms, nparms)  = partitionSpecial $ map unIdent blkParams
     sparms'           = delete "&" sparms
@@ -309,14 +310,15 @@ applyBlock Block{..} c s0 = do
 
 -- TODO
 apply_dictBlock :: Block -> Evaluator
-apply_dictBlock Block{..} c s0 = do
-    sc <- getScope blkScope; (d@(Dict h), s1) <- pop' s0
+apply_dictBlock b@Block{..} c s0 = do
+    (d@(Dict h), s1) <- pop' s0
     when ("&&" `notElem` sparms) $ throwIO $ applyMissing True
     vals <- retOrThrow $ dictLookup "apply-dict" d nparms
     let h'    = H.filterWithKey (\k _ -> k `notElem` nparms) h
         args  = zip nparms vals ++ map (,nil) sparms' ++
                 [("&&", KDict $ Dict h')]
-    (++ s1) <$> evl blkCode (forkScope args c sc) emptyStack
+    sc <- forkScope args c b
+    (++ s1) <$> evl blkCode sc emptyStack
   where
     (sparms, nparms)  = partitionSpecial $ map unIdent blkParams
     sparms'           = delete "&&" sparms
@@ -354,9 +356,6 @@ initContext = do
   return ctx
 
 -- utilities: block call/apply --
-
-getScope :: Maybe Scope -> IO Scope
-getScope = maybe (throwIO EvalScopelessBlock) return
 
 popArgs :: Args -> Stack -> [Identifier] -> IO (Stack, Args)
 popArgs r s []      = return (s, r)
