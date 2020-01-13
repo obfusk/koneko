@@ -55,7 +55,7 @@ common deps
     -- included w/ haskell-platform:
     random, unordered-containers >=0.2.9.0,
     -- separate packages:
-    cmdargs, hashtables, megaparsec ==7.0.*, regex-pcre ==0.94.*,
+    cmdargs, hashtables, megaparsec ==7.0.*, regex-pcre >=0.94.0.0,
     safe, silently
 
   -- Directories containing source files.
