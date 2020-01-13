@@ -2,7 +2,7 @@
 //
 //  File        : koneko.js
 //  Maintainer  : Felix C. Stegerman <flx@obfusk.net>
-//  Date        : 2020-01-10
+//  Date        : 2020-01-13
 //
 //  Copyright   : Copyright (C) 2020  Felix C. Stegerman
 //  Version     : v0.0.1
@@ -67,6 +67,7 @@ const E = {                                                   //  {{{1
   IndexError:           (op, index)   => [`${op}: index ${index} is out of range`, { op, index }],
   KeyError:             (op, key)     => [`${op}: key ${key} not found`, { op, key }],
   DivideByZero:         ()            => ["divide by zero", {}],
+  InvalidRx:            msg           => [`invalid regex: ${msg}`, { msg }],
   Fail:                 msg           => [msg, { msg }],
   NotImplementedError:  what          => [`not implemented: ${what}`, { what }],
 }                                                             //  }}}1
@@ -1148,7 +1149,17 @@ modules.set("__prim__", new Map([                             //  {{{1
   mkPrimPP("__block-params__", x => [list(x.params.map(kwd))], "block"),
   mkPrimPP("__block-code__"  , x => [list(x.code)]           , "block"),
   mkPrimPP("__rx-match__", (s, r) => {
-    const m = Rx(strVal(r), "u").exec(strVal(s))
+    let rx
+    try {
+      rx = Rx(strVal(r), "u")
+    } catch(e) {
+      if (e instanceof SyntaxError) {
+        throw new KE(...E.InvalidRx(e.message))
+      } else {
+        throw e
+      }
+    }
+    const m = rx.exec(strVal(s))
     return [m ? list(m.map(str)) : nil]
   }, "str", "str"),
   mkPrim("__show-stack__", (c, s) => {

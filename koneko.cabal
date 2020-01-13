@@ -51,11 +51,11 @@ common deps
   -- Other library packages from which modules are imported.
   build-depends:
     -- included w/ ghc:
-    array, base >=4.9, deepseq, directory, filepath, text,
+    array, base >=4.9, bytestring, deepseq, directory, filepath, text,
     -- included w/ haskell-platform:
     random, unordered-containers >=0.2.9.0,
     -- separate packages:
-    cmdargs, hashtables, megaparsec ==7.0.*, regex-pcre >=0.94.0.0,
+    cmdargs, hashtables, megaparsec ==7.0.*, regex-pcre ==0.94.*,
     safe, silently
 
   -- Directories containing source files.

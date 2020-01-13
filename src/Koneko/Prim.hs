@@ -2,7 +2,7 @@
 --
 --  File        : Koneko/Prim.hs
 --  Maintainer  : Felix C. Stegerman <flx@obfusk.net>
---  Date        : 2020-01-10
+--  Date        : 2020-01-13
 --
 --  Copyright   : Copyright (C) 2020  Felix C. Stegerman
 --  Version     : v0.0.1
@@ -31,10 +31,12 @@ import System.Random (getStdRandom, randomR)
 
 import qualified Control.Exception as E
 import qualified Data.Array as A
+import qualified Data.ByteString.Lazy as BL
 import qualified Data.Text.Lazy as T
 import qualified Data.Text.Lazy.Encoding as LE
 import qualified Data.Text.Lazy.IO as T
 import qualified Text.Regex.PCRE as RE
+import qualified Text.Regex.PCRE.ByteString.Lazy as RE
 
 import Koneko.Data
 import Koneko.Misc (prompt')
@@ -269,15 +271,28 @@ _mkId k = maybe err return $ ident k
 
 -- primitives: regex --
 
--- TODO: handle errors, ...
+-- TODO
 rxMatch :: Builtin
-rxMatch = mkPrim "rx-match" $ pop2push1 f
+rxMatch = mkPrim "rx-match" $ \_ s -> do
+  ((x, r), s') <- pop2' s
+  rpush1 s' =<< (_rxGetMatches . _rxMatch x) <$> _rxCompile r
+
+_rxCompile :: T.Text -> IO RE.Regex
+_rxCompile x = f x >>= either (throwIO . InvalidRx . show) return
   where
-    f s r = g $ RE.matchOnceText (rx $ e r) (e s)
-    g     = fmap $ \(_, m, _) -> list $ map (d . fst) $ A.elems m
-    rx    = RE.makeRegexOpts (RE.defaultCompOpt .|. RE.compUTF8)
-            RE.defaultExecOpt
-    e     = LE.encodeUtf8; d = LE.decodeUtf8
+    f = RE.compile (RE.defaultCompOpt .|. RE.compUTF8)
+        RE.defaultExecOpt . LE.encodeUtf8
+
+_rxMatch
+  :: T.Text -> RE.Regex
+  -> Maybe (BL.ByteString, RE.MatchText BL.ByteString, BL.ByteString)
+_rxMatch s r = RE.matchOnceText r $ LE.encodeUtf8 s
+
+_rxGetMatches
+  :: Maybe (BL.ByteString, RE.MatchText BL.ByteString, BL.ByteString)
+  -> Maybe KValue
+_rxGetMatches
+  = fmap $ \(_, m, _) -> list $ map (LE.decodeUtf8 . fst) $ A.elems m
 
 -- repl --
 

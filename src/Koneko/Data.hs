@@ -2,7 +2,7 @@
 --
 --  File        : Koneko/Data.hs
 --  Maintainer  : Felix C. Stegerman <flx@obfusk.net>
---  Date        : 2019-12-11
+--  Date        : 2019-12-13
 --
 --  Copyright   : Copyright (C) 2019  Felix C. Stegerman
 --  Version     : v0.0.1
@@ -131,6 +131,7 @@ data KException
     | IndexError !String !Integer
     | KeyError !String !String
     | DivideByZero
+    | InvalidRx !String
     | Fail !String
     | NotImplementedError !String
   deriving Typeable
@@ -320,6 +321,7 @@ instance Show KException where
                                   " is out of range"
   show (KeyError op k)          = op ++ ": key " ++ k ++ " not found"
   show  DivideByZero            = "divide by zero"
+  show (InvalidRx msg)          = "invalid regex: " ++ msg
   show (Fail msg)               = msg
   show (NotImplementedError s)  = "not implemented: " ++ s
 
