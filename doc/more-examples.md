@@ -2,7 +2,7 @@
 
     File        : doc/more-examples.md
     Maintainer  : Felix C. Stegerman <flx@obfusk.net>
-    Date        : 2020-01-03
+    Date        : 2020-01-13
 
     Copyright   : Copyright (C) 2020  Felix C. Stegerman
     Version     : v0.0.1
@@ -15,18 +15,6 @@
 ## More Examples
 
 **NB: work in progress.**
-
-### Sequences
-
-```koneko
->>> , :join [ d . [ "" ] [ swap [ 'd swap ++ ++ ] foldl ] ^seq ] def
->>> "foo" ->list ", " join
-"f, o, o"
-```
-
-```
->>> , :readlines [ "" ask! [ 'readlines lseq1 ] ~> ] def
-```
 
 ### FP
 
