@@ -2,7 +2,7 @@
 //
 //  File        : koneko.js
 //  Maintainer  : Felix C. Stegerman <flx@obfusk.net>
-//  Date        : 2020-01-13
+//  Date        : 2020-01-20
 //
 //  Copyright   : Copyright (C) 2020  Felix C. Stegerman
 //  Version     : v0.0.1
@@ -488,6 +488,22 @@ const call = (c0, s0, tailPos = false) => {                   //  {{{1
             throw new KE(...E.Expected("str of length 1 on stack"))
           }
           return r(int(xl[0].codePointAt(0)))
+        case "lower":
+          return r(str_(xl.map(c => c.toLowerCase())))
+        case "upper":
+          return r(str_(xl.map(c => c.toUpperCase())))
+        case "reverse":
+          return r(str_([...xl].reverse()))
+        case "trim":
+          return r(str(strVal(x).trim()))
+        case "triml":
+          return r(str(strVal(x).trimStart()))
+        case "trimr":
+          return r(str(strVal(x).trimEnd()))
+        case "starts-with?":
+          return p(y => [bool(strVal(x).startsWith(strVal(y)))], "str")
+        case "ends-with?":
+          return p(y => [bool(strVal(x).endsWith(strVal(y)))], "str")
         case "->list":
           return r(list(xl.map(str)))
         case "append":

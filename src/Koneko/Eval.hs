@@ -2,7 +2,7 @@
 --
 --  File        : Koneko/Eval.hs
 --  Maintainer  : Felix C. Stegerman <flx@obfusk.net>
---  Date        : 2020-01-13
+--  Date        : 2020-01-20
 --
 --  Copyright   : Copyright (C) 2020  Felix C. Stegerman
 --  Version     : v0.0.1
@@ -157,6 +157,16 @@ callStr x _ s = do
     "ord"     ->  do  unless (T.length x == 1) $ throwIO $
                         stackExpected "str of length 1"
                       p $ toInteger $ ord $ T.head x
+    "lower"   ->  p $ T.toLower x
+    "upper"   ->  p $ T.toUpper x
+    "reverse" ->  p $ T.reverse x
+    "trim"    ->  p $ T.strip x
+    "triml"   ->  p $ T.stripStart x
+    "trimr"   ->  p $ T.stripEnd x
+    "starts-with?"
+              ->  pr $ pop1push1 (`T.isPrefixOf` x)
+    "ends-with?"
+              ->  pr $ pop1push1 (`T.isSuffixOf` x)
     "->list"  ->  p $ list $ map T.singleton $ T.unpack x
     "append"  ->  pr $ pop1push1 (<> x)
     "slice"   ->  pr $ \_ s1 -> do

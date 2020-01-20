@@ -2,7 +2,7 @@
 ;
 ; File        : prelude.knk
 ; Maintainer  : Felix C. Stegerman <flx@obfusk.net>
-; Date        : 2020-01-14
+; Date        : 2020-01-20
 ;
 ; Copyright   : Copyright (C) 2020  Felix C. Stegerman
 ; Version     : v0.0.1
@@ -579,6 +579,8 @@
 
 ; -- Strings & Characters --                                    ; {{{1
 
+; NB: see also "Regexes"
+
 ; conversion between char (i.e. string of length 1) & int
 ; (representing a unicode codepoint)
 ;
@@ -615,6 +617,42 @@
 
 :join       [ "" join-with ] def                                ; TODO
 :join-with  [ d . [ "" ] [ swap [ 'd swap ++ ++ ] foldl ] ^seq ] def
+
+; case conversion
+;
+; >>> "foo" upper-case
+; "FOO"
+; >>> "BAR" lower-case
+; "bar"
+
+:lower-case [ .lower ] def
+:upper-case [ .upper ] def
+
+; trimming whitespace
+;
+; >>> " foo " trim
+; "foo"
+; >>> " foo " triml
+; "foo "
+; >>> " foo " trimr
+; " foo"
+
+:trim   [ .trim  ] def
+:triml  [ .triml ] def
+:trimr  [ .trimr ] def
+
+; prefix & suffix predicates
+;
+; >>> "foo" "f" starts-with?                          ; prefix
+; #t
+; >>> "bar" "ar" ends-with?                           ; suffix
+; #t
+;
+; >>> "foobar" "oba" elem?                            ; infix
+; #t
+
+:starts-with? [ swap !starts-with? ] def
+:ends-with?   [ swap !ends-with?   ] def
 
                                                                 ; }}}1
 
@@ -1022,8 +1060,8 @@
 ; >>> "foobar" reverse
 ; "raboof"
 
-:reverse  ( :str  ) [ reverse-as-list join ] defmulti
-:reverse  ( :_    ) [ reverse-as-list      ] defmulti
+:reverse  ( :str  ) [ .reverse        ] defmulti
+:reverse  ( :_    ) [ reverse-as-list ] defmulti
 
 ; TODO: finite range
 
@@ -1311,12 +1349,68 @@
 
 ; -- Regexes --                                                 ; {{{1
 
-; filter using rx-match
+; match
+;
+; >>> "foo" "^f" =~                                   ; boolean
+; #t
+; >>> "bar" "^f" =~
+; #f
+;
+; >>> "foo" "^f" rx-match                             ; matched part
+; ( "f" )
+; >>> "foo" "^f(o+)" rx-match                         ; and groups
+; ( "foo" "oo" )
+; >>> "bar" "^f" rx-match                             ; or nil
+; nil
+
+:=~ ( :str :str ) [ rx-match bool ] defmulti                    ; TODO
+
+; filter using =~
 ;
 ; >>> ( "one" "two" "three" ) "^o|ee" grep ->list
 ; ( "one" "three" )
 
-:grep   [ 'rx-match $ filter ] def
+:grep   [ '=~ $ filter ] def
+
+; character classification
+;
+; >>> "猫" is-letter?
+; #t
+; >>> "foo" is-lower?
+; #t
+; >>> "FOO" is-upper?
+; #t
+; >>> "ⅵ" is-number?
+; #t
+; >>> "…" is-punct?
+; #t
+; >>> "\u0308" is-mark?                               ; diaeresis
+; #t
+; >>> "€" is-symbol?
+; #t
+; >>> "\u2028" is-sep?                                ; line separator
+; #t
+; >>> "\u00a0" is-space?                              ; nbsp
+; #t
+; >>> "42" is-digit?
+; #t
+; >>> "00a0" is-hex?
+; #t
+; >>> "0644" is-oct?
+; #t
+
+:is-letter? [ "^\p{L}+$"        =~ ] def                        ; TODO
+:is-lower?  [ "^\p{Ll}+$"       =~ ] def
+:is-upper?  [ "^\p{Lu}+$"       =~ ] def
+:is-number? [ "^\p{N}+$"        =~ ] def
+:is-punct?  [ "^\p{P}+$"        =~ ] def
+:is-mark?   [ "^\p{M}+$"        =~ ] def
+:is-symbol? [ "^\p{S}+$"        =~ ] def
+:is-sep?    [ "^\p{Z}+$"        =~ ] def
+:is-space?  [ "^\p{Zs}+$"       =~ ] def
+:is-digit?  [ "^[0-9]+$"        =~ ] def
+:is-hex?    [ "^[0-9a-fA-F]+$"  =~ ] def
+:is-oct?    [ "^[0-7]+$"        =~ ] def
 
                                                                 ; }}}1
 

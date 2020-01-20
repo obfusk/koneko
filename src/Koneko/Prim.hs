@@ -2,7 +2,7 @@
 --
 --  File        : Koneko/Prim.hs
 --  Maintainer  : Felix C. Stegerman <flx@obfusk.net>
---  Date        : 2020-01-13
+--  Date        : 2020-01-20
 --
 --  Copyright   : Copyright (C) 2020  Felix C. Stegerman
 --  Version     : v0.0.1
@@ -280,8 +280,8 @@ rxMatch = mkPrim "rx-match" $ \_ s -> do
 _rxCompile :: T.Text -> IO RE.Regex
 _rxCompile x = f x >>= either (throwIO . InvalidRx . show) return
   where
-    f = RE.compile (RE.defaultCompOpt .|. RE.compUTF8)
-        RE.defaultExecOpt . LE.encodeUtf8
+    f = RE.compile c RE.execBlank . LE.encodeUtf8
+    c = RE.compBlank .|. RE.compUTF8 .|. RE.compDollarEndOnly
 
 _rxMatch
   :: T.Text -> RE.Regex
