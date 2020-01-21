@@ -53,7 +53,7 @@ common deps
     -- included w/ ghc:
     array, base >=4.9, bytestring, deepseq, directory, filepath, text,
     -- included w/ haskell-platform:
-    random, unordered-containers >=0.2.9.0,
+    random, split, unordered-containers >=0.2.9.0,
     -- separate packages:
     cmdargs, hashtables, megaparsec ==7.0.*, regex-pcre >=0.94.0.0,
     safe, silently

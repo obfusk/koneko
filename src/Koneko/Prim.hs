@@ -43,9 +43,9 @@ import Koneko.Misc (prompt')
 import Paths_koneko (getDataFileName)
 
 -- TODO
-initCtx :: Context -> Evaluator -> Evaluator -> Evaluator ->
-           (Block -> Evaluator) -> IO ()
-initCtx ctxMain call apply apply_dict callBlock = do
+initCtx :: Context -> (Identifier -> IO ()) -> Evaluator -> Evaluator
+        -> Evaluator -> (Block -> Evaluator) -> IO ()
+initCtx ctxMain load call apply apply_dict callBlock = do
   ctx <- forkContext primModule ctxMain
   traverse_ (defPrim ctx) [
       mkPrim "call" call, mkPrim "apply" apply,
@@ -53,7 +53,7 @@ initCtx ctxMain call apply apply_dict callBlock = do
       def, defmulti, defrecord call, mkPair, mkDict, swap,
       show_, say, ask, type_, callable, function,
       defmodule call, modules, moduleGet, moduleDefs, moduleName,
-      import_, importFrom,
+      import_, importFrom, loadModule load,
       comp "=" (==), comp "not=" (/=), comp "<" (<),
       comp "<=" (<=), comp ">" (>), comp ">=" (>=),
       spaceship,
@@ -168,6 +168,10 @@ import_ = mkPrim "import" $ \c s -> do
 
 importFrom = mkPrim "import-from" $ \c s -> do
   ((ks, Kwd m), s') <- pop2' s; s' <$ (importFromIn c m =<< unKwds ks)
+
+loadModule :: (Identifier -> IO ()) -> Builtin
+loadModule load = mkPrim "load-module" $ \_ s -> do
+  (Kwd m, s') <- pop' s; s' <$ load m
 
 -- primitives: Eq, Ord --
 

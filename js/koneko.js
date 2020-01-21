@@ -1118,6 +1118,11 @@ modules.set("__prim__", new Map([                             //  {{{1
     }
     return s1
   }),
+  mkPrim("__load-module__", async (c, s0) => {
+    const [[m], s1] = stack.pop(s0, "kwd")
+    await loadMod(m.value)
+    return s1
+  }),
   mkPrim("__=__",     pop2push((x, y) => [bool( eq(x, y))   ])),
   mkPrim("__not=__",  pop2push((x, y) => [bool(!eq(x, y))   ])),
   mkPrim("__<__",     pop2push((x, y) => [cmp_lt (cmp(x, y))])),
@@ -1228,7 +1233,9 @@ const baseDir =
 // NB: browser only; Promise
 const requestFile = fname => new Promise((resolve, reject) => {
   const r = new XMLHttpRequest()
-  r.addEventListener("load", () => resolve(r.responseText))
+  r.addEventListener("load", e =>
+    r.status == 200 ? resolve(r.responseText) : reject(e)
+  )
   r.addEventListener("error", reject)
   r.open("GET", fname)
   r.send()
@@ -1256,10 +1263,24 @@ const evalFile = (fname, c = undefined, s = undefined) => {
 }
 
 // NB: Promise
-const loadPrelude = async (fname = baseDir + "lib/prelude.knk") => {
-  if (!modules.get("__prld__").get("def")) {
-    return await evalFile(fname)
+const loadMod = async name => {                               //  {{{1
+  if (!_req) {
+    return await evalFile(`lib/${name}.knk`).catch(() => {
+      throw new KE(...E.ModuleNotFound(name))
+    })
   }
+  const fs = _req("fs")
+  const ps = (process.env.KONEKOPATH || "").split(":").filter(x => x)
+  const xs = [baseDir + "lib", ...ps].map(x => `${x}/${name}.knk`)
+  for (const x of xs) {
+    if (fs.existsSync(x)) { return await evalFile(x) }
+  }
+  throw new KE(...E.ModuleNotFound(name))
+}                                                             //  }}}1
+
+// NB: Promise
+const loadPrelude = () => {
+  if (!modules.get("__prld__").size) { return loadMod("prelude") }
 }
 
 /* === output === */
@@ -1509,7 +1530,7 @@ const main_ = async () => {                                   //  {{{1
   const args    = argv.filter(a => !a.startsWith("-"))
   const verbose = opts.includes("-v")
   if (opts.includes("--version")) {
-    const version = require(baseDir + "package.json").version
+    const version = _req(baseDir + "package.json").version
     putOut(`koneko 「子猫」 ${version}`)
   } else if (opts.includes("--doctest")) {
     return await doctest_(args, verbose)

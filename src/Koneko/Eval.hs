@@ -50,12 +50,17 @@ module Koneko.Eval (
 import Control.DeepSeq (($!!))
 import Control.Exception (throwIO, try)
 import Control.Monad (unless, when)
+import Data.Bool (bool)
 import Data.Char (ord)
 import Data.List hiding (lookup)
+import Data.List.Split (wordsBy)
 import Data.Monoid((<>))
 import Data.Text.Lazy (Text)
 import Prelude hiding (lookup)
 import Safe (atMay)
+import System.Directory (doesFileExist)
+import System.Environment (lookupEnv)
+import System.FilePath ((</>))
 import System.IO (hPutStrLn, stderr)
 
 import qualified Data.HashMap.Strict as H
@@ -63,8 +68,9 @@ import qualified Data.HashTable.IO as HT
 import qualified Data.Text.Lazy as T
 import qualified Data.Text.Lazy.IO as T
 
-import Koneko.Data
+import Koneko.Data hiding (bool)
 import Koneko.Misc (firstJust)
+import Paths_koneko (getDataFileName)
 
 import qualified Koneko.Read as R
 
@@ -355,14 +361,31 @@ apply_dictRecordT t@RecordT{..} _ s = do
 _pushRec :: Stack -> Either KException Record -> IO Stack
 _pushRec s r = retOrThrow r >>= rpush1 s . KRecord
 
+-- load module from file --
+
+-- TODO
+loadMod :: Context -> Identifier -> IO ()
+loadMod ctx name = () <$ do
+    lib   <- getDataFileName "lib"
+    ps    <- (split ':' . maybe "" id) <$> lookupEnv "KONEKOPATH"
+    file  <- f $ map (</> fname) $ lib:ps
+    evalFile file ctx emptyStack
+  where
+    f []      = throwIO $ ModuleNotFound n                    --  TODO
+    f (x:xt)  = doesFileExist x >>= bool (f xt) (return x)
+    fname     = foldl1 (</>) (split '/' n) ++ ".knk"
+    split c   = wordsBy (== c)
+    n         = T.unpack name
+
 -- initial context --
 
 initContext :: IO Context
 initContext = do
   ctx <- initMainContext
-  Prim.initCtx ctx call apply apply_dict callBlock
+  let load = loadMod ctx
+  Prim.initCtx ctx load call apply apply_dict callBlock
   Bltn.initCtx ctx
-  Prld.initCtx ctx evalFile
+  Prld.initCtx ctx load
   return ctx
 
 -- utilities: block call/apply --

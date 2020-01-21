@@ -1465,6 +1465,17 @@
 
                                                                 ; }}}1
 
+; -- Modules --                                                 ; {{{1
+
+; require module (loads from file if not defined)
+;
+; >>> :no-such-module require
+; *** ERROR: no module named no-such-module
+
+:require [ dup __modules__ !elem? not '__load-module__ when1 ] def
+
+                                                                ; }}}1
+
 ; -- Unicode Aliases --                                         ; {{{1
 
 :←      'def      def   ; ^k<- (vim digraph)

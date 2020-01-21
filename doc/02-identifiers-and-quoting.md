@@ -2,9 +2,9 @@
 
     File        : doc/02-identifiers-and-quoting.md
     Maintainer  : Felix C. Stegerman <flx@obfusk.net>
-    Date        : 2019-12-06
+    Date        : 2020-01-20
 
-    Copyright   : Copyright (C) 2019  Felix C. Stegerman
+    Copyright   : Copyright (C) 2020  Felix C. Stegerman
     Version     : v0.0.1
     License     : GPLv3+
 
@@ -142,6 +142,12 @@ prelude are `__prim__`, `__bltn__`, and `__prld__` respectively.
 >>> , ( :x :y ) :foo import-from  ; copy specific idents from a module
 ```
 
-TODO: load modules from files (`:foo require`).
+```
+>>> , :foo require                ; loads foo.knk if necessary
+```
+
+NB: `:foo require` will find & load `foo.knk` if the module `foo` is
+not already defined; `foo.knk` is assumed to define the module `foo`
+(`:foo [ ... ] defmodule`).
 
 <!-- vim: set tw=70 sw=2 sts=2 et fdm=marker : -->
