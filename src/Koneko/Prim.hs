@@ -91,7 +91,7 @@ defmulti = mkPrim "defmulti" $ \c s -> do
           | otherwise = lookup c k >>= \case
               Just (KRecordT t) -> return $ recordTypeSig t
               Just _  -> throwIO $ expected $ T.unpack k ++ " to be a record-type"
-              _       -> throwIO $ LookupFailed $ T.unpack k
+              _       -> throwIO $ NameError $ T.unpack k
 
 -- TODO
 defrecord call = mkPrim "defrecord" $ \c s -> do

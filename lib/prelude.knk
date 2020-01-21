@@ -1469,10 +1469,26 @@
 
 ; require module (loads from file if not defined)
 ;
-; >>> :no-such-module require
-; *** ERROR: no module named no-such-module
+; >>> , :no-such-module require
+; *** ERROR: cannot load module no-such-module
+; >>> , :no-such-module [] defmodule                  ; ^^'
+; >>> , :no-such-module require
 
 :require [ dup __modules__ !elem? not '__load-module__ when1 ] def
+
+; use module (require + import(-from))
+;
+; >>> , :_test use
+; loading module _test...
+; >>> '_test.x
+; 1
+;
+; >>> , ( :x :y ) :_test use-from
+; >>> 'y
+; 2
+
+:use      [ 'require 'import      bi ] def
+:use-from [ 'require 'import-from bi ] def
 
                                                                 ; }}}1
 

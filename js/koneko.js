@@ -51,25 +51,26 @@ class KonekoError extends Error {
 const KE = KonekoError
 
 const E = {                                                   //  {{{1
-  ParseError:           msg           => [`parse error: ${msg}`, { msg }],
-  EvalUnexpected:       type          => [`cannot eval: ${type}`, { type }],
-  EvalScopelessBlock:   ()            => ["cannot eval scopeless block", {}],
-  ModuleNotFound:       name          => [`no module named ${name}`, { name }],
-  LookupFailed:         name          => [`name ${name} is not defined`, { name }],
-  StackUnderflow:       ()            => ["stack underflow", {}],
-  Expected:             (msg, u = "") => [`${u}expected ${msg}`, { msg, un: !!u }],
-  MultiMatchFailed:     (name, sig)   => [`no signature ${sig} for multi ${name}`, {name, sig }],
-  UncomparableType:     type          => [`type ${type} is not comparable`, { type }],
-  UncallableType:       type          => [`type ${type} is not callable`, { type }],
-  UnapplicableType:     (type, op)    => [`type ${type} does not support ${op}`, { type, op }],
-  UnknownField:         (field, type) => [`${type} has no field named ${field}`, { field, type }],
-  EmptyList:            op            => [`${op}: empty list`, { op }],
-  IndexError:           (op, index)   => [`${op}: index ${index} is out of range`, { op, index }],
-  KeyError:             (op, key)     => [`${op}: key ${key} not found`, { op, key }],
-  DivideByZero:         ()            => ["divide by zero", {}],
-  InvalidRx:            msg           => [`invalid regex: ${msg}`, { msg }],
-  Fail:                 msg           => [msg, { msg }],
-  NotImplementedError:  what          => [`not implemented: ${what}`, { what }],
+  ParseError:         msg           => [`parse error: ${msg}`, { msg }],
+  EvalUnexpected:     type          => [`cannot eval: ${type}`, { type }],
+  EvalScopelessBlock: ()            => ["cannot eval scopeless block", {}],
+  ModuleNameError:    name          => [`no loaded module named ${name}`, { name }],
+  ModuleLoadError:    name          => [`cannot load module ${name}`, { name }],
+  NameError:          name          => [`name ${name} is not defined`, { name }],
+  StackUnderflow:     ()            => ["stack underflow", {}],
+  Expected:           (msg, u = "") => [`${u}expected ${msg}`, { msg, un: !!u }],
+  MultiMatchFailed:   (name, sig)   => [`no signature ${sig} for multi ${name}`, {name, sig }],
+  UncomparableType:   type          => [`type ${type} is not comparable`, { type }],
+  UncallableType:     type          => [`type ${type} is not callable`, { type }],
+  UnapplicableType:   (type, op)    => [`type ${type} does not support ${op}`, { type, op }],
+  UnknownField:       (field, type) => [`${type} has no field named ${field}`, { field, type }],
+  EmptyList:          op            => [`${op}: empty list`, { op }],
+  IndexError:         (op, index)   => [`${op}: index ${index} is out of range`, { op, index }],
+  KeyError:           (op, key)     => [`${op}: key ${key} not found`, { op, key }],
+  DivideByZero:       ()            => ["divide by zero", {}],
+  InvalidRx:          msg           => [`invalid regex: ${msg}`, { msg }],
+  Fail:               msg           => [msg, { msg }],
+  NotImplemented:     what          => [`not implemented: ${what}`, { what }],
 }                                                             //  }}}1
 
 for (const k in E) {
@@ -143,7 +144,7 @@ const scope = {                                               //  {{{1
       if (mod && mod.has(k)) { return mod.get(k) }
     }
     if (d !== undefined) { return d }
-    throw new KE(...E.LookupFailed(k))
+    throw new KE(...E.NameError(k))
   },
 }                                                             //  }}}1
 
@@ -513,7 +514,7 @@ const call = (c0, s0, tailPos = false) => {                   //  {{{1
             const i_ = intToNum(nilToDef(i, 0        , "int"))
             const j_ = intToNum(nilToDef(j, xl.length, "int"))
             if (step.value != 1) {
-              throw new KE(...E.NotImplementedError(`${op}: step other than 1`))
+              throw new KE(...E.NotImplemented(`${op}: step other than 1`))
             }
             return [str_(xl.slice(i_, j_ < 0 ? xl.length + j_ : j_))]
           } , "_", "_", "int")
@@ -572,7 +573,7 @@ const call = (c0, s0, tailPos = false) => {                   //  {{{1
             const i_ = intToNum(nilToDef(i, 0        , "int"))
             const j_ = intToNum(nilToDef(j, xv.length, "int"))
             if (step.value != 1) {
-              throw new KE(...E.NotImplementedError(`${op}: step other than 1`))
+              throw new KE(...E.NotImplemented(`${op}: step other than 1`))
             }
             return [list(xv.slice(i_, j_ < 0 ? xv.length + j_ : j_))]
           } , "_", "_", "int")
@@ -691,7 +692,7 @@ const apply = (c0, s0) => {                                   //  {{{1
       )
     }
     case "multi":
-      throw new KE(...E.NotImplementedError("apply multi"))
+      throw new KE(...E.NotImplemented("apply multi"))
     case "record-type": {
       const [[l], s2] = stack.pop(s1, "list")
       return stack.push(s2, record(x, l.value))
@@ -723,7 +724,7 @@ const apply_dict = (c0, s0) => {                              //  {{{1
       )
     }
     case "multi":
-      throw new KE(...E.NotImplementedError("apply-dict multi"))
+      throw new KE(...E.NotImplemented("apply-dict multi"))
     case "record-type": {
       const [[d], s2] = stack.pop(s1, "dict")
       const uf = [...d.value.keys()].filter(k => !x.fields.includes(k))
@@ -1194,13 +1195,13 @@ modules.set("__prim__", new Map([                             //  {{{1
 ]))                                                           //  }}}1
 
 const getModule = m => {
-  if (!modules.has(m)) { throw new KE(...E.ModuleNotFound(m)) }
+  if (!modules.has(m)) { throw new KE(...E.ModuleNameError(m)) }
   return modules.get(m)
 }
 
 const moduleLookup = (m, k) => {
   const mod = getModule(m)
-  if (!mod.has(k)) { throw new KE(...E.LookupFailed(k)) }
+  if (!mod.has(k)) { throw new KE(...E.NameError(k)) }
   return mod.get(k)
 }
 
@@ -1266,7 +1267,7 @@ const evalFile = (fname, c = undefined, s = undefined) => {
 const loadMod = async name => {                               //  {{{1
   if (!_req) {
     return await evalFile(`lib/${name}.knk`).catch(() => {
-      throw new KE(...E.ModuleNotFound(name))
+      throw new KE(...E.ModuleLoadError(name))
     })
   }
   const fs = _req("fs")
@@ -1275,7 +1276,7 @@ const loadMod = async name => {                               //  {{{1
   for (const x of xs) {
     if (fs.existsSync(x)) { return await evalFile(x) }
   }
-  throw new KE(...E.ModuleNotFound(name))
+  throw new KE(...E.ModuleLoadError(name))
 }                                                             //  }}}1
 
 // NB: Promise
@@ -1553,7 +1554,7 @@ const ask = async s => {
   if (overrides.ask) {
     return await overrides.ask(s)
   } else {
-    throw new KE(...E.NotImplementedError("__ask!__"))
+    throw new KE(...E.NotImplemented("__ask!__"))
   }
 }
 
@@ -1566,7 +1567,7 @@ const nya = async () => {
       data => putOut(data, "")
     )
   } else {
-    throw new KE(...E.NotImplementedError("__nya__"))
+    throw new KE(...E.NotImplemented("__nya__"))
   }
 }
 

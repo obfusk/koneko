@@ -130,7 +130,7 @@ evalList xs c s = do ys <- evl xs c emptyStack; rpush1 s $ reverse ys
 pushIdent :: Text -> Evaluator
 pushIdent i c s = lookup c i >>= maybe err (return . push s)
   where
-    err = throwIO $ LookupFailed $ T.unpack i
+    err = throwIO $ NameError $ T.unpack i
 
 evalBlock :: Block -> Evaluator
 evalBlock b c s = rpush1 s b { blkScope = Just $ ctxScope c }
@@ -178,7 +178,7 @@ callStr x _ s = do
     "slice"   ->  pr $ \_ s1 -> do
                     ((i, j, step), s2) <- pop3' s1; let lx = lengthT x
                     i' <- nilToDef i 0; j' <- nilToDef j lx
-                    unless (step == 1) $ throwIO $ NotImplementedError
+                    unless (step == 1) $ throwIO $ NotImplemented
                       $ T.unpack $ op <> ": step other than 1"
                     rpush1 s2 $ slice T.take T.drop i' j' step lx x
     "empty?"  ->  p $ T.null x
@@ -215,7 +215,7 @@ callList (List l) _ s = do
     "slice"   ->  pr $ \_ s1 -> do
                     ((i, j, step), s2) <- pop3' s1; let ll = len l
                     i' <- nilToDef i 0; j' <- nilToDef j ll
-                    unless (step == 1) $ throwIO $ NotImplementedError
+                    unless (step == 1) $ throwIO $ NotImplemented
                       $ T.unpack $ op <> ": step other than 1"
                     rpush1 s2 $ slice take drop i' j' step ll l
     "empty?"  ->  p $ null l
@@ -283,7 +283,7 @@ apply c s = do
   (x, s') <- pop' s
   case x of
     KBlock b    -> applyBlock b c s'
-    KMulti _    -> throwIO $ NotImplementedError "apply multi"
+    KMulti _    -> throwIO $ NotImplemented "apply multi"
     KRecordT r  -> applyRecordT r c s'
     _           -> throwIO $ UnapplicableType (typeToStr $ typeOf x) "apply"
 
@@ -294,7 +294,7 @@ apply_dict c s = do
   (x, s') <- pop' s
   case x of
     KBlock b    -> apply_dictBlock b c s'
-    KMulti _    -> throwIO $ NotImplementedError "apply-dict multi"
+    KMulti _    -> throwIO $ NotImplemented "apply-dict multi"
     KRecordT r  -> apply_dictRecordT r c s'
     _           -> throwIO $ UnapplicableType (typeToStr $ typeOf x) "apply-dict"
 
@@ -371,11 +371,10 @@ loadMod ctx name = () <$ do
     file  <- f $ map (</> fname) $ lib:ps
     evalFile file ctx emptyStack
   where
-    f []      = throwIO $ ModuleNotFound n                    --  TODO
+    f []      = throwIO $ ModuleLoadError n
     f (x:xt)  = doesFileExist x >>= bool (f xt) (return x)
     fname     = foldl1 (</>) (split '/' n) ++ ".knk"
-    split c   = wordsBy (== c)
-    n         = T.unpack name
+    split c   = wordsBy (== c); n = T.unpack name
 
 -- initial context --
 

@@ -1,5 +1,5 @@
 SHELL     := bash
-TESTFILES := lib/*.knk README.md doc/*.md
+TESTFILES := README.md doc/*.md lib/*.knk
 LIBS      := $(wildcard lib/*.knk)
 
 .PHONY: test test_haskell doctest_hs doctest_knk_hs

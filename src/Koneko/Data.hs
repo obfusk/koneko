@@ -2,7 +2,7 @@
 --
 --  File        : Koneko/Data.hs
 --  Maintainer  : Felix C. Stegerman <flx@obfusk.net>
---  Date        : 2019-12-13
+--  Date        : 2019-12-20
 --
 --  Copyright   : Copyright (C) 2019  Felix C. Stegerman
 --  Version     : v0.0.1
@@ -118,8 +118,9 @@ data KException
     = ParseError !String
     | EvalUnexpected !String  -- ^ unexpected value during eval
     | EvalScopelessBlock      -- ^ block w/o scope during eval
-    | ModuleNotFound !String
-    | LookupFailed !String    -- ^ ident lookup failed
+    | ModuleNameError !String
+    | ModuleLoadError !String
+    | NameError !String       -- ^ ident lookup failed
     | StackUnderflow          -- ^ stack was empty
     | Expected !EExpected
     | MultiMatchFailed !String !String
@@ -133,7 +134,7 @@ data KException
     | DivideByZero
     | InvalidRx !String
     | Fail !String
-    | NotImplementedError !String
+    | NotImplemented !String
   deriving Typeable
 
 instance Exception KException
@@ -306,8 +307,9 @@ instance Show KException where
   show (ParseError msg)         = "parse error: " ++ msg
   show (EvalUnexpected t)       = "cannot eval " ++ t
   show (EvalScopelessBlock)     = "cannot eval scopeless block"
-  show (ModuleNotFound name)    = "no module named " ++ name
-  show (LookupFailed name)      = "name " ++ name ++ " is not defined"
+  show (ModuleNameError name)   = "no loaded module named " ++ name
+  show (ModuleLoadError name)   = "cannot load module " ++ name
+  show (NameError name)         = "name " ++ name ++ " is not defined"
   show  StackUnderflow          = "stack underflow"
   show (Expected e)             = show e
   show (MultiMatchFailed n s)   = "no signature " ++ s ++ " for multi " ++ n
@@ -322,7 +324,7 @@ instance Show KException where
   show  DivideByZero            = "divide by zero"
   show (InvalidRx msg)          = "invalid regex: " ++ msg
   show (Fail msg)               = msg
-  show (NotImplementedError s)  = "not implemented: " ++ s
+  show (NotImplemented s)       = "not implemented: " ++ s
 
 instance Show EExpected where
   show (StackExpected t)    = "expected " ++ t ++ " on stack"
@@ -691,7 +693,7 @@ forkScope l c Block{..} = do
     fv = freeVars blkCode; p k _ = S.member k fv
 
 -- TODO: error if already exists (or prim, etc.)
--- throws ModuleNotFound
+-- throws ModuleNameError
 defineIn :: Context -> Identifier -> KValue -> IO ()
 defineIn c k v = do curMod <- scopeModule c; HT.insert curMod k v
 
@@ -702,17 +704,17 @@ importIn c k  = HT.mutate (imports c) (modName $ ctxScope c)
     insert x xs = if x `elem` xs then xs else x:xs            --  TODO
 
 -- TODO: error if already defined?!
--- throws ModuleNotFound or LookupFailed
+-- throws ModuleNameError or NameError
 importFromIn :: Context -> Identifier -> [Identifier] -> IO ()
 importFromIn c m
   = traverse_ $ \k -> defineIn c k =<< lookupModule' c k m
 
--- throws ModuleNotFound
+-- throws ModuleNameError
 scopeModule :: Context -> IO Module
 scopeModule c = getModule c $ modName $ ctxScope c
 
 -- Prim -> Scope* -> Module -> Import* -> Prld -> Bltn
--- throws ModuleNotFound
+-- throws ModuleNameError
 lookup :: Context -> Identifier -> IO (Maybe KValue)
 lookup c k = do
     imp <- maybe [] id <$> HT.lookup (imports c) m
@@ -727,25 +729,25 @@ lookup c k = do
     look        = lookupModule c k
     lookupImp   = M.firstJust . map look
 
--- throws ModuleNotFound
+-- throws ModuleNameError
 lookupModule :: Context -> Identifier -> Identifier -> IO (Maybe KValue)
 lookupModule c k m = getModule c m >>= flip HT.lookup k
 
--- throws ModuleNotFound or LookupFailed
+-- throws ModuleNameError or NameError
 lookupModule' :: Context -> Identifier -> Identifier -> IO KValue
 lookupModule' c k m = maybe err return =<< lookupModule c k m
   where
-    err = throwIO $ LookupFailed $ T.unpack k
+    err = throwIO $ NameError $ T.unpack k
 
--- throws ModuleNotFound
+-- throws ModuleNameError
 moduleKeys :: Context -> Identifier -> IO [Identifier]
 moduleKeys c m = getModule c m >>= (map fst <$>) <$> HT.toList
 
--- throws ModuleNotFound
+-- throws ModuleNameError
 getModule :: Context -> Identifier -> IO Module
 getModule c m = HT.lookup (modules c) m >>= maybe err return
   where
-    err = throwIO $ ModuleNotFound $ T.unpack m
+    err = throwIO $ ModuleNameError $ T.unpack m
 
 moduleNames :: Context -> IO [Identifier]
 moduleNames = fmap (map fst) . HT.toList . modules

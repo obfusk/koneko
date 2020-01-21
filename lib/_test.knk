@@ -1,0 +1,2 @@
+"loading module _test..." say!
+:_test [ :x 1 def, :y 2 def ] defmodule

@@ -144,6 +144,8 @@ prelude are `__prim__`, `__bltn__`, and `__prld__` respectively.
 
 ```
 >>> , :foo require                ; loads foo.knk if necessary
+>>> , :foo use                    ; require + import
+>>> , ( :x :y ) :foo use-from     ; require + import-from
 ```
 
 NB: `:foo require` will find & load `foo.knk` if the module `foo` is
