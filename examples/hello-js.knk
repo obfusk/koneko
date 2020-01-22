@@ -1,3 +1,0 @@
-#!/usr/bin/env -S node js/koneko
-; ^ TODO
-"Hello, World!" say!

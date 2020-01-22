@@ -2,7 +2,7 @@
 --
 --  File        : Koneko/Prim.hs
 --  Maintainer  : Felix C. Stegerman <flx@obfusk.net>
---  Date        : 2020-01-20
+--  Date        : 2020-01-21
 --
 --  Copyright   : Copyright (C) 2020  Felix C. Stegerman
 --  Version     : v0.0.1
@@ -39,7 +39,7 @@ import qualified Text.Regex.PCRE as RE
 import qualified Text.Regex.PCRE.ByteString.Lazy as RE
 
 import Koneko.Data
-import Koneko.Misc (prompt')
+import Koneko.Misc (prompt)
 import Paths_koneko (getDataFileName)
 
 -- TODO
@@ -134,7 +134,7 @@ say = mkPrim "say!" $ \_ s -> do (x, s') <- pop' s; s' <$ T.putStrLn x
 
 -- NB: uses stdio
 ask = mkPrim "ask!" $ \_ s -> do
-  (x, s') <- pop' s; prompt' x >>= rpush1 s'
+  (x, s') <- pop' s; prompt x >>= rpush1 s'
 
 type_     = mkPrim "type"       $ pop1push1 $ typeToKwd . typeOf
 callable  = mkPrim "callable?"  $ pop1push1 isCallable

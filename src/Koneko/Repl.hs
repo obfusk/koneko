@@ -2,7 +2,7 @@
 --
 --  File        : Koneko/Repl.hs
 --  Maintainer  : Felix C. Stegerman <flx@obfusk.net>
---  Date        : 2020-01-03
+--  Date        : 2020-01-21
 --
 --  Copyright   : Copyright (C) 2020  Felix C. Stegerman
 --  Version     : v0.0.1
@@ -24,7 +24,7 @@ import qualified Data.Text.Lazy.IO as T
 
 import Koneko.Data (Context, Stack)
 import Koneko.Eval (evalText, tryK)
-import Koneko.Misc (prompt')
+import Koneko.Misc (prompt)
 import Koneko.Prim (replDef)
 
 -- TODO: readline? or just rlwrap?
@@ -41,7 +41,7 @@ repl' :: Bool -> Text -> Context -> Stack -> IO Stack
 repl' breakOnError pr ctx st = replDef ctx >> loop ctx st
   where
     loop :: Context -> Stack -> IO Stack
-    loop c s = prompt' pr >>= maybe (s <$ T.putStrLn "") (f . sgr)
+    loop c s = prompt (Just pr) >>= maybe (s <$ T.putStrLn "") (f . sgr)
       where
         f line = if T.null line then loop c s else do
           r <- tryK $ evalText "(repl)" line c s

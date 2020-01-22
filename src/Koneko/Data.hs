@@ -2,7 +2,7 @@
 --
 --  File        : Koneko/Data.hs
 --  Maintainer  : Felix C. Stegerman <flx@obfusk.net>
---  Date        : 2019-12-20
+--  Date        : 2019-12-21
 --
 --  Copyright   : Copyright (C) 2019  Felix C. Stegerman
 --  Version     : v0.0.1
@@ -551,6 +551,10 @@ instance FromVal RecordT where
 
 instance FromVal KValue where
   fromVal x                   = Right x
+
+instance FromVal a => FromVal (Maybe a) where
+  fromVal (KPrim KNil)        = Right Nothing
+  fromVal x                   = Just <$> fromVal x
 
 -- NB: no FromVal for
 -- * ident, quot (both Ident)

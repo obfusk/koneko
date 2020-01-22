@@ -2,9 +2,9 @@
 --
 --  File        : Koneko/Misc.hs
 --  Maintainer  : Felix C. Stegerman <flx@obfusk.net>
---  Date        : 2019-12-11
+--  Date        : 2020-01-21
 --
---  Copyright   : Copyright (C) 2019  Felix C. Stegerman
+--  Copyright   : Copyright (C) 2020  Felix C. Stegerman
 --  Version     : v0.0.1
 --  License     : GPLv3+
 --
@@ -14,8 +14,8 @@
 
 module Koneko.Misc (
   Parser, isIdent, pIdent, pIdent_, pInt, pFloat, isSpaceOrComma,
-  lexeme, symbol, speof, sp, sp1, spaceOrComment, prompt', prompt,
-  firstJust, parseMaybe
+  lexeme, symbol, speof, sp, sp1, spaceOrComment, prompt, firstJust,
+  parseMaybe
 ) where
 
 import Data.Char (isSpace)
@@ -144,12 +144,12 @@ space1 = void $ takeWhile1P (Just "white space") isSpaceOrComma
 
 -- utilities --
 
-prompt' :: Text -> IO (Maybe Text)
-prompt' x = (Just <$> prompt x) `catchIOError` \e ->
-            if isEOFError e then return Nothing else ioError e
-
-prompt :: Text -> IO Text
-prompt x = do T.putStr x; hFlush stdout; T.getLine
+prompt :: Maybe Text -> IO (Maybe Text)
+prompt x = (Just <$> f) `catchIOError` g
+  where
+    f   = maybe (return ()) h x >> T.getLine
+    g e = if isEOFError e then return Nothing else ioError e
+    h s = do T.putStr s; hFlush stdout
 
 -- miscellaneous --
 

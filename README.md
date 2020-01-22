@@ -2,7 +2,7 @@
 
     File        : README.md
     Maintainer  : Felix C. Stegerman <flx@obfusk.net>
-    Date        : 2020-01-10
+    Date        : 2020-01-21
 
     Copyright   : Copyright (C) 2020  Felix C. Stegerman
     Version     : v0.0.1
@@ -358,9 +358,9 @@ fizzbuzz
 
 ```bash
 $ make cabal_build                            # Haskell Build
-$ rlwrap cabal v2-run koneko --               # Haskell REPL
+$ ./scripts/repl_hs                           # Haskell REPL
 
-$ node js/koneko                              # Node.js REPL
+$ ./scripts/repl_js                           # Node.js REPL
 $ make repl_browser                           # Browser REPL
 ```
 

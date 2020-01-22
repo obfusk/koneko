@@ -2,7 +2,7 @@
 //
 //  File        : koneko.js
 //  Maintainer  : Felix C. Stegerman <flx@obfusk.net>
-//  Date        : 2020-01-20
+//  Date        : 2020-01-21
 //
 //  Copyright   : Copyright (C) 2020  Felix C. Stegerman
 //  Version     : v0.0.1
@@ -82,6 +82,10 @@ for (const k in E) {
 }
 
 const expect = (x, t, msg = `${t} on stack`) => {
+  if (t[0] == '?') {
+    t = t.slice(1)
+    if (x.type == "nil") { return x }
+  }
   if (x.type != t) { throw new KE(...E.Expected(msg)) }
   return x
 }
@@ -95,7 +99,8 @@ const applyMissing = (x, op) =>
   `block to have parameter named ${x} for ${op}`
 
 const nilToDef  = (x, d, t) => x.type == "nil" ? d : expect(x, t).value
-const maybe     = (f, x, d = nil) => x == null ? d : f(x)
+const maybeJ    = (f, x, d = nil) => x == null ? d : f(x)
+const maybeK    = (f, x, d = null) => x.type == "nil" ? d : f(x)
 
 // TODO: inefficient implementation
 const stack = {                                               //  {{{1
@@ -1077,8 +1082,9 @@ modules.set("__prim__", new Map([                             //  {{{1
   mkPrimPP("__show__", x => [str(show(x))], "_"),
   mkPrimPP("__say!__", x => { say(strVal(x)); return [] }, "str"),
   mkPrim("__ask!__", (c, s0) => {
-    const [[x], s1] = stack.pop(s0, "str")
-    return ask(strVal(x)).then(r => stack.push(s1, maybe(str, r)))
+    const [[x], s1] = stack.pop(s0, "?str")
+    const p = maybeK(strVal, x)
+    return ask(p).then(r => stack.push(s1, maybeJ(str, r)))
   }),
   mkPrimPP("__type__", x => [kwd(x.type, "_")], "_"),
   mkPrimPP("__callable?__",
@@ -1216,8 +1222,8 @@ const callableTypes =
   ["str", "pair", "list", "dict", "record", "thunk"].concat(functionTypes)
 
 modules.set("__bltn__", new Map([
-  mkPrimPP("str->int"  , x => [maybe(int  , pInt  (strVal(x)))], "str"),
-  mkPrimPP("str->float", x => [maybe(float, pFloat(strVal(x)))], "str"),
+  mkPrimPP("str->int"  , x => [maybeJ(int  , pInt  (strVal(x)))], "str"),
+  mkPrimPP("str->float", x => [maybeJ(float, pFloat(strVal(x)))], "str"),
   ...types.map(t => mkPrimPP(t+"?", x => [bool(x.type == t)], "_"))
 ]))
 
@@ -1290,6 +1296,36 @@ const loadPrelude = () => {
 const putOut = (s = "", end = "\n") => process.stdout.write(s + end)
 const putErr = (s = "", end = "\n") => process.stderr.write(s + end)
 
+/* === input === */
+
+// NB: node.js only
+const _readline = _req ? _req("readline") : null
+const _rl_buf   = []                                          //  TODO
+
+// NB: node.js only; Promise
+const read_line = (prompt = null) =>                          //  {{{1
+  new Promise((resolve, reject) => {
+    const p = prompt || "", i = process.stdin, o = process.stdout
+    if (_rl_buf.length) {
+      if (p) { o.write(p) }                                   //  TODO
+      resolve(_rl_buf.shift())
+      return
+    }
+    const rl = _readline.createInterface({
+      input: i, output: o, prompt: p, terminal: false
+    })
+    let done = false
+    const f = (g, h = null) => {
+      if (!done) { done = true; rl.close(); g() }
+      else if (h) { h() }
+    }
+    rl.on("line"  , line => f(() => resolve(line),
+                              () => _rl_buf.push(line)))
+    rl.on("close" , ()   => f(() => resolve(null)))
+    rl.on("error" , e    => f(() => reject(e)))               //  TODO
+    rl.prompt()
+  })                                                          //  }}}1
+
 /* === repl === */
 
 // NB: node.js only
@@ -1324,23 +1360,17 @@ const repl_process_line =                                     //  {{{1
   }                                                           //  }}}1
 
 // NB: Promise
-const repl = (verbose = false) => {                           //  {{{1
-  if (!process.stdin.isTTY) {
-    return evalFile("/dev/stdin")                             //  TODO
-  }
+const repl = async (verbose = false) => {                     //  {{{1
+  if (!process.stdin.isTTY) { return evalFile("/dev/stdin") } //  TODO
   const c = scope.new(); let s = stack.empty(); repl_init(c)
   if (verbose) { scope.define(c, "__debug__", T) }
-  const rl = _req("readline").createInterface({
-    input: process.stdin, output: process.stdout, prompt: ">>> "
-  })
-  return new Promise((resolve, _) => {
-    rl.on("line", line => {
-      repl_process_line(line, c, s, process.stdout, process.stderr).then(
-        s_ => { s = s_; rl.prompt() }
-      )
-    }).on("close", () => { putOut(); resolve() })
-    rl.prompt()
-  })
+  const f = async () => {
+    const line = await read_line(">>> ")
+    if (line == null) { putOut(); return }
+    s = await repl_process_line(line, c, s, process.stdout, process.stderr)
+    await f()
+  }
+  await f()
 }                                                             //  }}}1
 
 /* === doctest === */
@@ -1522,25 +1552,25 @@ const printFail = (ex, out, err) => {                         //  {{{1
 const main = () =>
   main_().catch(e => { console.error(e); process.exit(1) })
 
-// TODO: use args; --eval, --interactive, ...
+// TODO: fix args; --eval, --interactive, ...
 // NB: Promise
 const main_ = async () => {                                   //  {{{1
   await loadPrelude()
   const argv    = process.argv.slice(2)
-  const opts    = argv.filter(a =>  a.startsWith("-"))
+  const opts    = argv.filter(a =>  a.startsWith("-"))        //  TODO
   const args    = argv.filter(a => !a.startsWith("-"))
   const verbose = opts.includes("-v")
   if (opts.includes("--version")) {
     const version = _req(baseDir + "package.json").version
     putOut(`koneko 「子猫」 ${version}`)
   } else if (opts.includes("--doctest")) {
-    return await doctest_(args, verbose)
+    await doctest_(args, verbose)
   } else if (args.length) {
     const c = scope.new()
-    // scope.define(c, "__args__", list(args.slice(1).map(str)))
-    return await evalFile(args[0], c)
+    scope.define(c, "__args__", list(args.slice(1).map(str)))
+    await evalFile(args[0], c)
   } else {
-    return await repl(verbose)
+    await repl(verbose)
   }
 }                                                             //  }}}1
 
@@ -1548,15 +1578,8 @@ const main_ = async () => {                                   //  {{{1
 
 const say = s => (overrides.say || (_req ? putOut : console.log))(s)
 
-// TODO
 // NB: Promise
-const ask = async s => {
-  if (overrides.ask) {
-    return await overrides.ask(s)
-  } else {
-    throw new KE(...E.NotImplemented("__ask!__"))
-  }
-}
+const ask = async s => await (overrides.ask || read_line)(s)
 
 // NB: Promise
 const nya = async () => {

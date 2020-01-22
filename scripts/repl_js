@@ -1,2 +1,2 @@
 #!/bin/bash
-exec node js/koneko "$@"
+exec rlwrap -C koneko node js/koneko "$@"

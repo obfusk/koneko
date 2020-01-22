@@ -4,7 +4,7 @@
 
     File        : index.html
     Maintainer  : Felix C. Stegerman <flx@obfusk.net>
-    Date        : 2020-01-03
+    Date        : 2020-01-21
 
     Copyright   : Copyright (C) 2020  Felix C. Stegerman
     Version     : v0.0.1
@@ -60,7 +60,7 @@
           cons.scrollTop = cons.scrollHeight
         }
         koneko.overrides.say = print
-        koneko.overrides.ask = s => window.prompt(s)
+        koneko.overrides.ask = s => window.prompt(s || "")
         koneko.overrides.nya = () => { window.open("nya/tabby.png") }
         const c = koneko.initContext(); let s = koneko.emptyStack()
         await koneko.evalText(":clear-stack '__clear-stack__ def", c, s)
@@ -193,7 +193,7 @@
                src="https://travis-ci.org/obfusk/m.svg?branch=master"/>
         </a>
       </div>
-      <span class="small">© 2019 Felix C. Stegerman</span>
+      <span class="small">© 2020 Felix C. Stegerman</span>
     </footer>
   </body>
 </html>
