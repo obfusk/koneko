@@ -41,7 +41,8 @@ class KonekoLexer(RegexLexer):
       def call apply apply-dict if defmulti defrecord => dict show
       say! ask!  type callable? function? defmodule import import-from
       = not= < <= > >= <=> int->float record->dict record-type
-      record-values record-type-name record-type-fields fail
+      record-values record-type-name record-type-fields fail rx-match
+      rx-sub
     """.split(), suffix=par_+sep)
 
     tokens = {

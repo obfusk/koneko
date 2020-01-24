@@ -2,7 +2,7 @@
 --
 --  File        : Koneko/Data.hs
 --  Maintainer  : Felix C. Stegerman <flx@obfusk.net>
---  Date        : 2019-12-21
+--  Date        : 2019-12-24
 --
 --  Copyright   : Copyright (C) 2019  Felix C. Stegerman
 --  Version     : v0.0.1
@@ -62,14 +62,14 @@ module Koneko.Data (
   thunk, Scope, modName, Context, ctxScope, KPrim(..), KValue(..),
   KType(..), Stack, freeVars, escapeFrom, escapeTo, ToVal, toVal,
   FromVal, fromVal, toVals, fromVals, maybeToVal, eitherToVal,
-  emptyStack, push', push, rpush, rpush1, pop, pop2, pop3, pop',
-  pop2', pop3', popN', pop1push, pop2push, pop1push1, pop2push1,
-  primModule, bltnModule, prldModule, mainModule, initMainContext,
-  initModule, forkContext, forkScope, defineIn, importIn,
-  importFromIn, lookup, lookupModule', moduleKeys, moduleNames,
-  typeNames, typeOf, typeToKwd, typeToStr, isNil, isBool, isInt,
-  isFloat, isStr, isKwd, isPair, isList, isDict, isIdent, isQuot,
-  isBlock, isBuiltin, isMulti, isRecordT, isRecord, isThunk,
+  emptyStack, push', push, rpush, rpush1, pop, pop2, pop3, pop4, pop',
+  pop2', pop3', pop4', popN', pop1push, pop2push, pop1push1,
+  pop2push1, primModule, bltnModule, prldModule, mainModule,
+  initMainContext, initModule, forkContext, forkScope, defineIn,
+  importIn, importFromIn, lookup, lookupModule', moduleKeys,
+  moduleNames, typeNames, typeOf, typeToKwd, typeToStr, isNil, isBool,
+  isInt, isFloat, isStr, isKwd, isPair, isList, isDict, isIdent,
+  isQuot, isBlock, isBuiltin, isMulti, isRecordT, isRecord, isThunk,
   isCallable, isFunction, nil, false, true, bool, int, float, str,
   kwd, pair, list, dict, block, dictLookup, mkPrim, mkBltn, defPrim,
   defMulti, truthy, retOrThrow, recordTypeSig, underscored,
@@ -556,6 +556,17 @@ instance FromVal a => FromVal (Maybe a) where
   fromVal (KPrim KNil)        = Right Nothing
   fromVal x                   = Just <$> fromVal x
 
+instance (FromVal a, FromVal b) => FromVal (Either a b) where
+  fromVal x = case fromVal x of
+      Right y   -> Right (Left y)
+      Left e1   -> case fromVal x of
+        Right y -> Right (Right y)
+        Left e2 -> Left $ stackExpected $ f e1 e2
+    where
+      f (Expected (StackExpected s1))
+        (Expected (StackExpected s2)) = s1 ++ " or " ++ s2
+      f _ _ = error "WTF"
+
 -- NB: no FromVal for
 -- * ident, quot (both Ident)
 -- * builtin, multi, record-type (no need?)
@@ -626,6 +637,15 @@ pop3 s0 = do
   (x, s3) <- pop s2
   return ((x, y, z), s3)
 
+pop4 :: (FromVal a, FromVal b, FromVal c, FromVal d)
+     => Stack -> Either KException ((a, b, c, d), Stack)
+pop4 s0 = do
+  (z, s1) <- pop s0
+  (y, s2) <- pop s1
+  (x, s3) <- pop s2
+  (w, s4) <- pop s3
+  return ((w, x, y, z), s4)
+
 pop' :: FromVal a => Stack -> IO (a, Stack)
 pop' = retOrThrow . pop
 
@@ -635,6 +655,10 @@ pop2' = retOrThrow . pop2
 pop3' :: (FromVal a, FromVal b, FromVal c)
       => Stack -> IO ((a, b, c), Stack)
 pop3' = retOrThrow . pop3
+
+pop4' :: (FromVal a, FromVal b, FromVal c, FromVal d)
+      => Stack -> IO ((a, b, c, d), Stack)
+pop4' = retOrThrow . pop4
 
 popN' :: (FromVal a) => Int -> Stack -> IO ([a], Stack)
 popN' n s0 = if n < 0 then return ([], s0) else f [] n s0

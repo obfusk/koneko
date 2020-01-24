@@ -67,6 +67,7 @@
 :fail               '__fail__                 def
 
 :rx-match           '__rx-match__             def
+:rx-sub             '__rx-sub__               def
 
                                                                 ; }}}1
 
@@ -632,9 +633,13 @@
 ; "foobar"
 ; >>> ( "Hello" "World" ) ", " join-with
 ; "Hello, World"
+;
+; >>> "foo" "bar" " & " ++sep++
+; "foo & bar"
 
 :join       [ "" join-with ] def                                ; TODO
-:join-with  [ d . [ "" ] [ swap [ 'd swap ++ ++ ] foldl ] ^seq ] def
+:join-with  [ s . [ "" ] [ swap [ 's ++sep++ ] foldl ] ^seq ] def
+:++sep++    [ swap ++ ++ ] def
 
 ; case conversion
 ;
@@ -1369,17 +1374,12 @@
 
 ; match
 ;
+; NB: see also rx-match
+;
 ; >>> "foo" "^f" =~                                   ; boolean
 ; #t
 ; >>> "bar" "^f" =~
 ; #f
-;
-; >>> "foo" "^f" rx-match                             ; matched part
-; ( "f" )
-; >>> "foo" "^f(o+)" rx-match                         ; and groups
-; ( "foo" "oo" )
-; >>> "bar" "^f" rx-match                             ; or nil
-; nil
 
 :=~ ( :str :str ) [ rx-match bool ] defmulti                    ; TODO
 
@@ -1480,6 +1480,8 @@
 :display! [ ->str say! ] def
 
 ; read lines from stdin
+;
+; NB: read-line! (like ask!) returns nil at EOF.
 
 :read-line! [ nil ask! ] def                                    ; TODO
 :lines!     [ read-line! [ 'lines! lseq1 ] ~> ] def

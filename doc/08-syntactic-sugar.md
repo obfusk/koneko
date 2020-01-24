@@ -2,7 +2,7 @@
 
     File        : doc/08-syntactic-sugar.md
     Maintainer  : Felix C. Stegerman <flx@obfusk.net>
-    Date        : 2020-01-03
+    Date        : 2020-01-24
 
     Copyright   : Copyright (C) 2020  Felix C. Stegerman
     Version     : v0.0.1
@@ -60,9 +60,7 @@ Point{ :x 1 =>, :y 2 => }
 >>> , Point( 1 2 ) Point( 3 4 )
 >>> '.x bi$ +                               ; useful for combinators
 4
-```
 
-```koneko
 >>> '[ 2 * '1 div ]                         ; "curried" block w/ "holes"
 [ __1__ . [ 2 * '__1__ div ] ]
 >>> 3 swap call                             ; "fill" the hole from the stack
@@ -88,18 +86,17 @@ Point{ :x 1 =>, :y 2 => }
 ( 1 3 4 )
 >>> ( 1 2 3 ) [ 3 * 2 div ] map ->list      ; equivalent
 ( 1 3 4 )
-```
 
-```koneko
 >>> '__prld__.say!                          ; module access
 #<primitive:__say!__>
 >>> :say! :__prld__ __module-get__          ; desugared
 #<primitive:__say!__>
 >>> , "hi!" __prld__.say!                   ; unquoted -> call
 hi!
-```
 
-```koneko
+>>> , :foo defmodule[ :x 1 def ]            ; block "constructor"
+>>> , :foo [ :x 1 def ] defmodule           ; desugared
+
 >>> ...                                     ; sugar for __ellipsis__
 *** ERROR: name __ellipsis__ is not defined
 ```

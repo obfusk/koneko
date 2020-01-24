@@ -2,7 +2,7 @@
 --
 --  File        : Koneko/Prim.hs
 --  Maintainer  : Felix C. Stegerman <flx@obfusk.net>
---  Date        : 2020-01-21
+--  Date        : 2020-01-24
 --
 --  Copyright   : Copyright (C) 2020  Felix C. Stegerman
 --  Version     : v0.0.1
@@ -16,14 +16,16 @@
 
 module Koneko.Prim (initCtx, replDef) where
 
+import Control.Arrow ((***))
 import Control.DeepSeq (force, NFData)
 import Control.Exception (catch, evaluate, throwIO)
 import Control.Monad (unless)
 import Data.Bits ((.|.))
-import Data.Char (chr)
+import Data.Char (chr, isDigit)
 import Data.Foldable (traverse_)
 import Data.List (isSuffixOf, sort)
 import Data.Monoid ((<>))
+import Data.Text.Lazy (Text)
 import Prelude hiding (lookup)
 import System.Directory (listDirectory)
 import System.FilePath ((</>))
@@ -66,7 +68,7 @@ initCtx ctxMain load call apply apply_dict callBlock = do
       recordTypeName, recordTypeFields,
       mkThunk callBlock, fail_,
       mkIdent, mkQuot, mkBlock, blockParams, blockCode,
-      rxMatch,
+      rxMatch, rxSub callBlock,
       showStack, clearStack, nya
     ]
 
@@ -278,25 +280,82 @@ _mkId k = maybe err return $ ident k
 -- TODO
 rxMatch :: Builtin
 rxMatch = mkPrim "rx-match" $ \_ s -> do
-  ((x, r), s') <- pop2' s
-  rpush1 s' =<< (_rxGetMatches . _rxMatch x) <$> _rxCompile r
+    ((x, r), s') <- pop2' s
+    rpush1 s' =<< (f . _rxGetMatches . _rxMatch x) <$> _rxCompile r
+  where
+    f = fmap $ \(_, m, _) -> list m
 
-_rxCompile :: T.Text -> IO RE.Regex
+-- TODO
+rxSub :: (Block -> Evaluator) -> Builtin
+rxSub callBlock = mkPrim "rx-sub" $ \c s -> do
+  ((x, s_b, r, glob), s') <- pop4' s; rx <-_rxCompile r
+  let strsub t m = return $ _dollar t m
+      blksub b m = do
+        l <- callBlock b c $ reverse $ map str m
+        unless (length l == 1) $ throwIO $
+          expected "rx-sub block to produce exactly 1 value"
+        fst <$> pop' l
+      sub = either strsub blksub s_b
+      sub1 (bf,m,af) = do t <- sub m; return $ bf <> t <> af
+  rpush1 s' =<< if glob
+    then maybe x id <$> _rxReplaceAll (LE.encodeUtf8 x) (_rxMatchAll x rx) sub
+    else maybe (return x) sub1 (_rxGetMatches $ _rxMatch x rx)
+
+-- TODO
+_dollar :: Text -> [Text] -> Text
+_dollar _ []  = error "WTF"
+_dollar t m   = T.pack $ f $ T.unpack t
+  where
+    -- NB: read & !! are safe!
+    f ('$':'$':t_)                              = '$'   : f t_
+    f ('$':'&':t_)                              = g 0  ++ f t_
+    f ('$':i:j:t_) | otn i && isDigit j && ok n = g n  ++ f t_
+      where n = read [i,j]
+    f ('$':i:  t_) | otn i &&              ok n = g n  ++ f t_
+      where n = read [i]
+    f (c:t_)                                    = c     : f t_
+    f []                                        =         []
+    otn i = isDigit i && i /= '0'
+    ok n  = 0 < n && n < l
+    g n   = T.unpack $ m !! n
+    l     = length m
+
+_rxCompile :: Text -> IO RE.Regex
 _rxCompile x = f x >>= either (throwIO . InvalidRx . show) return
   where
     f = RE.compile c RE.execBlank . LE.encodeUtf8
     c = RE.compBlank .|. RE.compUTF8 .|. RE.compDollarEndOnly
 
 _rxMatch
-  :: T.Text -> RE.Regex
+  :: Text -> RE.Regex
   -> Maybe (BL.ByteString, RE.MatchText BL.ByteString, BL.ByteString)
 _rxMatch s r = RE.matchOnceText r $ LE.encodeUtf8 s
 
+_rxMatchAll :: Text -> RE.Regex -> [RE.MatchText BL.ByteString]
+_rxMatchAll s r = RE.matchAllText r $ LE.encodeUtf8 s
+
 _rxGetMatches
   :: Maybe (BL.ByteString, RE.MatchText BL.ByteString, BL.ByteString)
-  -> Maybe KValue
+  -> Maybe (Text, [Text], Text)
 _rxGetMatches
-  = fmap $ \(_, m, _) -> list $ map (LE.decodeUtf8 . fst) $ A.elems m
+  = fmap $ \(b,m,a) -> (LE.decodeUtf8 b, _rxMatches m, LE.decodeUtf8 a)
+
+_rxReplaceAll
+  :: BL.ByteString -> [RE.MatchText BL.ByteString]
+  -> ([Text] -> IO Text) -> IO (Maybe Text)
+_rxReplaceAll _   [] _    = return Nothing
+_rxReplaceAll src ms sub  = (Just . T.concat . concat) <$> f 0 src ms
+  where
+    f _ s    []   = return [[LE.decodeUtf8 s]]
+    f i s (m:mt)  = do
+        t <- sub $ _rxMatches m
+        ([LE.decodeUtf8 s1, t]:) <$> f (off + len) (BL.drop len s2) mt
+      where
+        (s1, s2)    = BL.splitAt (off - i) s
+        (off, len)  = (toEnum *** toEnum) $ snd (m A.! 0)     -- safe!
+
+_rxMatches :: RE.MatchText BL.ByteString -> [Text]
+_rxMatches = map (LE.decodeUtf8 . fst) . A.elems
 
 -- repl --
 

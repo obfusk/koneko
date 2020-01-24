@@ -2,7 +2,7 @@
 
     File        : doc/09-primitives-builtins-and-prelude.md
     Maintainer  : Felix C. Stegerman <flx@obfusk.net>
-    Date        : 2020-01-04
+    Date        : 2020-01-24
 
     Copyright   : Copyright (C) 2020  Felix C. Stegerman
     Version     : v0.0.1
@@ -30,59 +30,70 @@ be used directly); unlike the primitives themselves, these aliases
 (e.g. `call`) can be shadowed by named parameters and module
 definitions.
 
+<!--
+
+def call apply apply-dict if defmulti defrecord => dict show say! ask!
+type callable? function? defmodule import import-from = not= < <= > >=
+<=> int->float record->dict record-type record-values record-type-name
+record-type-fields fail rx-match rx-sub
+
+-->
+
+#### Calling, Branching & Comparing
+
 ```koneko
->>> 41 [ 1 + ]
+>>> 41 [ 1 + ]                  ; (put a block on the stack)
 [ 1 + ]
->>> call                        ; call the block at the top of the stack
+>>> call                        ; call the callable on top of the stack
 42
 
->>> 1 2 <                       ; comparison: = not= < <= > >=
-#t
->>> [ :less ] [ :not-less ] if  ; conditional
-:less
+>>> , :T [ :truthy ] def, :F [ :falsy ] def
+>>> #t  [ T ] [ F ] if          ; conditional/branch
+:truthy
+>>> #f  [ T ] [ F ] if          ; false is falsy
+:falsy
+>>> nil [ T ] [ F ] if          ; so is nil
+:falsy
+>>> 42  [ T ] [ F ] if          ; everything else is truthy
+:truthy
+>>> 0 'T 'F if                  ; "branches" need not be blocks
+:truthy
 
+>>> 1 2 <                       ; compare: = not= < <= > >=
+#t
+>>> 1 2 <=>                     ; compare: -1 if <, 0 if =, 1 if >
+-1
+```
+
+#### Conversion, Type Information & I/O
+
+```koneko
 >>> ( 42 ) show                 ; convert to readable str
 "( 42 )"
 >>> "foo" show
 "\"foo\""
 
->>> , "Hello!" say!             ; print line
-Hello!
+>>> 1 int->float
+1.0
 
 >>> () type                     ; get type as keyword
 :list
 >>> 1 type
 :int
+>>> type
+:kwd
 
 >>> 1 callable?
 #f
->>> 'swap callable?
+>>> 'if callable?
 #t
 >>> () callable?
 #t
 >>> () function?
 #f
 
->>> , :answer 42 def
->>> __name__
-:__main__
->>> __module-defs__
-( :answer :clear-stack :show-stack )
->>> :answer :__main__ __module-get__
-42
->>> __modules__
-( :__bltn__ :__main__ :__prim__ :__prld__ )
-
->>> 1 int->float
-1.0
-
->>> clear-stack                 ; only available in the repl
->>> ,show-stack
->>> , 1 2 show-stack
-2
-1
->>> "oops!" fail
-*** ERROR: oops!
+>>> , "Hello!" say!             ; print line
+Hello!
 ```
 
 ```
@@ -90,6 +101,60 @@ Hello!
 What's your name? Foo
 "Foo"
 ```
+
+#### Module Information
+
+```koneko
+>>> , :answer 42 def
+>>> __name__
+:__main__
+>>> __module-defs__
+( :answer :clear-stack :show-stack )
+>>> :answer :__main__ __module-get__
+42
+>>> __modules__ [ show ":__" starts-with? ] filter ->list
+( :__bltn__ :__main__ :__prim__ :__prld__ )
+```
+
+#### REPL: Clear & Show Stack
+
+```koneko
+>>> clear-stack                 ; only available in the repl
+>>> ,show-stack
+>>> , 1 2 show-stack
+2
+1
+```
+
+#### Exceptions
+
+```koneko
+>>> "oops!" fail                ; raise exception
+*** ERROR: oops!
+```
+
+#### Regexes
+
+```koneko
+>>> "foo" "^f" rx-match         ; matched part
+( "f" )
+>>> "foo" "^f(o+)" rx-match     ; and groups
+( "foo" "oo" )
+>>> "bar" "^f" rx-match         ; or nil
+nil
+
+>>> "foo bar" "$2 $1" "(\w+) (\w+)" #f rx-sub       ; str or block
+"bar foo"
+>>> "1 2 3 4" [ swap " " ++sep++ nip ] "(\w+) (\w+)" #t rx-sub
+"2 1 4 3"
+
+>>> "foo 子猫 bar" [ reverse ] "\p{L}+" #t rx-sub   ; replace all
+"oof 猫子 rab"
+>>> "foo 子猫 bar" [ reverse ] "\p{L}+" #f rx-sub   ; replace first
+"oof 子猫 bar"
+```
+
+#### Miscellaneous
 
 Of course `def` and `=>` are also primitives.
 
@@ -146,6 +211,10 @@ with definitions and examples:
 <br/>
 → [Syntax Highlighted Source](https://koneko.dev/lib-doc/prelude.knk.html),
 → [Function Index](https://koneko.dev/lib-doc/prelude.knk.index.html)
+
+NB: the following is just an overview (and neither complete nor
+completely up-to-date); see the links above for all current prelude
+functions.
 
 #### Stack Shuffling
 

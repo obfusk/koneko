@@ -15,6 +15,10 @@
 // * fix memory leak in tailrec
 // * find efficient persistent data structures to use
 //
+// -- NOTES --
+//
+// * https://mathiasbynens.be/notes/javascript-unicode :(
+//
 // --
 
 "use strict";
@@ -82,12 +86,10 @@ for (const k in E) {
 }
 
 const expect = (x, t, msg = `${t} on stack`) => {
-  if (t[0] == '?') {
-    t = t.slice(1)
-    if (x.type == "nil") { return x }
+  for (const t_ of t.split(" or ")) {
+    if (x.type == t_) { return x }
   }
-  if (x.type != t) { throw new KE(...E.Expected(msg)) }
-  return x
+  throw new KE(...E.Expected(msg))
 }
 
 const chkIdent = i => {
@@ -104,7 +106,7 @@ const maybeK    = (f, x, d = null) => x.type == "nil" ? d : f(x)
 
 // TODO: inefficient implementation
 const stack = {                                               //  {{{1
-  empty: () => [],
+  new: (...args) => args,
   null: s => !s.length,
   top: s => s.slice(-1)[0],
   push: (s, ...args) => s.concat(args),
@@ -696,7 +698,7 @@ const apply = (c0, s0) => {                                   //  {{{1
       const as = new Map(zip(nparms, l1).concat(sparms_.map(p => [p, nil]))
                                         .concat([["&", list(l2)]]))
       const c1 = scope.fork(x, as)
-      return evaluate(x.code)(c1, stack.empty()).then(
+      return evaluate(x.code)(c1, stack.new()).then(
         s3 => stack.push(s2, ...s3)
       )
     }
@@ -728,7 +730,7 @@ const apply_dict = (c0, s0) => {                              //  {{{1
       const as = new Map(zip(nparms, vs).concat(sparms_.map(p => [p, nil]))
                                         .concat([["&&", d_]]))
       const c1 = scope.fork(x, as)
-      return evaluate(x.code)(c1, stack.empty()).then(
+      return evaluate(x.code)(c1, stack.new()).then(
         s3 => stack.push(s2, ...s3)
       )
     }
@@ -752,7 +754,7 @@ const apply_dict = (c0, s0) => {                              //  {{{1
 
 // NB: Promise
 const evaluate = code0 =>                                     //  {{{1
-  async (c = scope.new(), s = stack.empty()) => {
+  async (c = scope.new(), s = stack.new()) => {
     let code = code0
     for (let i = 0; i < code.length; ++i) {
       const x = code[i]
@@ -1086,7 +1088,7 @@ modules.set("__prim__", new Map([                             //  {{{1
   mkPrimPP("__show__", x => [str(show(x))], "_"),
   mkPrimPP("__say!__", x => { say(strVal(x)); return [] }, "str"),
   mkPrim("__ask!__", (c, s0) => {
-    const [[x], s1] = stack.pop(s0, "?str")
+    const [[x], s1] = stack.pop(s0, "str or nil")
     const p = maybeK(strVal, x)
     return ask(p).then(r => stack.push(s1, maybeJ(str, r)))
   }),
@@ -1166,7 +1168,7 @@ modules.set("__prim__", new Map([                             //  {{{1
   ),
   mkPrim("__thunk__", (c, s0) => {
     const [[b], s1] = stack.pop(s0, "block")
-    const f = () => call(c, stack.push(stack.empty(), b))
+    const f = () => call(c, stack.new(b))
     return stack.push(s1, thunk(f))
   }),
   mkPrim("__fail__", (c, s0) => {
@@ -1183,24 +1185,39 @@ modules.set("__prim__", new Map([                             //  {{{1
   mkPrimPP("__block-params__", x => [list(x.params.map(kwd))], "block"),
   mkPrimPP("__block-code__"  , x => [list(x.code)]           , "block"),
   mkPrimPP("__rx-match__", (s, r) => {
-    let rx
-    try {
-      rx = Rx(strVal(r), "u")
-    } catch(e) {
-      if (e instanceof SyntaxError) {
-        throw new KE(...E.InvalidRx(e.message))
-      } else {
-        throw e
-      }
-    }
-    const m = rx.exec(strVal(s))
+    const m = mkRx(strVal(r)).exec(strVal(s))
     return [m ? list(m.map(str)) : nil]
   }, "str", "str"),
+  mkPrim("__rx-sub__", async (c, s0) => {
+    let t
+    const [[s, s_b, r, g], s1] =
+      stack.pop(s0, "str", "str or block", "str", "bool")
+    const r_ = mkRx(strVal(r), g.value ? "g" : ""), s_ = strVal(s)
+    if (s_b.type == "str") {
+      t = str(s_.replace(r_, strVal(s_b)))
+    } else {
+      let m, i = 0, ts = []
+      while (m = r_.exec(s_)) {
+        const vs = await call(c, stack.new(...m.map(str), s_b))
+        if (vs.length != 1) {
+          throw new KE(...E.Expected(
+            "rx-sub block to produce exactly 1 value"
+          ))
+        }
+        expect(vs[0], "str")
+        ts.push(s_.slice(i, m.index), strVal(vs[0]))
+        i = m.index + m[0].length
+        if (!g.value) { break }
+      }
+      t = ts.length ? str(ts.join("") + s_.slice(i)) : s
+    }
+    return stack.push(s1, t)
+  }),
   mkPrim("__show-stack__", (c, s) => {
     for (const x of stack.toArray(s)) { say(show(x)) }
     return s
   }),
-  mkPrim("__clear-stack__", (c, s) => stack.empty()),
+  mkPrim("__clear-stack__", (c, s) => stack.new()),
   mkPrim("__nya!__", (c, s) => nya().then(() => s)),
 ]))                                                           //  }}}1
 
@@ -1229,12 +1246,26 @@ modules.set("__bltn__", new Map([
   mkPrimPP("str->int"  , x => [maybeJ(int  , pInt  (strVal(x)))], "str"),
   mkPrimPP("str->float", x => [maybeJ(float, pFloat(strVal(x)))], "str"),
   ...types.map(t => mkPrimPP(t+"?", x => [bool(x.type == t)], "_"))
-]))
+].map(([k,v]) => { v.prim = false; return [k,v] })))
 
 /* === miscellaneous === */
 
 // TODO
 const zip = (xs, ys) => xs.map((x, i) => [x, ys[i]])
+
+const mkRx = (s, flags = "") => {                             //  {{{1
+  let rx
+  try {
+    rx = Rx(s, "u" + flags)
+  } catch(e) {
+    if (e instanceof SyntaxError) {
+      throw new KE(...E.InvalidRx(e.message))
+    } else {
+      throw e
+    }
+  }
+  return rx
+}                                                             //  }}}1
 
 /* === files === */
 
@@ -1366,7 +1397,7 @@ const repl_process_line =                                     //  {{{1
 // NB: Promise
 const repl = async (verbose = false) => {                     //  {{{1
   if (!process.stdin.isTTY) { return evalFile("/dev/stdin") } //  TODO
-  const c = scope.new(); let s = stack.empty(); repl_init(c)
+  const c = scope.new(); let s = stack.new(); repl_init(c)
   if (verbose) { scope.define(c, "__debug__", T) }
   const f = async () => {
     const line = await read_line(">>> ")
@@ -1487,7 +1518,7 @@ const testExamples = async (es, verbose = false) => {         //  {{{1
 const testExampleGroup = async (g, verbose = false) => {      //  {{{1
   const wr = l => ({ write: s => l.push(s.slice(0, -1)) })
   modules.set("__main__", new Map())                          //  TODO
-  const c = scope.new(); let s = stack.empty(); repl_init(c)
+  const c = scope.new(); let s = stack.new(); repl_init(c)
   let ok = 0, fail = 0
   for (const e of g) {
     const out = [], err = []
@@ -1603,7 +1634,7 @@ const overrides = {}
 _mod[_exp] = {
   KonekoError, read, evaluate, evalText, show, toJS, fromJS,
   loadPrelude, overrides, repl_sugar,
-  initContext: scope.new, emptyStack: stack.empty,
+  initContext: scope.new, emptyStack: stack.new,
   ...(_req ? { repl, doctest, doctest_, main } : {})
 }
 
