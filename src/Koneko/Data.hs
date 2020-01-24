@@ -81,7 +81,7 @@ import Control.Exception (Exception, throw, throwIO)
 import Control.Monad (liftM, when)
 import Data.Char (intToDigit, isPrint, ord)
 import Data.Foldable (traverse_)
-import Data.List (intercalate, maximum)
+import Data.List (intercalate, maximum, sort)
 import Data.Maybe (catMaybes, isNothing)
 import Data.Monoid ((<>))
 import Data.String (IsString)
@@ -350,9 +350,10 @@ instance Show List where
 instance Show Dict where
   show (Dict d)
       | H.null d  = "{ }"
-      | otherwise = "{ " ++ intercalate ", " (map f $ H.toList d) ++ " }"
+      | otherwise = "{ " ++ intercalate ", " kv ++ " }"
     where
-      f (k, v) = show $ Pair (Kwd k) v
+      kv        = map f $ sort $ H.toList d
+      f (k, v)  = show $ Pair (Kwd k) v
 
 -- TODO
 instance Show Block where

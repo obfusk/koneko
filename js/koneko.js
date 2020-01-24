@@ -822,8 +822,8 @@ const show = x => {                                           //  {{{1
         "( " + x.value.map(show).join(" ") + " )" : "()"
     case "dict": {
       const f = ([k, v]) => show(kwd(k)) + " " + show(v) + " =>"
-      return x.value.size ?
-        "{ " + Array.from(x.value.entries(), f).join(", ") + " }" : "{ }"
+      const kv = Array.from(x.value.entries(), f).sort().join(", ")
+      return x.value.size ? "{ " + kv + " }" : "{ }"
     }
     case "ident":
       return x.value
