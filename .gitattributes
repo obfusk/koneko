@@ -1,2 +1,2 @@
-*.knk linguist-language=Koneko
+*.knk linguist-language=Koneko linguist-detectable
 js/xregexp-all.js linguist-vendored
