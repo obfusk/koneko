@@ -700,6 +700,17 @@
 :~>     [ [ nil ] swap ~nil ] def
 :~~>    [ [] [ .[ .1 '2 ~~> ] ~> ] ^seq ] def
 
+; "convert" to nil: turn "empty"/"zero" values into (falsy) nil
+;
+; >>> ( "foo" "" 42 0 ( 1 2 3 ) () ) '->nil map ->list
+; ( "foo" nil 42 nil ( 1 2 3 ) nil )
+
+:->nil  ( :nil  )   [ ] defmulti
+:->nil  ( :bool )   [ #t nil ? ] defmulti
+
+:->nil  ( :int  )   [ [ drop nil ] [] ~zero  ] defmulti
+:->nil  ( :_    )   [ [      nil ] [] ~seq   ] defmulti
+
 ; is int or float?
 ;
 ; >>> 1 num?
@@ -843,13 +854,14 @@
 ; ( 1 2 3 )
 
 :seq    ( :nil    ) [ ] defmulti
-:seq    ( :str    ) [ '->list _~seq->nil ] defmulti             ; TODO
-:seq    ( :list   ) [ []      _~seq->nil ] defmulti
-:seq    ( :dict   ) [ '.pairs _~seq->nil ] defmulti             ; TODO
-:seq    ( :Range  ) [ []      _~seq->nil ] defmulti
-:seq    ( :LSeq   ) [ dup .chunk empty? [ !thunk seq ] when ] defmulti
 
-:_~seq->nil [ [ nil ] swap ~seq ] def
+:seq    ( :str    ) [ ->nil '->list ~> ] defmulti               ; TODO
+:seq    ( :dict   ) [ ->nil '.pairs ~> ] defmulti               ; TODO
+
+:seq    ( :list   ) [ ->nil ] defmulti
+:seq    ( :Range  ) [ ->nil ] defmulti
+
+:seq    ( :LSeq   ) [ dup .chunk empty? [ !thunk seq ] when ] defmulti
 
 ; generic "uncons"
 ;
@@ -1177,8 +1189,8 @@
 :head^    '.head^ def
 :tail^    '.tail^ def
 
-:head     [ 'head^ _~seq->nil ] def
-:tail     [ 'tail^ _~seq->nil ] def
+:head     [ ->nil 'head^ ~> ] def
+:tail     [ ->nil 'tail^ ~> ] def
 
 :uncons^  '.uncons^ def
 :cons     '!cons    def
@@ -1383,6 +1395,13 @@
 
 :=~ ( :str :str ) [ rx-match bool ] defmulti                    ; TODO
 
+; filter using =~
+;
+; >>> ( "one" "two" "three" ) "^o|ee" grep ->list
+; ( "one" "three" )
+
+:grep   [ '=~ $ filter ] def
+
 ; substitute/replace
 ;
 ; NB: see also rx-sub.
@@ -1403,12 +1422,15 @@
 :s///       'rx-sub1      def
 :s///g      'rx-suball    def
 
-; filter using =~
+; string formatting (WIP)
 ;
-; >>> ( "one" "two" "three" ) "^o|ee" grep ->list
-; ( "one" "three" )
+; >>> ( :x 42 "foo"  ) "${2} ${1} ${0}" fmt
+; "foo 42 :x"
 
-:grep   [ '=~ $ filter ] def
+:fmt    [ swap .[ '1 swap str->int get ->str nip ]
+          "\$\{(\d+)\}" s///g ] def                             ; TODO
+
+; TODO: width, zero-fill, justify, dict key, ...
 
 ; character classification
 ;
