@@ -463,7 +463,7 @@
 ;
 ; >>> , :temp [
 ; ...     [ show " is " ++ ]
-; ...     [ ( [ 15 < ] "cold!" [ 25 > ] "warm!" :else "ok!" ) cond ]
+; ...     [ ( [ 15 < ] "cold!" [ 25 > ] "warm!" :else "ok!" ) cond1 ]
 ; ...     bi ++ say!
 ; ...   ] def
 ; >>> 10 temp
@@ -473,11 +473,29 @@
 ; >>> 30 temp
 ; 30 is warm!
 
-  :cond [ _cond dup block? 'call when ] def                     ; TODO
- :_cond [ cons '_&cond apply ] def
-:_&cond [ x p? f & .
-          'x 'p? 'call 'nip 'function? ~? [ 'f ] [ 'x '& _cond ] if
-        ] def
+  :cond1  [ _cond1 dup block? 'call when ] def                  ; TODO
+ :_cond1  [ cons '_&cond1 apply ] def
+:_&cond1  [ x p? f & .
+            'x 'p? 'call 'nip 'function? ~? [ 'f ] [ 'x '& _cond1 ] if
+          ] def
+
+; combined "branch"
+;
+; >>> -1 [ :pos ] [ :neg ] [ :zero ] ( '~pos '~neg ) ~>> nip
+; :neg
+;
+; >>> , :~type [ .[ type '1 = ] ~? ] def
+; >>> , :~strint [ ( [ :str ~type ] [ :int ~type ] ) ~>> ] def
+; >>> , :f [ [ "bar" ++ ] [ 5 + ] [ drop :oops ] ~strint ] def
+; >>> "foo" f
+; "foobar"
+; >>> 37 f
+; 42
+; >>> nil f
+; :oops
+
+:~>>    [ reverse _~>> ] def
+:_~>>   [ 'call [ f ft . .[ '1 '2 f ] 'ft _~>> ] ^seq ] def
 
                                                                 ; }}}1
 
