@@ -1599,15 +1599,17 @@
 ;
 ; >>> , :_test use
 ; loading module _test...
-; >>> '_test.x
+; >>> 'x
 ; 1
 ;
 ; >>> , ( :x :y ) :_test use-from
 ; >>> 'y
 ; 2
 
-:use      [ 'require 'import      bi ] def
-:use-from [ 'require 'import-from bi ] def
+:use      [ __caller-module__ . 'require
+            [ '__caller-module__ defmodule[ import      ] ] bi ] def
+:use-from [ __caller-module__ . 'require
+            [ '__caller-module__ defmodule[ import-from ] ] bi ] def
 
                                                                 ; }}}1
 

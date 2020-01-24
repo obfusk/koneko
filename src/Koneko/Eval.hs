@@ -303,11 +303,15 @@ apply_dict c s = do
 -- TODO
 callBlock :: Block -> Evaluator
 callBlock b@Block{..} c s0 = do
-    (s1, args) <- popArgs [] s0 $ reverse nparms
-    sc <- forkScope (args ++ map (,nil) sparms) c b
+    (s1, args) <- popArgs [] s0 $ reverse nparms'
+    sc <- forkScope (args ++ map (,nil) sparms ++ cma) c b
     evl blkCode sc s1
   where
-    (sparms, nparms) = partitionSpecial $ map unIdent blkParams
+    (sparms, nparms)  = partitionSpecial $ map unIdent blkParams
+    nparms'           = delete cm nparms
+    cm                = "__caller-module__"
+    cma               = if cm `elem` nparms then
+                        [(cm, kwd $ modName $ ctxScope c)] else []
 
 -- TODO
 applyBlock :: Block -> Evaluator

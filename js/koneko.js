@@ -141,12 +141,11 @@ const scope = {                                               //  {{{1
   },
   define: (c, k, v) => modules.get(c.module).set(k, v),
   lookup: (c, k, d = undefined) => {
-    if (modules.get("__prim__").has(k)) {
-      return modules.get("__prim__").get(k)
+    for (const x of [modules.get("__prim__"), c.table]) {
+      if (x.has(k)) { return x.get(k) }
     }
-    if (c.table.has(k)) { return c.table.get(k) }
     const imps = imports.get(c.module) || []
-    for (const m of [c.module, ...imps, "__prld__", "__bltn__"]) {
+    for (const m of [c.module, ...imps, "__bltn__", "__prld__"]) {
       const mod = modules.get(m)
       if (mod && mod.has(k)) { return mod.get(k) }
     }
@@ -639,8 +638,11 @@ const call = (c0, s0, tailPos = false) => {                   //  {{{1
     }
     case "block": {
       const [sparms, nparms] = partitionSpecial(x.params)
-      const [ps, s2] = popArgs(s1, nparms)
-      const as = new Map(ps.concat(sparms.map(p => [p, nil])))
+      const cm = "__caller-module__"
+      const nparms_ = nparms.filter(x => x != cm)
+      const cma = nparms.includes(cm) ? [[cm, kwd(c0.module)]] : []
+      const [ps, s2] = popArgs(s1, nparms_)
+      const as = new Map(ps.concat(sparms.map(p => [p, nil])).concat(cma))
       const c1 = scope.fork(x, as)
       return tailPos ? new Eval(x.code, c1, s2)
                      : evaluate(x.code)(c1, s2)
@@ -1042,7 +1044,7 @@ modules.set("__prim__", new Map([                             //  {{{1
       k =>  k.value == "_" || types.includes(k.value) ? k.value :
               show(expect(scope.lookup(c, k.value), "record-type"))
     )
-    let m = scope.lookup(c, k.value, null)
+    let m = modules.get(c.module).get(k.value)        // module scope!
     if (m) {
       expect(m, "multi", `${k.value} to be a multi`)
       if (m.arity != sig_.length) {
@@ -1247,6 +1249,8 @@ modules.set("__bltn__", new Map([
   mkPrimPP("str->float", x => [maybeJ(float, pFloat(strVal(x)))], "str"),
   ...types.map(t => mkPrimPP(t+"?", x => [bool(x.type == t)], "_"))
 ].map(([k,v]) => { v.prim = false; return [k,v] })))
+
+modules.get("__main__").set("__args__", list([]))           // default
 
 /* === miscellaneous === */
 

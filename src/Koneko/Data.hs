@@ -742,13 +742,13 @@ importFromIn c m
 scopeModule :: Context -> IO Module
 scopeModule c = getModule c $ modName $ ctxScope c
 
--- Prim -> Scope* -> Module -> Import* -> Prld -> Bltn
+-- Prim -> Scope* -> Module -> Import* -> Bltn -> Prld
 -- throws ModuleNameError
 lookup :: Context -> Identifier -> IO (Maybe KValue)
 lookup c k = do
     imp <- maybe [] id <$> HT.lookup (imports c) m
     M.firstJust [lookupPrim, lookupScope s, lookupImp imp,
-                 lookupPrld, lookupBltn]
+                 lookupBltn, lookupPrld]
   where
     s = ctxScope c; m = modName s
     lookupScope = maybe (look m) (return . Just) . H.lookup k . table

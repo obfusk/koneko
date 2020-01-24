@@ -2,7 +2,7 @@
 
     File        : doc/02-identifiers-and-quoting.md
     Maintainer  : Felix C. Stegerman <flx@obfusk.net>
-    Date        : 2020-01-20
+    Date        : 2020-01-24
 
     Copyright   : Copyright (C) 2020  Felix C. Stegerman
     Version     : v0.0.1
@@ -107,8 +107,8 @@ order:
 * the current scope and any parent scope(s);
 * the module the current scope belongs to;
 * any modules imported by the scope's module;
-* the prelude;
-* builtins.
+* builtins;
+* the prelude.
 
 NB: `def` is the module definition primitive; it takes a
 [keyword](03-primitive-data-types.md) representing the name of the
