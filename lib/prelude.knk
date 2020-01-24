@@ -698,7 +698,7 @@
 
 :~nil   [ [ 'drop % ] dip 'nil? ~? ] def
 :~>     [ [ nil ] swap ~nil ] def
-:~~>    [ [] [ .[ .1 '2 ~~> ] ~> ] ^seq ] def
+:~~>    [ [ .[ .1 '2 ~~> ] ~> ] ^seq' ] def
 
 ; "convert" to nil: turn "empty"/"zero" values into (falsy) nil
 ;
@@ -1010,6 +1010,8 @@
 :^seq   [ 'seq 2dip 'unseq % ~nil ] def
 :~seq   [ [ 'drop % ] dip 'empty? ~? ] def
 
+:^seq'  [ [] swap ^seq ] def
+
 ; sequence conditional & "pattern match"
 ;
 ; NB: the difference between when-seq and with-seq is that the latter
@@ -1068,9 +1070,9 @@
 ; >>> ( 2 3 4 ) () [ [ 1 + ] dip call cons ] foldr' ; "lazy"
 ; ( 3 4 5 )
 
-:foldl  [ f . swap [] [ rot> f 'f foldl      ] ^seq ] def
-:foldr  [ f . swap [] [ <rot 'f foldr f      ] ^seq ] def
-:foldr' [ f . swap [] [ <rot 'f 'foldr' 3$ f ] ^seq ] def
+:foldl  [ f . swap [ rot> f 'f foldl      ] ^seq' ] def
+:foldr  [ f . swap [ <rot 'f foldr f      ] ^seq' ] def
+:foldr' [ f . swap [ <rot 'f 'foldr' 3$ f ] ^seq' ] def
 
 ; TODO: scanl, scanr
 ; TODO: any, all
@@ -1114,7 +1116,7 @@
 ; >>> ( ( 1 2 ) 'dup each )
 ; ( 1 1 2 2 )
 
-:each   [ f . [] [ 'f dip 'f each ] ^seq ] def
+:each   [ f . [ 'f dip 'f each ] ^seq' ] def
 
 ; generating (infinite) sequences & taking subsequences
 ;
@@ -1342,10 +1344,12 @@
 :has?'  ( :_ ) [ !has?  ] defmulti
 :elem?' ( :_ ) [ !elem? ] defmulti
 
-:get^'  ( :Range )  [ [ '+ [ [ + dup ] dip <= swap nil ? ] ~nil ]
+:has?'  ( :nil    ) [ 2drop #f ] defmulti               ; for assoc-in
+
+:get^'  ( :Range  ) [ [ '+ [ [ + dup ] dip <= swap nil ? ] ~nil ]
                       ^Range ] defmulti
-:has?'  ( :Range )  [ get^' nil? not ] defmulti
-:elem?' ( :Range )  [ [ '>= [ 'over dip '>= '<= 2bi~ and ] ~nil ]
+:has?'  ( :Range  ) [ get^' nil? not ] defmulti
+:elem?' ( :Range  ) [ [ '>= [ 'over dip '>= '<= 2bi~ and ] ~nil ]
                       ^Range ] defmulti                         ; TODO
 
 ; first & second element
@@ -1379,6 +1383,37 @@
 ; ( ( 0 "f" ) ( 1 "o" ) ( 2 "o" ) )
 
 :indexed  [ [0-) swap '2list zip ] def
+
+; get value in nested associative structure
+;
+; >>> , ( { x: 42 } { y: ( 37 ) } )
+; >>> dup ( 0 :x ) get-in
+; 42
+; >>> drop ( 1 :y 0 ) get-in
+; 37
+
+:get-in [ [ 'get $ ] map ~~> ] def
+
+; associate value in (nested) associative structure
+;
+; >>> { x: 1, y: 2 } 3 :z assoc
+; { :x 1 =>, :y 2 =>, :z 3 => }
+;
+; >>> , ( { x: 42 } { y: ( 37 ) } )
+; >>> #t ( 1 :z ) assoc-in
+; ( { :x 42 => } { :y ( 37 ) =>, :z #t => } )
+; >>> nil "magic" ( :x :y :z ) assoc-in
+; { :x { :y { :z "magic" => } => } => }
+
+:assoc    [ <rot assoc' ] def
+:assoc-in [ [ [] [ v k kt . dup 'k get 'v 'kt assoc-in 'k ] ~seq
+              assoc ] ^seq' ] def
+
+:assoc' ( :nil  ) [ v k _ . { 'k 'v => } ] defmulti
+:assoc' ( :list ) [ v k l . 'l 'k [-j) ( 'v ) 'l 'k inc [i-) ++ ++ ] defmulti
+:assoc' ( :dict ) [ v k d . 'd { 'k 'v => } !merge ] defmulti
+
+; TODO: update/-in
 
                                                                 ; }}}1
 
