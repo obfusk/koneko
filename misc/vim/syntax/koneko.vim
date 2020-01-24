@@ -16,7 +16,7 @@ syn match   knkKwd        ':[^, \t]\+'
 syn match   knkKey        '[^, \t]\+:\([, \t]\|$\)\@='
 syn match   knkStr        '"\(\\.\|[^\\"]\)*"\([, \t]\|$\)\@='
 
-syn match   knkPrim       '\(call\|apply\(-dict\)\?\|if\|def\|def\(multi\|record\)\|=>\|dict\|show\|say!\|ask!\|type\|callable?\|function?\|defmodule\|import\(-from\)\?\|=\|not=\|[<>]=\?\|int->float\|record->dict\|record-\(type\(-\(name\|fields\)\)\?\|values\)\|fail\|__[^, \t]\+__\)\([, \t]\|$\)\@='
+syn match   knkPrim       '\(call\|apply\(-dict\)\?\|if\|def\|def\(multi\|record\)\|=>\|dict\|show\|say!\|ask!\|type\|callable?\|function?\|defmodule\|import\(-from\)\?\|=\|not=\|[<>]=\?\|int->float\|record->dict\|record-\(type\(-\(name\|fields\)\)\?\|values\)\|fail\|__[^, \t]\+__\)\(\[\?\([, \t]\|$\)\)\@='
 
 syn match   knkParen      '[(){}\[\]]\([, \t]\|$\)\@='
 syn match   knkSpecial    '[\'.!,]'

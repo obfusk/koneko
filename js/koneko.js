@@ -2,7 +2,7 @@
 //
 //  File        : koneko.js
 //  Maintainer  : Felix C. Stegerman <flx@obfusk.net>
-//  Date        : 2020-01-21
+//  Date        : 2020-01-24
 //
 //  Copyright   : Copyright (C) 2020  Felix C. Stegerman
 //  Version     : v0.0.1
@@ -372,6 +372,10 @@ const parseOne = (s, p0 = 0, end = null) => {                 //  {{{1
     } else {
       return [p2, l, q, ident("__apply__")]
     }
+  } else if (t("(" + _naiveId + ")\\[") && isIdent(m[2])) {
+    const i = ident(m[2])
+    const [p2, b] = parseBlock(_naiveId)
+    return [p2, b, i]
   }
   // end of nested
   else if (t("[)}\\]]") && end == m[1]) {

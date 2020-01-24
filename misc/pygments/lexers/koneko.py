@@ -5,7 +5,7 @@
 
     Lexers for the koneko language.
 
-    :copyright: Copyright 2019 by Felix C. Stegerman.
+    :copyright: Copyright 2020 by Felix C. Stegerman.
     :license: BSD, see LICENSE for details.
 """
 
@@ -34,13 +34,15 @@ class KonekoLexer(RegexLexer):
 
     space, nonsp = r'[, \t]', r'[^, \t\n]'
     sep = r'('+space+r'+|$)'
+    par = r'([(){}\[\]])'
+    par_ = par[:-1] + '?)'
 
     builtin_prims = words("""
       def call apply apply-dict if defmulti defrecord => dict show
       say! ask!  type callable? function? defmodule import import-from
       = not= < <= > >= <=> int->float record->dict record-type
       record-values record-type-name record-type-fields fail
-    """.split(), suffix=sep)
+    """.split(), suffix=par_+sep)
 
     tokens = {
         'root': [
@@ -85,7 +87,7 @@ class KonekoLexer(RegexLexer):
              bygroups(String, Text)),
 
             # parens
-            (r'([(){}\[\]])'+sep,
+            (par+sep,
              bygroups(Punctuation, Text)),
 
             # special (& .1)
@@ -94,13 +96,14 @@ class KonekoLexer(RegexLexer):
             (r"[.!,]", Punctuation),
 
             # primitives
-            (builtin_prims, Keyword),
-            (r'(__'+nonsp+r'+__)'+sep,
-             bygroups(Keyword, Text)),
+            (builtin_prims,
+             bygroups(Keyword, Punctuation, Text)),
+            (r'(__'+nonsp+r'+__)'+par_+sep,
+             bygroups(Keyword, Punctuation, Text)),
 
             # ident
-            (r"([^':.!, \t]"+nonsp+r'*)'+sep,
-             bygroups(Name.Function, Text)),
+            (r"([^':.!, \t]"+nonsp+r'*?)'+par_+sep,
+             bygroups(Name.Function, Punctuation, Text)),
 
             # quot (& '[)
             (r"(')(\[)"+sep,

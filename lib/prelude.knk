@@ -2,7 +2,7 @@
 ;
 ; File        : prelude.knk
 ; Maintainer  : Felix C. Stegerman <flx@obfusk.net>
-; Date        : 2020-01-21
+; Date        : 2020-01-24
 ;
 ; Copyright   : Copyright (C) 2020  Felix C. Stegerman
 ; Version     : v0.0.1
@@ -10,7 +10,7 @@
 ;
 ; --                                                            ; }}}1
 
-:__prld__ [
+:__prld__ __defmodule__[
 
 ; -- TODO --
 ;
@@ -1420,6 +1420,8 @@
 ;
 ; >>> { x: 1, y: 2 } [ 'y 'x + ] let
 ; 3
+; >>> { x: 1, y: 2 } let[ 'y 'x + ]
+; 3
 
 :let    [ [ '.values '.keys bi ] dip '__block-code__ keep __block__
           apply ] def                                           ; TODO
@@ -1520,6 +1522,6 @@
 
 ; -- END --
 
-] __defmodule__
+]
 
 ; vim: set tw=70 sw=2 sts=2 et fdm=marker :

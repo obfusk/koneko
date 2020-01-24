@@ -2,9 +2,9 @@
 --
 --  File        : Koneko/Read.hs
 --  Maintainer  : Felix C. Stegerman <flx@obfusk.net>
---  Date        : 2019-12-12
+--  Date        : 2020-01-24
 --
---  Copyright   : Copyright (C) 2019  Felix C. Stegerman
+--  Copyright   : Copyright (C) 2020  Felix C. Stegerman
 --  Version     : v0.0.1
 --  License     : GPLv3+
 --
@@ -124,7 +124,7 @@ block_ = try $ do
 -- parser: sugar --
 
 ellipsis, modid, qmodid, qhole, dhole, qdig, ddig, qdot, qbang, dot,
-  bang, dict, key, apply, applyDict :: Parser [KValue]
+  bang, dict, key, apply, applyDict, idblk :: Parser [KValue]
 
 ellipsis = [_IDENT "ellipsis"] <$ symbol "..."
 
@@ -162,6 +162,8 @@ applyDict = try $ do
   (q, l) <- _ap '{' "}"
   return [l, _IDENT "dict", q, _IDENT "apply-dict"]
 
+idblk = try $ do i <- identNL; b <- block_; return [KBlock b, KIdent i]
+
 _wrap :: Block -> [KValue]
 _wrap b = [D.block (D.digitParams b) [KBlock b] Nothing]
 
@@ -186,7 +188,7 @@ _ap op cl = do
 sugar :: Parser [KValue]
 sugar = choice [
     ellipsis, modid, qmodid, qhole, dhole, qdig, ddig, qdot, qbang,
-    dot, bang, dict, key, apply, applyDict
+    dot, bang, dict, key, apply, applyDict, idblk
   ]
 
 -- parser: multiple values & program --
