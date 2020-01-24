@@ -1407,13 +1407,32 @@
 
 :assoc    [ <rot assoc' ] def
 :assoc-in [ [ [] [ v k kt . dup 'k get 'v 'kt assoc-in 'k ] ~seq
-              assoc ] ^seq' ] def
+              assoc ] ^seq' ] def                               ; TODO
 
 :assoc' ( :nil  ) [ v k _ . { 'k 'v => } ] defmulti
 :assoc' ( :list ) [ v k l . 'l 'k [-j) ( 'v ) 'l 'k inc [i-) ++ ++ ] defmulti
 :assoc' ( :dict ) [ v k d . 'd { 'k 'v => } !merge ] defmulti
 
-; TODO: update/-in
+; "update" value in (nested) associative structure
+;
+; >>> { x: 1, y: 2 } 'inc :x modify
+; { :x 2 =>, :y 2 => }
+;
+; >>> { x: { y: 1 } } 'inc ( :x :y ) modify-in
+; { :x { :y 2 => } => }
+; >>> { x: { y: 1 } } [ [ 42 ] 'inc ~nil ] ( :x :z ) modify-in
+; { :x { :y 1 =>, :z 42 => } => }
+;
+; >>> { x: 1, y: 2 } :x 'dec modify'
+; { :x 0 =>, :y 2 => }
+; >>> { x: { y: 1 } } ( :x :y ) 'dec modify-in'
+; { :x { :y 0 => } => }
+
+:modify     [ f k  . dup 'k  get    f 'k  assoc    ] def
+:modify-in  [ f ks . dup 'ks get-in f 'ks assoc-in ] def        ; TODO
+
+:modify'    [ swap modify     ] def
+:modify-in' [ swap modify-in  ] def
 
                                                                 ; }}}1
 
