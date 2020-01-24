@@ -1,2 +1,3 @@
-*.knk linguist-language=Koneko linguist-detectable
+# TODO: s/Scheme/Koneko/
+*.knk linguist-language=Scheme
 js/xregexp-all.js linguist-vendored
