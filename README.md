@@ -39,11 +39,11 @@
 
 **NB: work in progress.**
 
-Koneko (子猫 -- "kitten" in Japanese) is a simple concatenative
-stack-based programming language with lisp influences.  It is intended
-to combine the elegance of the (point-free) "concatenation is
-composition" model with the elegance of Lisp-like languages (and a bit
-of Haskell).
+Koneko (子猫 -- "kitten" in Japanese) is a simple functional
+concatenative stack-based programming language with Lisp (& Haskell)
+influences.  It is intended to combine the elegance of the
+(point-free) "concatenation is composition" model with the elegance of
+Lisp-like languages.
 
 **→ Try koneko in your browser with the JavaScript
 [REPL](https://koneko.dev).**
@@ -57,7 +57,7 @@ of Haskell).
   - postfix (reverse polish) notation
   - functions consume arguments from the stack
   - functions produce return values on the stack
-* lisp-like
+* Lisp-like
   - homoiconic
   - blocks (anonymous functions, similar to lambdas)
   - named parameters/points (lexically scoped)
