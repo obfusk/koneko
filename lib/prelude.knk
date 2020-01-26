@@ -2,7 +2,7 @@
 ;
 ; File        : prelude.knk
 ; Maintainer  : Felix C. Stegerman <flx@obfusk.net>
-; Date        : 2020-01-24
+; Date        : 2020-01-25
 ;
 ; Copyright   : Copyright (C) 2020  Felix C. Stegerman
 ; Version     : v0.0.1
@@ -183,13 +183,26 @@
 ; 9
 ; >>> [ 2 * ] [ 1 + ] % call                          ; % ⇔ swap @
 ; 20
+;
+; >>> , 2 '-
+; >>> , 1 $$                                          ; ⇔ [ f . 1 f ]
+; >>> call
+; 1
+; >>> 2 [ + * ], 3 4 2$$, call
+; 14
+; >>> 1 [ + + + ], 2 3 4 3$$, call
+; 10
 
-:$      '[ '1 .2       ] def                                    ; TODO
+ :$     '[ '1 .2       ] def                                    ; TODO
 :2$     '[ '1 '2 .3    ] def
 :3$     '[ '1 '2 '3 .4 ] def
 
 :@      '[ .1 .2 ] def
 :%      '[ .2 .1 ] def
+
+ :$$    '[ f . '1 f       ] def
+:2$$    '[ f . '1 '2 f    ] def
+:3$$    '[ f . '1 '2 '3 f ] def
 
 ; remove top value(s), call function, restore value(s)
 ;
@@ -237,9 +250,14 @@
 ; -1
 ; 4
 ; 3
+;
+; >>> ( 2 ( [ 1 + ] [ 2 * ] [ 3 - ] ) mlt )
+; ( 3 4 -1 )
 
 :bi     [ x f g   . 'x f 'x g       ] def     ; ⇔ [ 'keep dip call ]
 :tri    [ x f g h . 'x f 'x g 'x h  ] def     ; ⇔ [ 'keep 2dip bi ]
+
+:mlt    [ swap $$ each ] def
 
 ; call one function on each of multiple values
 ;
@@ -250,9 +268,14 @@
 ; 16
 ; 9
 ; 4
+;
+; >>> ( ( 2 3 4 ) [ dup * ] mlt$ )                    ; mlt$ ⇔ each
+; ( 4 9 16 )
 
 :bi$    [ x y f   . 'x f 'y f       ] def     ; ⇔ [ dup bi~ ]
 :tri$   [ x y z f . 'x f 'y f 'z f  ] def     ; ⇔ [ 2dup tri~ ]
+
+:mlt$   [ each ] def
 
 ; call multiple functions on their "paired" value
 ;
@@ -262,9 +285,16 @@
 ; >>> clear-stack
 ; >>> ( 1 2 3 :x :y :z '[ '1 swap => ] tri$ tri~ )
 ; ( :x 1 => :y 2 => :z 3 => )
+;
+; >>> ( ( 1 2 3 ) ( :x :y :z ) '[ '1 swap => ] map mlt~ )
+; ( :x 1 => :y 2 => :z 3 => )
 
 :bi~    [ x y f g     . 'x f 'y g       ] def ; ⇔ [ 'dip dip call ]
 :tri~   [ x y z f g h . 'x f 'y g 'z h  ] def
+
+:mlt~   [ 'call zip [] each ] def
+
+; TODO: mlt*, 2mlt, 2mlt$, 2mlt~, ...
 
 ; call multiple functions on each of multiple values
 ;
@@ -480,6 +510,8 @@
             'x 'p? 'call 'nip 'function? ~? [ 'f ] [ 'x '& _cond1 ] if
           ] def
 
+; TODO: cond=, ...
+
 ; combined "branch"
 ;
 ; >>> -1 [ :pos ] [ :neg ] [ :zero ] ( '~pos '~neg ) ~>> nip
@@ -648,8 +680,8 @@
 ; >>> "BAR" lower-case
 ; "bar"
 
-:lower-case [ .lower ] def
-:upper-case [ .upper ] def
+:lower-case '.lower def
+:upper-case '.upper def
 
 ; trimming whitespace
 ;
@@ -660,9 +692,9 @@
 ; >>> " foo " trimr
 ; " foo"
 
-:trim   [ .trim  ] def
-:triml  [ .triml ] def
-:trimr  [ .trimr ] def
+:trim   '.trim  def
+:triml  '.triml def
+:trimr  '.trimr def
 
 ; prefix & suffix predicates
 ;
@@ -1043,7 +1075,7 @@
 
 ; zip(with)
 ;
-; >>> ( :x :y ) ( 1 2 3 ) '2list zip ->list
+; >>> ( :x :y ) ( 1 2 3 ) zip' ->list
 ; ( ( :x 1 ) ( :y 2 ) )
 ; >>> ( :x :y ) ( 1 2 3 ) [] zip ->list ; multiple return values is OK
 ; ( :x 1 :y 2 )
@@ -1053,6 +1085,7 @@
 :zip    [ f . [ drop nil ] [ y yt . [ x xt .
           ( 'x 'y f ) [ 'xt 'yt 'f zip ] lseq
         ] with-seq ] ^seq ] def
+:zip'   [ '2list zip ] def
 
 ; TODO: unzip
 
@@ -1381,8 +1414,11 @@
 ;
 ; >>> "foo" indexed ->list
 ; ( ( 0 "f" ) ( 1 "o" ) ( 2 "o" ) )
+; >>> "foo" indexed' ->list
+; ( ( "f" 0 ) ( "o" 1 ) ( "o" 2 ) )
 
-:indexed  [ [0-) swap '2list zip ] def
+:indexed  [ [0-) swap zip' ] def
+:indexed' [ [0-)      zip' ] def
 
 ; get value in nested associative structure
 ;
