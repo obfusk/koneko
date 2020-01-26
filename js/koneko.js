@@ -2,7 +2,7 @@
 //
 //  File        : koneko.js
 //  Maintainer  : Felix C. Stegerman <flx@obfusk.net>
-//  Date        : 2020-01-24
+//  Date        : 2020-01-25
 //
 //  Copyright   : Copyright (C) 2020  Felix C. Stegerman
 //  Version     : v0.0.1
@@ -1214,6 +1214,18 @@ modules.set("__prim__", new Map([                             //  {{{1
       t = ts.length ? str(ts.join("") + s_.slice(i)) : s
     }
     return stack.push(s1, t)
+  }),
+  mkPrim("__par__", async (c, s0) => {
+    const [[f, g], s1] = stack.pop(s0, "block", "block")      //  TODO
+    const p = async (h) => await call(c, stack.new(h))
+    const [l1, l2] = await Promise.all([p(f), p(g)])
+    return stack.push(s1, ...l1, ...l2)
+  }),
+  mkPrim("__sleep__", async (c, s0) => {
+    const [[n], s1] = stack.pop(s0, "int or float")
+    const ms = Math.round(1000 * Number(n.value))
+    await new Promise((resolve, _) => setTimeout(resolve, ms))
+    return s1
   }),
   mkPrim("__show-stack__", (c, s) => {
     for (const x of stack.toArray(s)) { say(show(x)) }

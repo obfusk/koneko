@@ -2,7 +2,7 @@
 
     File        : README.md
     Maintainer  : Felix C. Stegerman <flx@obfusk.net>
-    Date        : 2020-01-24
+    Date        : 2020-01-25
 
     Copyright   : Copyright (C) 2020  Felix C. Stegerman
     Version     : v0.0.1
@@ -290,6 +290,8 @@ Details:
 >>> , :fibs ( 0 1 ) [ 'fibs dup rest '+ zip ] lseq def
 >>> 'fibs 10 take-first ->list
 ( 0 1 1 2 3 5 8 13 21 34 )
+>>> 'fibs 10 nth
+55
 ```
 
 ```koneko

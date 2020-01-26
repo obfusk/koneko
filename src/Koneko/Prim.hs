@@ -2,7 +2,7 @@
 --
 --  File        : Koneko/Prim.hs
 --  Maintainer  : Felix C. Stegerman <flx@obfusk.net>
---  Date        : 2020-01-24
+--  Date        : 2020-01-25
 --
 --  Copyright   : Copyright (C) 2020  Felix C. Stegerman
 --  Version     : v0.0.1
@@ -17,6 +17,8 @@
 module Koneko.Prim (initCtx, replDef) where
 
 import Control.Arrow ((***))
+import Control.Concurrent (threadDelay)
+import Control.Concurrent.Async (concurrently)
 import Control.DeepSeq (force, NFData)
 import Control.Exception (catch, evaluate, throwIO)
 import Control.Monad (unless)
@@ -69,6 +71,7 @@ initCtx ctxMain load call apply apply_dict callBlock = do
       mkThunk callBlock, fail_,
       mkIdent, mkQuot, mkBlock, blockParams, blockCode,
       rxMatch, rxSub callBlock,
+      par callBlock, sleep,
       showStack, clearStack, nya
     ]
 
@@ -356,6 +359,22 @@ _rxReplaceAll src ms sub  = (Just . T.concat . concat) <$> f 0 src ms
 
 _rxMatches :: RE.MatchText BL.ByteString -> [Text]
 _rxMatches = map (LE.decodeUtf8 . fst) . A.elems
+
+-- primitives: concurrency --
+
+-- TODO
+par :: (Block -> Evaluator) -> Builtin
+par callBlock = mkPrim "par" $ \c s -> do
+  ((f, g), s') <- pop2' s
+  (l1, l2) <- concurrently  (callBlock f c emptyStack)
+                            (callBlock g c emptyStack)
+  return (l2 ++ l1 ++ s')
+
+sleep :: Builtin
+sleep = mkPrim "sleep" $ \_ s -> do
+  (n, s') <- pop' s
+  let ms = either (1000 *) (round . ((1000 :: Double) *)) n
+  s' <$ threadDelay (fromInteger $ 1000 * ms)
 
 -- repl --
 
