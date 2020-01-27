@@ -2,7 +2,7 @@
 //
 //  File        : koneko.js
 //  Maintainer  : Felix C. Stegerman <flx@obfusk.net>
-//  Date        : 2020-01-25
+//  Date        : 2020-01-26
 //
 //  Copyright   : Copyright (C) 2020  Felix C. Stegerman
 //  Version     : v0.0.1
@@ -65,6 +65,7 @@ const E = {                                                   //  {{{1
   Expected:           (msg, u = "") => [`${u}expected ${msg}`, { msg, un: !!u }],
   MultiMatchFailed:   (name, sig)   => [`no signature ${sig} for multi ${name}`, {name, sig }],
   UncomparableType:   type          => [`type ${type} is not comparable`, { type }],
+  UncomparableTypes:  (t1, t2)      => [`types ${t1} and ${t2} are not comparable`, { type1: t1, type2: t2 }],
   UncallableType:     type          => [`type ${type} is not callable`, { type }],
   UnapplicableType:   (type, op)    => [`type ${type} does not support ${op}`, { type, op }],
   UnknownField:       (field, type) => [`${type} has no field named ${field}`, { field, type }],
@@ -576,6 +577,8 @@ const call = (c0, s0, tailPos = false) => {                   //  {{{1
           return p(y => [list([y].concat(xv))], "_")
         case "sort":
           return r(list(xv.slice().sort(cmp)))
+        case "sort'":
+          return r(list(xv.slice().sort((x, y) => cmp(x, y, false))))
         case "append":
           return p(y => [list(y.value.concat(xv))], "list")
         case "slice":
@@ -925,9 +928,9 @@ const eq = (x, y) => {                                        //  {{{1
     case "nil":
       return true
     case "float":
-      if (a === b) { return a !== 0 || 1 / a === 1 / b }
-      if (a !== a) { return b !== b }
-      return a == b
+      // if (a === b) { return a !== 0 || 1 / a === 1 / b }
+      // if (a !== a) { return b !== b }
+      // return a == b
     case "bool":
     case "int":
     case "kwd":
@@ -959,14 +962,26 @@ const eq = (x, y) => {                                        //  {{{1
   }
 }                                                             //  }}}1
 
-const cmp = (x, y) => {                                       //  {{{1
-  if (x.type != y.type) { return x.type < y.type ? -1 : 1 }
+const cmp = (x, y, total = true) => {                         //  {{{1
+  if (x.type != y.type) {
+    if (total) {
+      return cmpPrim(types.indexOf(x.type), types.indexOf(y.type))
+    }
+    if (x.type == "int" && y.type == "float") {
+      x = float(intToNum(x.value))
+    } else if (x.type == "float" && y.type == "int") {
+      y = float(intToNum(y.value))
+    } else {
+      throw new KE(...E.UncomparableTypes(x.type, y.type))
+    }
+  }
+  const f = (x, y) => cmp(x, y, total)
   const a = x.value, b = y.value
   switch (x.type) {
     case "nil":
       return 0
     case "float":
-      return eq(x, y) ? 0 : a < b ? -1 : b < a ? 1 : null
+      // return eq(x, y) ? 0 : a < b ? -1 : b < a ? 1 : null
     case "bool":
     case "int":
     case "kwd":
@@ -976,17 +991,17 @@ const cmp = (x, y) => {                                       //  {{{1
     case "str":
       return cmpArray(x.list, y.list, cmpPrim)
     case "pair":
-      return cmpArray([x.key, a], [y.key, b], cmp)
+      return cmpArray([x.key, a], [y.key, b], f)
     case "list":
-      return cmpArray(a, b, cmp)
+      return cmpArray(a, b, f)
     case "dict":
-      return cmp(dictToList(x), dictToList(y))
+      return f(dictToList(x), dictToList(y))
     case "record-type":
       return cmpArray([x.name].concat(x.fields),
                       [y.name].concat(y.fields), cmpPrim)
     case "record": {
-      const c = cmp(x.rectype, y.rectype)
-      return c != 0 ? c : cmp(recordToDict(x), recordToDict(y))
+      const c = f(x.rectype, y.rectype)
+      return c != 0 ? c : f(recordToDict(x), recordToDict(y))
     }
     default:
       throw new KE(...E.UncomparableType(x.type))
@@ -1015,6 +1030,8 @@ const cmpArray = (x, y, cmp) => {
 const eqPrim  = (a, b) => a == b
 const cmpPrim = (a, b) => a == b ? 0 : a < b ? -1 : 1
 
+const cmp_eq  = c => bool(c ==  0)
+const cmp_neq = c => bool(c !=  0)
 const cmp_lt  = c => bool(c == -1)
 const cmp_lte = c => bool(c == -1 || c == 0)
 const cmp_gt  = c => bool(c ==  1)
@@ -1145,6 +1162,13 @@ modules.set("__prim__", new Map([                             //  {{{1
   mkPrim("__>__",     pop2push((x, y) => [cmp_gt (cmp(x, y))])),
   mkPrim("__>=__",    pop2push((x, y) => [cmp_gte(cmp(x, y))])),
   mkPrim("__<=>__",   pop2push((x, y) => [int    (cmp(x, y))])),
+  mkPrim("__eq__",    pop2push((x, y) => [cmp_eq (cmp(x, y, false))])),
+  mkPrim("__neq__",   pop2push((x, y) => [cmp_neq(cmp(x, y, false))])),
+  mkPrim("__lt__",    pop2push((x, y) => [cmp_lt (cmp(x, y, false))])),
+  mkPrim("__lte__",   pop2push((x, y) => [cmp_lte(cmp(x, y, false))])),
+  mkPrim("__gt__",    pop2push((x, y) => [cmp_gt (cmp(x, y, false))])),
+  mkPrim("__gte__",   pop2push((x, y) => [cmp_gte(cmp(x, y, false))])),
+  mkPrim("__cmp__",   pop2push((x, y) => [int    (cmp(x, y, false))])),
   mkPrim("__int+__"  , opI((x, y) => x + y)),
   mkPrim("__int-__"  , opI((x, y) => x - y)),
   mkPrim("__int*__"  , opI((x, y) => x * y)),

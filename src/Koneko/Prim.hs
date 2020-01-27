@@ -2,7 +2,7 @@
 --
 --  File        : Koneko/Prim.hs
 --  Maintainer  : Felix C. Stegerman <flx@obfusk.net>
---  Date        : 2020-01-25
+--  Date        : 2020-01-26
 --
 --  Copyright   : Copyright (C) 2020  Felix C. Stegerman
 --  Version     : v0.0.1
@@ -53,22 +53,27 @@ initCtx ctxMain load call apply apply_dict callBlock = do
   ctx <- forkContext primModule ctxMain
   traverse_ (defPrim ctx) [
       mkPrim "call" call, mkPrim "apply" apply,
-      mkPrim "apply-dict" apply_dict, if_ call,
+      mkPrim "apply-dict" apply_dict, if' call,
       def, defmulti, defrecord call, mkPair, mkDict, swap,
-      show_, say, ask, type_, callable, function,
+      show', say, ask, type', callable, function,
       defmodule call, modules, moduleGet, moduleDefs, moduleName,
-      import_, importFrom, loadModule load,
-      comp "=" (==), comp "not=" (/=), comp "<" (<),
-      comp "<=" (<=), comp ">" (>), comp ">=" (>=),
+      import', importFrom, loadModule load,
+      comp "=" (==), comp "not=" (/=),
+      comp "<" (<) , comp "<="   (<=),
+      comp ">" (>) , comp ">="   (>=),
       spaceship,
+      comp' "eq" (== EQ), comp' "neq" (/= EQ),
+      comp' "lt" (== LT), comp' "lte" (/= GT),
+      comp' "gt" (== GT), comp' "gte" (/= LT),
+      cmp',
       arithI "int+" (+), arithI "int-" (-), arithI "int*" (*),
       arithI "div" div, arithI "mod" mod,
       arithF "float+" (+), arithF "float-" (-),
       arithF "float*" (*), arithF "float/" (/),
-      chr_, intToFloat, recordToDict,
+      chr', intToFloat, recordToDict,
       recordType, recordVals,
       recordTypeName, recordTypeFields,
-      mkThunk callBlock, fail_,
+      mkThunk callBlock, fail',
       mkIdent, mkQuot, mkBlock, blockParams, blockCode,
       rxMatch, rxSub callBlock,
       par callBlock, sleep,
@@ -77,10 +82,10 @@ initCtx ctxMain load call apply apply_dict callBlock = do
 
 -- primitives: important --
 
-if_, defrecord :: Evaluator -> Builtin
+if', defrecord :: Evaluator -> Builtin
 def, defmulti, mkPair, mkDict, swap :: Builtin
 
-if_ call = mkPrim "if" $ \c s -> do
+if' call = mkPrim "if" $ \c s -> do
   ((cond, t_br, f_br), s') <- pop3' s
   call c $ push' s' $ if truthy cond then t_br else f_br
 
@@ -130,9 +135,9 @@ swap = mkPrim "swap" $ pop2push $ \x y -> [y, x] :: [KValue]
 
 -- primitives: miscellaneous --
 
-show_, say, ask, type_, callable, function :: Builtin
+show', say, ask, type', callable, function :: Builtin
 
-show_ = mkPrim "show" $ pop1push1 $ T.pack . (show :: KValue -> String)
+show' = mkPrim "show" $ pop1push1 $ T.pack . (show :: KValue -> String)
 
 -- NB: uses stdio
 say = mkPrim "say!" $ \_ s -> do (x, s') <- pop' s; s' <$ T.putStrLn x
@@ -141,14 +146,14 @@ say = mkPrim "say!" $ \_ s -> do (x, s') <- pop' s; s' <$ T.putStrLn x
 ask = mkPrim "ask!" $ \_ s -> do
   (x, s') <- pop' s; prompt x >>= rpush1 s'
 
-type_     = mkPrim "type"       $ pop1push1 $ typeToKwd . typeOf
+type'     = mkPrim "type"       $ pop1push1 $ typeToKwd . typeOf
 callable  = mkPrim "callable?"  $ pop1push1 isCallable
 function  = mkPrim "function?"  $ pop1push1 isFunction
 
 -- primitives: modules --
 
 defmodule :: Evaluator -> Builtin
-modules, moduleGet, moduleDefs, moduleName, import_, importFrom :: Builtin
+modules, moduleGet, moduleDefs, moduleName, import', importFrom :: Builtin
 
 defmodule call = mkPrim "defmodule" $ \c s -> do
   ((Kwd m, b), s') <- pop2' s; c' <- forkContext m c
@@ -168,7 +173,7 @@ moduleDefs = mkPrim "module-defs" $ \c s -> do
 moduleName = mkPrim "name" $ \c s ->
   rpush1 s $ kwd $ modName $ ctxScope c
 
-import_ = mkPrim "import" $ \c s -> do
+import' = mkPrim "import" $ \c s -> do
   (Kwd m, s') <- pop' s; s' <$ importIn c m
 
 importFrom = mkPrim "import-from" $ \c s -> do
@@ -183,11 +188,21 @@ loadModule load = mkPrim "load-module" $ \_ s -> do
 comp :: Identifier -> (KValue -> KValue -> Bool) -> Builtin
 comp name op = mkPrim name $ pop2push1 op
 
-spaceship :: Builtin
-spaceship = mkPrim "<=>" $ pop2push1 f
-  where
-    f :: KValue -> KValue -> Integer
-    f x y = case compare x y of LT -> -1; EQ -> 0; GT -> 1
+comp' :: Identifier -> (Ordering -> Bool) -> Builtin
+comp' name f = mkPrim name $ pop2push1 $ \x y -> f $ _cmp' x y
+
+spaceship, cmp' :: Builtin
+spaceship = mkPrim "<=>" $ pop2push1 $ \x y -> _ordToInt $ _cmp  x y
+cmp'      = mkPrim "cmp" $ pop2push1 $ \x y -> _ordToInt $ _cmp' x y
+
+_cmp, _cmp' :: KValue -> KValue -> Ordering
+_cmp  = compare
+_cmp' = cmp
+
+_ordToInt :: Ordering -> Integer
+_ordToInt LT = -1
+_ordToInt EQ =  0
+_ordToInt GT =  1
 
 -- primitives: arithmetic --
 
@@ -207,9 +222,9 @@ arithF = arith
 
 -- primitives: conversion --
 
-chr_, intToFloat, recordToDict :: Builtin
+chr', intToFloat, recordToDict :: Builtin
 
-chr_ = mkPrim "chr" $ \_ s -> do
+chr' = mkPrim "chr" $ \_ s -> do
   (i, s') <- pop' s
   unless (0 <= i && i < 0x110000) $ throwIO $
     stackExpected "int in range [0,0x110000)"
@@ -247,8 +262,8 @@ mkThunk callBlock = mkPrim "thunk" $ \c s -> do
     return $ head l   -- safe!
   rpush1 s' $ KThunk t
 
-fail_ :: Builtin
-fail_ = mkPrim "fail" $ \_ s -> do
+fail' :: Builtin
+fail' = mkPrim "fail" $ \_ s -> do
   (msg, _) <- pop' s; throwIO $ Fail $ T.unpack msg
 
 -- primitives: homoiconicity --

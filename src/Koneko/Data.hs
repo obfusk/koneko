@@ -2,9 +2,9 @@
 --
 --  File        : Koneko/Data.hs
 --  Maintainer  : Felix C. Stegerman <flx@obfusk.net>
---  Date        : 2019-12-24
+--  Date        : 2020-01-26
 --
---  Copyright   : Copyright (C) 2019  Felix C. Stegerman
+--  Copyright   : Copyright (C) 2020  Felix C. Stegerman
 --  Version     : v0.0.1
 --  License     : GPLv3+
 --
@@ -60,20 +60,20 @@ module Koneko.Data (
   Pair(..), List(..), Dict(..), Block(..), Builtin(..), Multi(..),
   RecordT(..), Record, recType, recValues, record, Thunk, runThunk,
   thunk, Scope, modName, Context, ctxScope, KPrim(..), KValue(..),
-  KType(..), Stack, freeVars, escapeFrom, escapeTo, ToVal, toVal,
-  FromVal, fromVal, toVals, fromVals, maybeToVal, eitherToVal,
+  KType(..), Stack, freeVars, Cmp(..), escapeFrom, escapeTo, ToVal,
+  toVal, FromVal, fromVal, toVals, fromVals, maybeToVal, eitherToVal,
   emptyStack, push', push, rpush, rpush1, pop, pop2, pop3, pop4, pop',
   pop2', pop3', pop4', popN', pop1push, pop2push, pop1push1,
   pop2push1, primModule, bltnModule, prldModule, mainModule,
   initMainContext, initModule, forkContext, forkScope, defineIn,
   importIn, importFromIn, lookup, lookupModule', moduleKeys,
-  moduleNames, typeNames, typeOf, typeToKwd, typeToStr, isNil, isBool,
-  isInt, isFloat, isStr, isKwd, isPair, isList, isDict, isIdent,
-  isQuot, isBlock, isBuiltin, isMulti, isRecordT, isRecord, isThunk,
-  isCallable, isFunction, nil, false, true, bool, int, float, str,
-  kwd, pair, list, dict, block, dictLookup, mkPrim, mkBltn, defPrim,
-  defMulti, truthy, retOrThrow, recordTypeSig, underscored,
-  digitParams, unKwds
+  moduleNames, typeNames, typeOfPrim, typeOf, typeToKwd, typeToStr,
+  typeAsStr, isNil, isBool, isInt, isFloat, isStr, isKwd, isPair,
+  isList, isDict, isIdent, isQuot, isBlock, isBuiltin, isMulti,
+  isRecordT, isRecord, isThunk, isCallable, isFunction, nil, false,
+  true, bool, int, float, str, kwd, pair, list, dict, block,
+  dictLookup, mkPrim, mkBltn, defPrim, defMulti, truthy, retOrThrow,
+  recordTypeSig, underscored, digitParams, unKwds
 ) where
 
 import Control.DeepSeq (deepseq, NFData(..))
@@ -81,6 +81,7 @@ import Control.Exception (Exception, throw, throwIO)
 import Control.Monad (liftM, when)
 import Data.Char (intToDigit, isPrint, ord)
 import Data.Foldable (traverse_)
+import Data.Functor.Classes (liftCompare, liftCompare2)
 import Data.List (intercalate, maximum, sort)
 import Data.Maybe (catMaybes, isNothing)
 import Data.Monoid ((<>))
@@ -125,6 +126,7 @@ data KException
     | Expected !EExpected
     | MultiMatchFailed !String !String
     | UncomparableType !String
+    | UncomparableTypes !String !String
     | UncallableType !String
     | UnapplicableType !String !String
     | UnknownField !String !String
@@ -275,6 +277,39 @@ freeVars = umap S.empty
 
 -- instances --
 
+class Cmp a where
+  cmp :: a -> a -> Ordering
+
+instance Cmp KPrim where
+  cmp (KInt   x) (KFloat y) = compare (fromInteger x) y
+  cmp (KFloat x) (KInt   y) = compare x (fromInteger y)
+  cmp x y
+      | t /= u = throw $ UncomparableTypes (typeToStr t) (typeToStr u)
+      | otherwise = compare x y
+    where
+      t = typeOfPrim x; u = typeOfPrim y
+
+instance Cmp KValue where
+  cmp (KPrim    x) (KPrim     y) = cmp x y
+  cmp (KPair    x) (KPair     y)
+    = liftCompare2 compare cmp (key x, value x) (key y, value y)
+  cmp (KList    x) (KList     y)
+    = liftCompare cmp (unList x) (unList y)
+  cmp (KDict    x) (KDict     y)
+    = liftCompare2 compare cmp (unDict x) (unDict y)
+  cmp (KRecord  x) (KRecord   y)
+    = liftCompare2 compare cmp (recType x, recValues x)
+                               (recType y, recValues y)
+  cmp x y
+      | t /= u = throw $ UncomparableTypes (typeToStr t) (typeToStr u)
+      | t `elem` [TIdent, TQuot, TRecordT] = compare x y
+      | otherwise = throw $ UncomparableType $ typeToStr t
+    where
+      t = typeOf x; u = typeOf y
+
+instance Cmp [KValue] where
+  cmp = liftCompare cmp
+
 -- TODO: find some way of comparing these?
 
 instance Eq Block where
@@ -314,6 +349,8 @@ instance Show KException where
   show (Expected e)             = show e
   show (MultiMatchFailed n s)   = "no signature " ++ s ++ " for multi " ++ n
   show (UncomparableType t)     = "type " ++ t ++ " is not comparable"
+  show (UncomparableTypes t u)  = "types " ++ t ++ " and " ++ u ++
+                                  " are not comparable"
   show (UncallableType t)       = "type " ++ t ++ " is not callable"
   show (UnapplicableType t op)  = "type " ++ t ++ " does not support " ++ op
   show (UnknownField f t)       = t ++ " has no field named " ++ f
@@ -790,25 +827,28 @@ typeNames = [
     "record-type", "record", "thunk"
   ]
 
+typeOfPrim :: KPrim -> KType
+typeOfPrim p = case p of
+  KNil      -> TNil
+  KBool _   -> TBool
+  KInt _    -> TInt
+  KFloat _  -> TFloat
+  KStr _    -> TStr
+  KKwd _    -> TKwd
+
 typeOf :: KValue -> KType
-typeOf (KPrim p) = case p of
-  KNil                ->  TNil
-  KBool _             ->  TBool
-  KInt _              ->  TInt
-  KFloat _            ->  TFloat
-  KStr _              ->  TStr
-  KKwd _              ->  TKwd
-typeOf (KPair _)      =   TPair
-typeOf (KList _)      =   TList
-typeOf (KDict _)      =   TDict
-typeOf (KIdent _)     =   TIdent
-typeOf (KQuot _)      =   TQuot
-typeOf (KBlock _)     =   TBlock
-typeOf (KBuiltin _)   =   TBuiltin
-typeOf (KMulti _)     =   TMulti
-typeOf (KRecordT _)   =   TRecordT
-typeOf (KRecord _)    =   TRecord
-typeOf (KThunk _)     =   TThunk
+typeOf (KPrim p)      = typeOfPrim p
+typeOf (KPair _)      = TPair
+typeOf (KList _)      = TList
+typeOf (KDict _)      = TDict
+typeOf (KIdent _)     = TIdent
+typeOf (KQuot _)      = TQuot
+typeOf (KBlock _)     = TBlock
+typeOf (KBuiltin _)   = TBuiltin
+typeOf (KMulti _)     = TMulti
+typeOf (KRecordT _)   = TRecordT
+typeOf (KRecord _)    = TRecord
+typeOf (KThunk _)     = TThunk
 
 typeToKwd :: KType -> Kwd
 typeToKwd = Kwd . typeToStr
@@ -831,6 +871,9 @@ typeToStr TMulti      = "multi"
 typeToStr TRecordT    = "record-type"
 typeToStr TRecord     = "record"
 typeToStr TThunk      = "thunk"
+
+typeAsStr :: IsString a => KValue -> a
+typeAsStr = typeToStr . typeOf
 
 isNil, isBool, isInt, isFloat, isStr, isKwd, isPair, isList, isDict,
   isIdent, isQuot, isBlock, isBuiltin, isMulti, isRecordT, isRecord,

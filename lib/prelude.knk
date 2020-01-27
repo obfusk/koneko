@@ -2,7 +2,7 @@
 ;
 ; File        : prelude.knk
 ; Maintainer  : Felix C. Stegerman <flx@obfusk.net>
-; Date        : 2020-01-25
+; Date        : 2020-01-26
 ;
 ; Copyright   : Copyright (C) 2020  Felix C. Stegerman
 ; Version     : v0.0.1
@@ -56,6 +56,14 @@
 :>=                 '__>=__                   def
 :<=>                '__<=>__                  def
 
+:eq                 '__eq__                   def
+:neq                '__neq__                  def
+:lt                 '__lt__                   def
+:lte                '__lte__                  def
+:gt                 '__gt__                   def
+:gte                '__gte__                  def
+:cmp                '__cmp__                  def
+
 :int->float         '__int->float__           def
 :record->dict       '__record->dict__         def
 
@@ -68,6 +76,9 @@
 
 :rx-match           '__rx-match__             def
 :rx-sub             '__rx-sub__               def
+
+:par                '__par__                  def
+:sleep              '__sleep__                def
 
                                                                 ; }}}1
 
@@ -110,9 +121,12 @@
 ; 1
 ; 2
 ; 1
+; >>> ( 1 2 3 3dup )
+; ( 1 2 3 1 2 3 )
 
  :dup   [ x   . 'x 'x       ] def
 :2dup   [ x y . 'x 'y 'x 'y ] def             ; ⇔ [ over over ]
+:3dup   [ 2over over2 ] def
 
 ; remove top value(s)
 ;
@@ -271,11 +285,27 @@
 ;
 ; >>> ( ( 2 3 4 ) [ dup * ] mlt$ )                    ; mlt$ ⇔ each
 ; ( 4 9 16 )
+;
+; >>> 2 3 'even? either?                              ; ⇔ bi$ and
+; #t
+; >>> 2 4 'even? both?                                ; ⇔ bi$ or
+; #t
+;
+; >>> ( 0 2 4 ) 'even? all?
+; #t
+; >>> ( 37 42 ) 'even? any?
+; #t
 
 :bi$    [ x y f   . 'x f 'y f       ] def     ; ⇔ [ dup bi~ ]
 :tri$   [ x y z f . 'x f 'y f 'z f  ] def     ; ⇔ [ 2dup tri~ ]
 
 :mlt$   [ each ] def
+
+:both?    [ bi$ and ] def
+:either?  [ bi$ or  ] def
+
+:all?   [ p? . [ #t ] [ >< p? dup [ drop 'p? all? ] 'nip if ] ^seq ] def
+:any?   [ p? . [ #f ] [ >< p? dup 'nip [ drop 'p? any? ] if ] ^seq ] def
 
 ; call multiple functions on their "paired" value
 ;
@@ -474,15 +504,60 @@
 :~<=>   [ f g h . 2dup <=> [ drop g ] [ 0 < 'f 'h if ] 0 ~[=] ] def
 :~[<=>] [ [] $ 3dip [ 'drop % ] tri$ ~<=> ] def
 
+; alternative comparison "branch"
+;
+; >>> 41.0 'inc 'dec 41 ~[eq]
+; 42.0
+; >>> 41.0 'dec 'inc 41 ~[neq]
+; 42.0
+; >>> 41.0 'inc 'dec 99 ~[lt]
+; 42.0
+; >>> 43.0 'inc 'dec 37 ~[lte]
+; 42.0
+; >>> 41.0 'inc 'dec 37 ~[gt]
+; 42.0
+; >>> 41.0 'inc 'dec 41 ~[gte]
+; 42.0
+;
+; >>> 42 37.0 '- '* '+ ~cmp
+; 79.0
+; >>> 37 [ :< ] [ := ] [ :> ] 42.0 ~[cmp] nip
+; :<
+;
+; NB: ~cmp leaves both operands, ~[cmp] only the "left".
+
+:~[eq]    [ 'eq  $ ~? ] def
+:~[neq]   [ 'neq $ ~? ] def
+:~[lt]    [ 'lt  $ ~? ] def
+:~[lte]   [ 'lte $ ~? ] def
+:~[gt]    [ 'gt  $ ~? ] def
+:~[gte]   [ 'gte $ ~? ] def
+
+:~cmp   [ f g h . 2dup cmp [ drop g ] [ neg? 'f 'h if ] 0 ~[eq] ] def
+:~[cmp] [ [] $ 3dip [ 'drop % ] tri$ ~cmp ] def
+
 ; minimum & maximum
 ;
 ; >>> 1 2 min
 ; 1
 ; >>> -1 -2 max
 ; -1
+;
+; >>> 2 1.0 min
+; 2
+; >>> 2 1.0 min'
+; 1.0
+; >>> 2 1.0 max'
+; 2
 
-:min    [ 2dup <= 'drop 'nip if ] def
-:max    [ 2dup >= 'drop 'nip if ] def
+:min    [ '<= min-by ] def
+:max    [ '>= max-by ] def
+
+:min'   [ 'lte min-by ] def
+:max'   [ 'gte max-by ] def
+
+:min-by [ f . 2dup f 'drop 'nip if ] def
+:max-by [ f . 2dup f 'drop 'nip if ] def
 
 ; conditional expression
 ;
@@ -576,8 +651,7 @@
 ; >>> 3.14 neg
 ; -3.14
 
-:neg ( :int   ) [ 0   swap - ] defmulti
-:neg ( :float ) [ 0.0 swap - ] defmulti
+:neg    [ 0 swap - ] def
 
 ; division & modulo
 ;
@@ -602,10 +676,22 @@
 ; ( 2 4 )
 ; >>> ( 1 2 3 ) 'odd? filter ->list
 ; ( 1 3 )
+;
+; >>> , ( -1 -1.1 0 0.0 1 1.1 )
+; >>>      dup 'neg?  filter ->list
+; ( -1 -1.1 )
+; >>> drop dup 'zero? filter ->list
+; ( 0 0.0 )
+; >>> drop dup 'pos?  filter ->list
+; ( 1 1.1 )
 
 :div?   [ mod 0 =   ] def
 :even?  [ 2 div?    ] def
 :odd?   [ even? not ] def
+
+:neg?   [ 0 lt ] def
+:zero?  [ 0 eq ] def
+:pos?   [ 0 gt ] def
 
 ; increment & decrement
 ;
@@ -670,8 +756,8 @@
 ; "foo & bar"
 
 :join       [ "" join-with ] def                                ; TODO
-:join-with  [ s . [ "" ] [ swap [ 's ++sep++ ] foldl ] ^seq ] def
-:++sep++    [ swap ++ ++ ] def
+:join-with  [ s . [ "" ] [ >< [ 's ++sep++ ] foldl ] ^seq ] def
+:++sep++    [ >< ++ ++ ] def
 
 ; case conversion
 ;
@@ -754,6 +840,8 @@
 
 :num?   [ 'int? 'float? bi or ] def
 
+; TODO: is-nan?
+
 ; number "branch"
 ;
 ; >>> 0 [ " negative" ] [ " non-negative" ] ~neg  'show dip ++ say!
@@ -763,16 +851,14 @@
 ; >>> 0 [ " positive" ] [ " non-positive" ] ~pos  'show dip ++ say!
 ; 0 non-positive
 ;
-; >>> 4 [ :neg ] [ :zero ] [ :pos ] ~int nip
+; >>> 4 [ :neg ] [ :zero ] [ :pos ] ~num nip
 ; :pos
 
-:~neg   [ 0 ~[<] ] def
-:~zero  [ 0 ~[=] ] def
-:~pos   [ 0 ~[>] ] def
+:~neg   [ 0 ~[lt] ] def
+:~zero  [ 0 ~[eq] ] def
+:~pos   [ 0 ~[gt] ] def
 
-:~int   [ 0 ~[<=>] ] def
-
-; TODO: float
+:~num   [ 0 ~[cmp] ] def
 
 ; pair "pattern match"
 ;
@@ -786,12 +872,24 @@
 
 ; -- Sequences, Lists & Ranges --                               ; {{{1
 
-; TODO: step, float
-
 ; NB: inclusive; infinite if stop is nil.
 :Range ( :start :stop ) defrecord
 
-; ranges
+:range              [ 2dup 'float? either?
+                      [ 1 range-step ] 'Range if ] def
+:range-step         [ 3dup 3list 'float? any? [ '_->float tri$ ] when
+                      >< 'range-from-step
+                      [ >< range-from-to-step ] ~nil ] def
+
+:range-from-to-step [ >< [ 'range-from-step keep ] dip
+                      >< _range-to-step ] def
+:range-from-step    [ '+ $ iterate ] def
+
+:_range-to-step     [ [ dup float? [ 2.0 / + ] when1 ]
+                      [ pos? '<= '>= ? ] bi $ take-while ] def
+:_->float           [ dup int? 'int->float when ] def
+
+; int ranges
 ;
 ; >>> 2 10 [m-n] ->list
 ; ( 2 3 4 5 6 7 8 9 10 )
@@ -811,16 +909,64 @@
 ; ( 1 2 3 4 5 6 7 8 9 )
 ; >>> [1-) 10 take-first ->list
 ; ( 1 2 3 4 5 6 7 8 9 10 )
+;
+; float ranges
+;
+; >>> 2.1 10.1 [m-n] ->list
+; ( 2.1 3.1 4.1 5.1 6.1 7.1 8.1 9.1 10.1 )
+; >>> 2.1 10.1 [m-n) ->list
+; ( 2.1 3.1 4.1 5.1 6.1 7.1 8.1 9.1 )
+; >>> 4.1 [m-) 10 take-first ->list
+; ( 4.1 5.1 6.1 7.1 8.1 9.1 10.1 11.1 12.1 13.1 )
+; >>> 10.0 [0-n] ->list
+; ( 0.0 1.0 2.0 3.0 4.0 5.0 6.0 7.0 8.0 9.0 10.0 )
+; >>> 10.0 [0-n) ->list
+; ( 0.0 1.0 2.0 3.0 4.0 5.0 6.0 7.0 8.0 9.0 )
+; >>> 10.0 [1-n] ->list
+; ( 1.0 2.0 3.0 4.0 5.0 6.0 7.0 8.0 9.0 10.0 )
+; >>> 10.0 [1-n) ->list
+; ( 1.0 2.0 3.0 4.0 5.0 6.0 7.0 8.0 9.0 )
+;
+; ranges with step
+;
+; >>> 2 10 2 [m-n:s] ->list
+; ( 2 4 6 8 10 )
+; >>> 2 11 2.0 [m-n:s) ->list
+; ( 2.0 4.0 6.0 8.0 10.0 )
+; >>> 4 2 [m-:s) 5 take-first ->list
+; ( 4 6 8 10 12 )
+; >>> 10.0 2 [0-n:s] ->list
+; ( 0.0 2.0 4.0 6.0 8.0 10.0 )
+; >>> 10 2 [0-n:s) ->list
+; ( 0 2 4 6 8 )
+; >>> 2.0 [0-:s) 5 take-first ->list
+; ( 0.0 2.0 4.0 6.0 8.0 )
+; >>> 10 3 [1-n:s] ->list
+; ( 1 4 7 10 )
+; >>> 10 3.0 [1-n:s) ->list
+; ( 1.0 4.0 7.0 )
+; >>> 2 [1-:s) 5 take-first ->list
+; ( 1 3 5 7 9 )
 
-:[m-n]  'Range            def
-:[m-n)  [ dec    [m-n]  ] def
-:[m-)   [ nil    [m-n]  ] def
-:[0-n]  [ 0 swap [m-n]  ] def
-:[0-n)  [ 0 swap [m-n)  ] def
-:[0-)   [ 0 nil  [m-n]  ] def
-:[1-n]  [ 1 swap [m-n]  ] def
-:[1-n)  [ 1 swap [m-n)  ] def
-:[1-)   [ 1 nil  [m-n]  ] def
+:[m-n]    'range                 def
+:[m-n)    [   dec      [m-n]   ] def
+:[m-)     [   nil      [m-n]   ] def
+:[0-n]    [ 0     swap [m-n]   ] def
+:[0-n)    [ 0     swap [m-n)   ] def
+:[0-)     [ 0 nil      [m-n]   ] def
+:[1-n]    [ 1     swap [m-n]   ] def
+:[1-n)    [ 1     swap [m-n)   ] def
+:[1-)     [ 1 nil      [m-n]   ] def
+
+:[m-n:s]  'range-step            def
+:[m-n:s)  [   '- keep  [m-n:s] ] def
+:[m-:s)   [   nil ><   [m-n:s] ] def
+:[0-n:s]  [ 0     rot> [m-n:s] ] def
+:[0-n:s)  [ 0     rot> [m-n:s) ] def
+:[0-:s)   [ 0 nil <rot [m-n:s] ] def
+:[1-n:s]  [ 1     rot> [m-n:s] ] def
+:[1-n:s)  [ 1     rot> [m-n:s) ] def
+:[1-:s)   [ 1 nil <rot [m-n:s] ] def
 
 ; small lists
 ;
@@ -828,9 +974,12 @@
 ; ( 42 )
 ; >>> :x :y 2list
 ; ( :x :y )
+; >>> :x :y :z 3list
+; ( :x :y :z )
 
 :1list  [ () cons     ] def
 :2list  [ 1list cons  ] def
+:3list  [ 2list cons  ] def
 
 ; lazy sequences
 ;
@@ -977,7 +1126,7 @@
 :len    ( :Range  ) [ range-len ] defmulti
 :len    ( :_      ) [ seq-len   ] defmulti
 
-:range-len  [ [ [ drop nil ] [ swap - inc 0 max ] ~nil ] ^Range ] def
+:range-len  [ [ [ drop nil ] [ >< - inc 0 max ] ~nil ] ^Range ] def
 :seq-len    [ 0 swap [ drop inc ] each ] def
 
 ; append two sequences
@@ -1108,7 +1257,6 @@
 :foldr' [ f . swap [ <rot 'f 'foldr' 3$ f ] ^seq' ] def
 
 ; TODO: scanl, scanr
-; TODO: any, all
 ; TODO: min, max, sum, prod
 
 ; concatenation of all elements
@@ -1234,8 +1382,17 @@
 ;
 ; >>> ( 4 2 1 3 ) sort
 ; ( 1 2 3 4 )
+;
+; >>> ( nil #f #t 0 10 -2.0 4.0 "foo" :bar ) dup sort =
+; #t
+;
+; >>> ( 1 2.0 3 4.0 ) sort                            ; <=> :-(
+; ( 1 3 2.0 4.0 )
+; >>> ( 1 2.0 3 4.0 ) sort'                           ; cmp :-)
+; ( 1 2.0 3 4.0 )
 
-:sort     [ ->list .sort ] def
+:sort     [ ->list .sort  ] def
+:sort'    [ ->list .sort' ] def
 
 ; TODO: sort-by
 
@@ -1245,6 +1402,9 @@
 ; ( 1 2 3 2 )
 ; >>> ( 1 2 2 3 2 ) sort uniq ->list
 ; ( 1 2 3 )
+;
+; >>> ( 0.0 0.0 / dup ) uniq ->list
+; ( NaN NaN )
 
 :uniq     [ '= uniq-by ] def
 :uniq-by  [ f . [ over .[ '1 [ '2 swap f ] drop-while 'f uniq-by ]
@@ -1314,13 +1474,13 @@
 ; TODO: errors, step
 :range-slice  [ _ r .
                 [ 0 or ] [ 'r len or ] bi~
-                [ 'r swap range-relidx ] bi$
-                over [ [ drop nil ] [ swap - ] ~nil ] dip
+                [ 'r >< range-relidx ] bi$
+                over [ [ drop nil ] [ >< - ] ~nil ] dip
                 'r range-drop range-take
               ] def
 :range-relidx [ [ drop nil ] [ [ 'len dip + ] 'nip ~neg ] ~nil ] def
 :range-drop   [ [ '+ dip Range ] ^Range ] def
-:range-take   [ [ <rot [] [ swap [ over + dec ] dip [] 'min ~nil ]
+:range-take   [ [ <rot [] [ >< [ over + dec ] dip [] 'min ~nil ]
                   ~nil Range ] ^Range ] def
 
 ; get value at key/index & membership test
@@ -1440,14 +1600,27 @@
 ; ( { :x 42 => } { :y ( 37 ) =>, :z #t => } )
 ; >>> nil "magic" ( :x :y :z ) assoc-in
 ; { :x { :y { :z "magic" => } => } => }
+;
+; >>> ( 1 2 ) :x 2 assoc
+; ( 1 2 :x )
+; >>> ( 1 2 ) :x 3 assoc
+; *** ERROR: assoc: index 3 is out of range
 
 :assoc    [ <rot assoc' ] def
 :assoc-in [ [ [] [ v k kt . dup 'k get 'v 'kt assoc-in 'k ] ~seq
               assoc ] ^seq' ] def                               ; TODO
 
 :assoc' ( :nil  ) [ v k _ . { 'k 'v => } ] defmulti
-:assoc' ( :list ) [ v k l . 'l 'k [-j) ( 'v ) 'l 'k inc [i-) ++ ++ ] defmulti
+:assoc' ( :list ) [ v i l .
+                    'l len inc 'i "assoc" assert-in-range
+                    'l 'i [-j) ( 'v ) 'l 'i inc [i-) ++ ++
+                  ] defmulti
 :assoc' ( :dict ) [ v k d . 'd { 'k 'v => } !merge ] defmulti
+
+:assert-in-range  [ l i s . 'i 0 < 'i 'l >= or [
+                    ( 's 'i ) "${0}: index ${1} is out of range" fmt
+                    fail
+                  ] when ] def
 
 ; "update" value in (nested) associative structure
 ;
@@ -1472,7 +1645,7 @@
 
                                                                 ; }}}1
 
-; -- Regexes --                                                 ; {{{1
+; -- Regexes & String Formatting --                             ; {{{1
 
 ; match
 ;
@@ -1517,7 +1690,7 @@
 ; >>> ( :x 42 "foo"  ) "${2} ${1} ${0}" fmt
 ; "foo 42 :x"
 
-:fmt    [ swap .[ '1 swap str->int get ->str nip ]
+:fmt    [ >< .[ '1 >< str->int get ->str nip ]
           "\$\{(\d+)\}" s///g ] def                             ; TODO
 
 ; TODO: width, zero-fill, justify, dict key, ...

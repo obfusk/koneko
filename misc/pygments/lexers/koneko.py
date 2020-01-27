@@ -40,9 +40,9 @@ class KonekoLexer(RegexLexer):
     builtin_prims = words("""
       def call apply apply-dict if defmulti defrecord => dict show
       say! ask!  type callable? function? defmodule import import-from
-      = not= < <= > >= <=> int->float record->dict record-type
-      record-values record-type-name record-type-fields fail rx-match
-      rx-sub
+      = not= < <= > >= <=> eq neq lt lte gt gte cmp int->float
+      record->dict record-type record-values record-type-name
+      record-type-fields fail rx-match rx-sub par sleep
     """.split(), suffix=par_+sep)
 
     tokens = {

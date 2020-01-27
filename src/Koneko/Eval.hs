@@ -2,7 +2,7 @@
 --
 --  File        : Koneko/Eval.hs
 --  Maintainer  : Felix C. Stegerman <flx@obfusk.net>
---  Date        : 2020-01-20
+--  Date        : 2020-01-26
 --
 --  Copyright   : Copyright (C) 2020  Felix C. Stegerman
 --  Version     : v0.0.1
@@ -120,7 +120,7 @@ eval1_ x c s = case x of
   KIdent i        -> (,True ) <$> pushIdent (unIdent i) c s
   KQuot i         -> (,False) <$> pushIdent (unIdent i) c s
   KBlock b        -> (,False) <$> evalBlock b c s
-  _               -> throwIO $ EvalUnexpected $ typeToStr $ typeOf x
+  _               -> throwIO $ EvalUnexpected $ typeAsStr x
 
 -- TODO
 evalList :: [KValue] -> Evaluator
@@ -152,7 +152,7 @@ call c s = do
     KRecordT r      -> callRecordT  r c s'
     KRecord r       -> callRecord   r c s'
     KThunk t        -> callThunk    t c s'
-    _               -> throwIO $ UncallableType $ typeToStr $ typeOf x
+    _               -> throwIO $ UncallableType $ typeAsStr x
 
 -- TODO
 callStr :: Text -> Evaluator
@@ -211,6 +211,7 @@ callList (List l) _ s = do
     "uncons^" ->  g >> rpush s' [head l, list $ tail l]       -- safe!
     "cons"    ->  pr $ pop1push1 (:l)
     "sort"    ->  p $ sort l
+    "sort'"   ->  p $ sortBy cmp l
     "append"  ->  pr $ pop1push1 (++ l)
     "slice"   ->  pr $ \_ s1 -> do
                     ((i, j, step), s2) <- pop3' s1; let ll = len l
@@ -258,7 +259,7 @@ callMulti Multi{..} c s = do
     maybe (err sig) f =<< firstJust [look sig, look def]
   where
     toSig (KRecord r) = recordTypeSig $ recType r
-    toSig t           = typeToStr $ typeOf t
+    toSig t           = typeAsStr t
     def               = replicate mltArity "_"
     err sig           = throwIO $ MultiMatchFailed (T.unpack mltName)
                       $ show $ list $ map kwd sig
@@ -285,7 +286,7 @@ apply c s = do
     KBlock b    -> applyBlock b c s'
     KMulti _    -> throwIO $ NotImplemented "apply multi"
     KRecordT r  -> applyRecordT r c s'
-    _           -> throwIO $ UnapplicableType (typeToStr $ typeOf x) "apply"
+    _           -> throwIO $ UnapplicableType (typeAsStr x) "apply"
 
 -- TODO
 apply_dict :: Evaluator
@@ -296,7 +297,7 @@ apply_dict c s = do
     KBlock b    -> apply_dictBlock b c s'
     KMulti _    -> throwIO $ NotImplemented "apply-dict multi"
     KRecordT r  -> apply_dictRecordT r c s'
-    _           -> throwIO $ UnapplicableType (typeToStr $ typeOf x) "apply-dict"
+    _           -> throwIO $ UnapplicableType (typeAsStr x) "apply-dict"
 
 -- call & apply: block --
 

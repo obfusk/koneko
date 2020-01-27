@@ -2,7 +2,7 @@
 
     File        : doc/09-primitives-builtins-and-prelude.md
     Maintainer  : Felix C. Stegerman <flx@obfusk.net>
-    Date        : 2020-01-24
+    Date        : 2020-01-26
 
     Copyright   : Copyright (C) 2020  Felix C. Stegerman
     Version     : v0.0.1
@@ -34,8 +34,9 @@ definitions.
 
 def call apply apply-dict if defmulti defrecord => dict show say! ask!
 type callable? function? defmodule import import-from = not= < <= > >=
-<=> int->float record->dict record-type record-values record-type-name
-record-type-fields fail rx-match rx-sub
+<=> eq neq lt lte gt gte cmp int->float record->dict record-type
+record-values record-type-name record-type-fields fail rx-match rx-sub
+par sleep
 
 -->
 
@@ -63,6 +64,45 @@ record-type-fields fail rx-match rx-sub
 #t
 >>> 1 2 <=>                     ; compare: -1 if <, 0 if =, 1 if >
 -1
+```
+
+##### CAVEATS
+
+The comparison functions `=`, `<`, `<=>`, etc. define an almost total
+ordering on all types.  This makes sorting heterogeneous lists easy.
+
+The exceptions are that blocks, builtins, multis, and thunks are
+ordered respective to all other types but cannot be compared to values
+of their own type and the "usual" behaviour of NaN being unequal to
+even itself.
+
+NB: the ordering also treats all types as completely distinct --
+including numeric types like `int` and `float`.
+
+```koneko
+>>> ( "foo" ( :bar ) nil ) sort ; uses <=> :-)
+( nil "foo" ( :bar ) )
+>>> ( 1 2.0 3 4.0 ) sort        ; uses <=> :-(
+( 1 3 2.0 4.0 )
+```
+
+The "alternative comparison" functions `eq`, `lt`, `cmp`, etc. define
+a partial ordering.  They compare mixed `int` and `float` (by
+converting `int->float`) and reject all other mixed type comparisons.
+
+```koneko
+>>> 42 :foo <=>
+-1
+>>> 42 :foo cmp
+*** ERROR: types int and kwd are not comparable
+
+>>> 2 1.0 <=>                   ; also: = not= < <= > >=
+-1
+>>> 2 1.0 cmp                   ; also: eq neq lt lte gt gte
+1
+
+>>> ( 1 2.0 3 4.0 ) sort'       ; uses cmp :-)
+( 1 2.0 3 4.0 )
 ```
 
 #### Conversion, Type Information & I/O
@@ -155,6 +195,13 @@ nil
 ```
 
 #### Miscellaneous
+
+```koneko
+>>> , [ 0.1 sleep :one ] [ 0.05 sleep :two ] par    ; concurrency
+>>> ,show-stack
+:two
+:one
+```
 
 Of course `def` and `=>` are also primitives.
 
