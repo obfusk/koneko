@@ -2,7 +2,7 @@
 
     File        : doc/08-syntactic-sugar.md
     Maintainer  : Felix C. Stegerman <flx@obfusk.net>
-    Date        : 2020-01-24
+    Date        : 2020-01-30
 
     Copyright   : Copyright (C) 2020  Felix C. Stegerman
     Version     : v0.0.1
@@ -101,26 +101,19 @@ hi!
 *** ERROR: name __ellipsis__ is not defined
 ```
 
-## REPL Sugar
+## Aliases
 
-There is some repl-only sugar as well.
+The repl provides some aliases.
 
 ```koneko
 >>> , 1 2
->>> ; sugar for ,show-stack
->>> #ss
+>>> ,s!                         ; s! ⇔ show-stack! ⇔ __show-stack!__
 2
 1
->>> ; sugar for clear-stack
->>> #cs
-```
+>>> c!                          ; c! ⇔ clear-stack! ⇔ __clear-stack!__
 
-NB: this is not "proper" syntactic sugar and must be on a line by
-itself.
-
-```
->>> 1 2 #ss                                 ; does not work
-*** ERROR: parse error: ...
+>>> 1 2 + d!                    ; d! ⇔ display!
+3
 ```
 
 <!-- vim: set tw=70 sw=2 sts=2 et fdm=marker : -->

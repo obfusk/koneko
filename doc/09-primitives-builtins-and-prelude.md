@@ -34,9 +34,9 @@ definitions.
 
 def call apply apply-dict if defmulti defrecord => dict show say! ask!
 type callable? function? defmodule import import-from = not= < <= > >=
-<=> eq neq lt lte gt gte cmp int->float record->dict record-type
-record-values record-type-name record-type-fields fail rx-match rx-sub
-par sleep
+<=> eq neq lt lte gt gte cmp abs trunc round ceil floor int->float
+record->dict record-type record-values record-type-name
+record-type-fields fail rx-match rx-sub par sleep
 
 -->
 
@@ -113,6 +113,26 @@ converting `int->float`) and reject all other mixed type comparisons.
 >>> "foo" show
 "\"foo\""
 
+>>> -2 abs
+2
+>>> -3.14 abs
+3.14
+
+>>> 3.14 trunc
+3
+>>> 9.5 round
+10
+>>> -9.5 round
+-10
+>>> 10.5 round
+10
+>>> -10.5 round
+-10
+>>> -3.14 floor
+-4
+>>> -3.14 ceil
+-3
+
 >>> 1 int->float
 1.0
 
@@ -149,7 +169,7 @@ What's your name? Foo
 >>> __name__
 :__main__
 >>> __module-defs__
-( :answer :clear-stack :show-stack )
+( :answer :c! :clear-stack! :d! :s! :show-stack! )
 >>> :answer :__main__ __module-get__
 42
 >>> __modules__ [ show ":__" starts-with? ] filter ->list
@@ -159,9 +179,9 @@ What's your name? Foo
 #### REPL: Clear & Show Stack
 
 ```koneko
->>> clear-stack                 ; only available in the repl
->>> ,show-stack
->>> , 1 2 show-stack
+>>> clear-stack!                ; only available in the repl
+>>> ,show-stack!
+>>> , 1 2 show-stack!
 2
 1
 ```
@@ -198,7 +218,7 @@ nil
 
 ```koneko
 >>> , [ 0.1 sleep :one ] [ 0.05 sleep :two ] par    ; concurrency
->>> ,show-stack
+>>> ,show-stack!
 :two
 :one
 ```
@@ -266,17 +286,17 @@ functions.
 #### Stack Shuffling
 
 ```koneko
->>> , 1 2 show-stack
+>>> , 1 2 show-stack!
 2
 1
->>> , swap show-stack             ; swap top 2 values on stack
+>>> , swap show-stack!            ; swap top 2 values on stack
 1
 2
->>> , dup show-stack              ; dup(licate) top of stack
+>>> , dup show-stack!             ; dup(licate) top of stack
 1
 1
 2
->>> , drop show-stack             ; drop (pop & discard) top of stack
+>>> , drop show-stack!            ; drop (pop & discard) top of stack
 1
 2
 ```
@@ -290,7 +310,7 @@ See also: `rot>`, `<rot`, `2dup`, `2drop`, `3drop`, `nip`, `over`,
 
 ```koneko
 >>> , 35 [ 2 + ] [ 7 + ] bi
->>> , show-stack
+>>> , show-stack!
 42
 37
 
@@ -382,7 +402,7 @@ nil
 ```
 
 ```koneko
->>> , ( 1 2 3 ) uncons^ show-stack
+>>> , ( 1 2 3 ) uncons^ show-stack!
 ( 2 3 )
 1
 >>> cons

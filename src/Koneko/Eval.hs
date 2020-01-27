@@ -2,7 +2,7 @@
 --
 --  File        : Koneko/Eval.hs
 --  Maintainer  : Felix C. Stegerman <flx@obfusk.net>
---  Date        : 2020-01-26
+--  Date        : 2020-01-30
 --
 --  Copyright   : Copyright (C) 2020  Felix C. Stegerman
 --  Version     : v0.0.1
@@ -241,6 +241,9 @@ callDict (Dict h) _ s = do
     "merge"   ->  pr $ \_ s1 -> do
                     (Dict h2, s2) <- pop' s1
                     rpush1 s2 $ Dict $ H.union h h2
+    "delete"  ->  pr $ \_ s1 -> do
+                    (Kwd k, s2) <- pop' s1
+                    rpush1 s2 $ Dict $ H.delete k h
     "empty?"  ->  p $ H.null h
     "len"     ->  p $ toInteger $ H.size h
     "get^"    ->  pr $ \_ s1 -> do

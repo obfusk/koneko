@@ -2,7 +2,7 @@
 --
 --  File        : Koneko/Prim.hs
 --  Maintainer  : Felix C. Stegerman <flx@obfusk.net>
---  Date        : 2020-01-26
+--  Date        : 2020-01-30
 --
 --  Copyright   : Copyright (C) 2020  Felix C. Stegerman
 --  Version     : v0.0.1
@@ -70,6 +70,9 @@ initCtx ctxMain load call apply apply_dict callBlock = do
       arithI "div" div, arithI "mod" mod,
       arithF "float+" (+), arithF "float-" (-),
       arithF "float*" (*), arithF "float/" (/),
+      abs',
+      floatToInt "trunc" (truncate), floatToInt "round" (round),
+      floatToInt "ceil"  (ceiling) , floatToInt "floor" (floor),
       chr', intToFloat, recordToDict,
       recordType, recordVals,
       recordTypeName, recordTypeFields,
@@ -186,7 +189,7 @@ loadModule load = mkPrim "load-module" $ \_ s -> do
 -- primitives: Eq, Ord --
 
 comp :: Identifier -> (KValue -> KValue -> Bool) -> Builtin
-comp name op = mkPrim name $ pop2push1 op
+comp name = mkPrim name . pop2push1
 
 comp' :: Identifier -> (Ordering -> Bool) -> Builtin
 comp' name f = mkPrim name $ pop2push1 $ \x y -> f $ _cmp' x y
@@ -220,7 +223,15 @@ arithF :: Identifier -> (Double  -> Double  -> Double ) -> Builtin
 arithI = arith
 arithF = arith
 
+abs' :: Builtin
+abs' = mkPrim "abs" $ pop1push1 $ \case
+  Left  x -> toVal (abs x :: Integer)
+  Right x -> toVal (abs x :: Double)
+
 -- primitives: conversion --
+
+floatToInt :: Identifier -> (Double -> Integer) -> Builtin
+floatToInt name = mkPrim name . pop1push1
 
 chr', intToFloat, recordToDict :: Builtin
 
@@ -395,18 +406,19 @@ sleep = mkPrim "sleep" $ \_ s -> do
 
 replDef :: Context -> IO ()
 replDef ctx = do
-    alias "show-stack"  showStack
-    alias "clear-stack" clearStack
+    alias "show-stack!"  showStack ; alias "s!" showStack
+    alias "clear-stack!" clearStack; alias "c!" clearStack
+    defineIn ctx "d!" =<< lookupModule' ctx "display!" "__prld__"
   where
     alias n f = defineIn ctx n $ KBuiltin f
 
 showStack, clearStack :: Builtin
 
 -- TODO
-showStack = mkPrim "show-stack" $ \_ s ->
+showStack = mkPrim "show-stack!" $ \_ s ->
   s <$ traverse_ (putStrLn . show) s
 
-clearStack = mkPrim "clear-stack" $ \_ _ -> return emptyStack
+clearStack = mkPrim "clear-stack!" $ \_ _ -> return emptyStack
 
 -- nya --
 

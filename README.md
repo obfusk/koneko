@@ -2,7 +2,7 @@
 
     File        : README.md
     Maintainer  : Felix C. Stegerman <flx@obfusk.net>
-    Date        : 2020-01-25
+    Date        : 2020-01-30
 
     Copyright   : Copyright (C) 2020  Felix C. Stegerman
     Version     : v0.0.1
@@ -115,12 +115,12 @@ Hello, World!
 >>> -
 5
 
->>> ,show-stack               ; show the stack (non-browser repl only)
+>>> ,show-stack!              ; show the stack (non-browser repl only)
 5
 ( 4 5 6 )
 "( 3 2 1 )"
 "( 3 4 )"
->>> clear-stack               ; clear the stack (repl only)
+>>> clear-stack!              ; clear the stack (repl only)
 ```
 
 NB: use whitespace to separate tokens since "special" characters like
@@ -201,7 +201,7 @@ name.
 
 ```koneko
 >>> , :myswap [ x y . 'y 'x ] def         ; named parameters
->>> , 1 2 myswap show-stack
+>>> , 1 2 myswap show-stack!
 1
 2
 
@@ -252,7 +252,7 @@ Hello!
 
 ```koneko
 >>> , 35 [ 2 + ] [ 7 + ] bi     ; call two functions on 1 value
->>> , show-stack
+>>> , show-stack!
 42
 37
 ```

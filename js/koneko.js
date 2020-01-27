@@ -2,7 +2,7 @@
 //
 //  File        : koneko.js
 //  Maintainer  : Felix C. Stegerman <flx@obfusk.net>
-//  Date        : 2020-01-26
+//  Date        : 2020-01-30
 //
 //  Copyright   : Copyright (C) 2020  Felix C. Stegerman
 //  Version     : v0.0.1
@@ -622,6 +622,10 @@ const call = (c0, s0, tailPos = false) => {                   //  {{{1
           )))
         case "merge":
           return p(y => [dict_(new Map([...y.value, ...xv]))], "dict")
+        case "delete":
+          return p(k =>
+            [dict_(new Map([...xv].filter(([k_, v]) => k_ != k.value)))]
+          , "kwd")
         case "empty?":
           return r(bool(!xv.size))
         case "len":
@@ -1181,6 +1185,14 @@ modules.set("__prim__", new Map([                             //  {{{1
   mkPrim("__float-__", opF((x, y) => x - y)),
   mkPrim("__float*__", opF((x, y) => x * y)),
   mkPrim("__float/__", opF((x, y) => x / y)),
+  mkPrimPP("__abs__",
+    n => [n.type == "float" ? float(Math.abs(n.value)) :
+          n.value < 0 ? int(-n.value) : n], "int or float"
+  ),
+  mkPrimPP("__trunc__", n => [int(Math.trunc(n.value))], "float"),
+  mkPrimPP("__round__", n => [int(round     (n.value))], "float"),
+  mkPrimPP("__ceil__" , n => [int(Math.ceil (n.value))], "float"),
+  mkPrimPP("__floor__", n => [int(Math.floor(n.value))], "float"),
   mkPrimPP("__chr__",
     x => [str(String.fromCodePoint(intToNum(x.value)))], "int"
   ),
@@ -1251,11 +1263,11 @@ modules.set("__prim__", new Map([                             //  {{{1
     await new Promise((resolve, _) => setTimeout(resolve, ms))
     return s1
   }),
-  mkPrim("__show-stack__", (c, s) => {
+  mkPrim("__show-stack!__", (c, s) => {
     for (const x of stack.toArray(s)) { say(show(x)) }
     return s
   }),
-  mkPrim("__clear-stack__", (c, s) => stack.new()),
+  mkPrim("__clear-stack!__", (c, s) => stack.new()),
   mkPrim("__nya!__", (c, s) => nya().then(() => s)),
 ]))                                                           //  }}}1
 
@@ -1284,11 +1296,17 @@ modules.set("__bltn__", new Map([
   mkPrimPP("str->int"  , x => [maybeJ(int  , pInt  (strVal(x)))], "str"),
   mkPrimPP("str->float", x => [maybeJ(float, pFloat(strVal(x)))], "str"),
   ...types.map(t => mkPrimPP(t+"?", x => [bool(x.type == t)], "_"))
-].map(([k,v]) => { v.prim = false; return [k,v] })))
+].map(([k, v]) => { v.prim = false; return [k, v] })))
 
 modules.get("__main__").set("__args__", list([]))           // default
 
 /* === miscellaneous === */
+
+// TODO
+const round = f => {
+  const i = Math.round(f)
+  return i % 2 && f + 0.5 == i ? i - 1 : i
+}
 
 // TODO
 const zip = (xs, ys) => xs.map((x, i) => [x, ys[i]])
@@ -1405,23 +1423,20 @@ const read_line = (prompt = null) =>                          //  {{{1
 
 // NB: node.js only
 
-const repl_init = c => ["clear-stack", "show-stack"].forEach(x =>
-  scope.define(c, x, scope.lookup(c, "__" + x + "__"))
-)
-
-// NB: not node.js only
-const repl_sugar  = line => _REPL_SUGAR.get(line.trim()) || line
-const _REPL_SUGAR = new Map([["#ss", ",show-stack"],
-                             ["#cs", "clear-stack"]])
+const repl_init = (c, show = true) => {
+  const xs = ["display!", "clear-stack!", ...(show ? ["show-stack!"] : [])]
+  const alias = (x, y) => scope.define(c, x, scope.lookup(c, y))
+  for (const x of xs.slice(1)) { alias(x, `__${x}__`) }
+  for (const x of xs) { alias(`${x[0]}!`, x) }
+}
 
 // NB: Promise
 const repl_process_line =                                     //  {{{1
   async (line, c, s, stdout, stderr) => {
-    const l = repl_sugar(line)
-    if (!l) { return s }
+    if (!line) { return s }
     try {
-      s = await evalText(l, c, s)
-      if (!stack.null(s) && !",;".includes(l[0])) {
+      s = await evalText(line, c, s)
+      if (!stack.null(s) && !",;".includes(line[0])) {
         stdout.write(show(stack.top(s)) + "\n")
       }
     } catch(e) {
@@ -1624,8 +1639,14 @@ const printFail = (ex, out, err) => {                         //  {{{1
 // NB: node.js only
 
 // NB: Promise
-const main = () =>
-  main_().catch(e => { console.error(e); process.exit(1) })
+const main = () => main_().catch(e => {
+  if (e instanceof KonekoError) {
+    putErr("koneko: " + e.message)
+  } else {
+    console.error(e)
+  }
+  process.exit(1)
+})
 
 // TODO: fix args; --eval, --interactive, ...
 // NB: Promise
@@ -1673,7 +1694,7 @@ const overrides = {}
 
 _mod[_exp] = {
   KonekoError, read, evaluate, evalText, show, toJS, fromJS,
-  loadPrelude, overrides, repl_sugar,
+  loadPrelude, overrides, repl_init,
   initContext: scope.new, emptyStack: stack.new,
   ...(_req ? { repl, doctest, doctest_, main } : {})
 }
