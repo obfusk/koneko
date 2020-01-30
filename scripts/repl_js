@@ -1,2 +1,6 @@
 #!/bin/bash
-exec rlwrap -C koneko node js/koneko "$@"
+rlwrap=()
+if type rlwrap >/dev/null; then
+  rlwrap=( rlwrap -C koneko )
+fi
+exec "${rlwrap[@]}" node js/koneko "$@"

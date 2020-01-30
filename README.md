@@ -354,9 +354,13 @@ fizzbuzz
 
 ## Installing
 
+See [(Build) Requirements](#build-requirements).
+
 ... TODO ...
 
 ## Running
+
+### Linux (& Probably macOS and *BSD)
 
 ```bash
 $ make cabal_build                            # Haskell Build
@@ -366,11 +370,25 @@ $ ./scripts/repl_js                           # Node.js REPL
 $ make repl_browser                           # Browser REPL
 ```
 
+### Windows (Untested)
+
+```
+$ cabal v2-build --write-ghc-environment-files=always --enable-tests
+$ cabal v2-run koneko                         # Haskell REPL
+
+$ node js\koneko                              # Node.js REPL
+```
+
 ... TODO ...
 
 ## (Build) Requirements
 
-See `koneko.cabal` for the dependencies.
+The Haskell implementation requires the [Haskell
+Platform](https://www.haskell.org/platform) (and a few additional
+libraries that the Cabal build system provided with the Platform can
+install); see `koneko.cabal` for the dependencies.
+
+The JavaScript implementation requires Node.js.
 
 ### Debian
 
@@ -379,6 +397,7 @@ $ apt install haskell-platform libghc-cmdargs-dev libghc-doctest-dev \
   libghc-hashtables-dev libghc-megaparsec-dev libghc-regex-pcre-dev \
   libghc-safe-dev libghc-silently-dev         # Haskell version
 $ apt install nodejs                          # Node.js version
+$ apt install rlwrap                          # (readline support)
 ```
 
 ## Specs & Docs

@@ -3,4 +3,4 @@ rlwrap=()
 if type rlwrap >/dev/null; then
   rlwrap=( rlwrap -C koneko )
 fi
-exec "${rlwrap[@]}" cabal v2-run koneko -- "$@"
+exec "${rlwrap[@]}" node -e 'require("koneko").main()' _ "$@"

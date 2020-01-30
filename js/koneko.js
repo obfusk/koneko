@@ -1327,8 +1327,10 @@ const mkRx = (s, flags = "") => {                             //  {{{1
 
 /* === files === */
 
-const baseDir =
-  _req ? _req("path").dirname(module.filename) + "/../" : ""
+const _path   = _req ? _req("path") : null
+const join    = (...xs) => _req ? _path.join(...xs) : xs.join("/")
+const baseDir = _req ? join(_path.dirname(module.filename), "..") : ""
+const bpath   = (...xs) => join(baseDir, ...xs)
 
 // NB: browser only; Promise
 const requestFile = fname => new Promise((resolve, reject) => {
@@ -1365,13 +1367,13 @@ const evalFile = (fname, c = undefined, s = undefined) => {
 // NB: Promise
 const loadMod = async name => {                               //  {{{1
   if (!_req) {
-    return await evalFile(`lib/${name}.knk`).catch(() => {
+    return await evalFile(join("lib", `${name}.knk`)).catch(() => {
       throw new KE(...E.ModuleLoadError(name))
     })
   }
-  const fs = _req("fs")
-  const ps = (process.env.KONEKOPATH || "").split(":").filter(x => x)
-  const xs = [baseDir + "lib", ...ps].map(x => `${x}/${name}.knk`)
+  const fs = _req("fs"), d = _path.delimiter
+  const ps = (process.env.KONEKOPATH || "").split(d).filter(x => x)
+  const xs = [bpath("lib"), ...ps].map(x => join(x, `${name}.knk`))
   for (const x of xs) {
     if (fs.existsSync(x)) { return await evalFile(x) }
   }
@@ -1451,7 +1453,9 @@ const repl_process_line =                                     //  {{{1
 
 // NB: Promise
 const repl = async (verbose = false) => {                     //  {{{1
-  if (!process.stdin.isTTY) { return evalFile("/dev/stdin") } //  TODO
+  if (!process.stdin.isTTY && process.platform != "win32") {
+    return evalFile("/dev/stdin")                             //  TODO
+  }
   const c = scope.new(); let s = stack.new(); repl_init(c)
   if (verbose) { scope.define(c, "__debug__", T) }
   const f = async () => {
@@ -1657,7 +1661,7 @@ const main_ = async () => {                                   //  {{{1
   const args    = argv.filter(a => !a.startsWith("-"))
   const verbose = opts.includes("-v")
   if (opts.includes("--version")) {
-    const version = _req(baseDir + "package.json").version
+    const version = _req(bpath("package.json")).version
     putOut(`koneko 「子猫」 ${version}`)
   } else if (opts.includes("--doctest")) {
     await doctest_(args, verbose)
@@ -1682,7 +1686,7 @@ const nya = async () => {
   if (overrides.nya) {
     return await overrides.nya()
   } else if (_req) {
-    return readFile(baseDir + "nya/tabby.cat", "utf8").then(
+    return readFile(bpath("nya", "tabby.cat"), "utf8").then(
       data => putOut(data, "")
     )
   } else {
