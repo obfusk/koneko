@@ -2,7 +2,7 @@
 --
 --  File        : Koneko/Eval.hs
 --  Maintainer  : Felix C. Stegerman <flx@obfusk.net>
---  Date        : 2020-01-30
+--  Date        : 2020-01-31
 --
 --  Copyright   : Copyright (C) 2020  Felix C. Stegerman
 --  Version     : v0.0.1
@@ -375,7 +375,7 @@ _pushRec s r = retOrThrow r >>= rpush1 s . KRecord
 loadMod :: Context -> Identifier -> IO ()
 loadMod ctx name = () <$ do
     lib   <- getDataFileName "lib"
-    ps    <- (split ':' . maybe "" id) <$> lookupEnv "KONEKOPATH"
+    ps    <- split ':' . maybe "" id <$> lookupEnv "KONEKOPATH"
     file  <- f $ map (</> fname) $ lib:ps
     evalFile file ctx emptyStack
   where

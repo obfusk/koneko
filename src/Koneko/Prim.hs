@@ -373,7 +373,7 @@ _rxReplaceAll
   :: BL.ByteString -> [RE.MatchText BL.ByteString]
   -> ([Text] -> IO Text) -> IO (Maybe Text)
 _rxReplaceAll _   [] _    = return Nothing
-_rxReplaceAll src ms sub  = (Just . T.concat . concat) <$> f 0 src ms
+_rxReplaceAll src ms sub  = Just . T.concat . concat <$> f 0 src ms
   where
     f _ s    []   = return [[LE.decodeUtf8 s]]
     f i s (m:mt)  = do
