@@ -1308,7 +1308,6 @@
 :foldr' [ f . swap [ <rot 'f 'foldr' 3$ f ] ^seq' ] def
 
 ; TODO: scanl, scanr
-; TODO: min, max, sum, prod
 
 ; concatenation of all elements
 ;
@@ -1394,6 +1393,32 @@
 ; nil
 
 :find   [ filter 'drop with-seq ] def
+
+; least & largest element of a non-empty sequence
+;
+; >>> ( 1 2 4 -1 7 3 ) minimum
+; -1
+; >>> ( 1 2 4 -1 7 3 ) maximum
+; 7
+; >>> () maximum
+; *** ERROR: maximum: empty list
+
+:minimum [ [ "minimum: empty list" fail ] [ swap 'min foldl ] ^seq ] def
+:maximum [ [ "maximum: empty list" fail ] [ swap 'max foldl ] ^seq ] def
+
+; sum & product of a sequence
+;
+; >>> ( 1 2 3 4 ) sum
+; 10
+; >>> ( 1 2 3 4 ) product
+; 24
+; >>> () sum
+; 0
+; >>> () product
+; 1
+
+:sum      [ 0 '+ foldl ] def
+:product  [ 1 '* foldl ] def
 
                                                                 ; }}}1
 
