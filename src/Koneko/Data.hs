@@ -62,18 +62,19 @@ module Koneko.Data (
   thunk, Scope, modName, Context, ctxScope, KPrim(..), KValue(..),
   KType(..), Stack, freeVars, Cmp(..), escapeFrom, escapeTo, ToVal,
   toVal, FromVal, fromVal, toVals, fromVals, maybeToVal, eitherToVal,
-  emptyStack, push', push, rpush, rpush1, pop, pop2, pop3, pop4, pop',
-  pop2', pop3', pop4', popN', pop1push, pop2push, pop1push1,
-  pop2push1, primModule, bltnModule, prldModule, mainModule,
-  initMainContext, initMain, initModule, forkContext, forkScope,
-  defineIn, defineIn', importIn, importFromIn, lookup, lookupModule',
-  moduleKeys, moduleNames, typeNames, typeOfPrim, typeOf, typeToKwd,
-  typeToStr, typeAsStr, isNil, isBool, isInt, isFloat, isStr, isKwd,
-  isPair, isList, isDict, isIdent, isQuot, isBlock, isBuiltin,
-  isMulti, isRecordT, isRecord, isThunk, isCallable, isFunction, nil,
-  false, true, bool, int, float, str, kwd, pair, list, dict, block,
-  dictLookup, mkPrim, mkBltn, defPrim, defMulti, truthy, retOrThrow,
-  recordTypeSig, underscored, digitParams, unKwds
+  emptyStack, push', push, rpush, rpush1, pop_, pop, pop2, pop3, pop4,
+  pop_', pop', pop2', pop3', pop4', popN', pop1push, pop2push,
+  pop1push1, pop2push1, primModule, bltnModule, prldModule,
+  mainModule, initMainContext, initMain, initModule, forkContext,
+  forkScope, defineIn, defineIn', importIn, importFromIn, lookup,
+  lookupModule', moduleKeys, moduleNames, typeNames, typeOfPrim,
+  typeOf, typeToKwd, typeToStr, typeAsStr, isNil, isBool, isInt,
+  isFloat, isStr, isKwd, isPair, isList, isDict, isIdent, isQuot,
+  isBlock, isBuiltin, isMulti, isRecordT, isRecord, isThunk,
+  isCallable, isFunction, nil, false, true, bool, int, float, str,
+  kwd, pair, list, dict, block, dictLookup, mkPrim, mkBltn, defPrim,
+  defMulti, truthy, retOrThrow, recordTypeSig, underscored,
+  digitParams, unKwds
 ) where
 
 import Control.DeepSeq (deepseq, NFData(..))
@@ -638,9 +639,12 @@ rpush s = return . foldl push s
 rpush1 :: ToVal a => Stack -> a -> IO Stack
 rpush1 s = return . push s
 
+pop_ :: Stack -> Either KException (KValue, Stack)
+pop_ []     = Left StackUnderflow
+pop_ (x:s)  = Right (x, s)
+
 pop :: FromVal a => Stack -> Either KException (a, Stack)
-pop []    = Left StackUnderflow
-pop (x:s) = do y <- fromVal x; Right (y, s)
+pop s = (\(x, s') -> (,s') <$> fromVal x) =<< pop_ s
 
 -- | NB: returns popped items in "reverse" order
 --
@@ -683,6 +687,9 @@ pop4 s0 = do
   (x, s3) <- pop s2
   (w, s4) <- pop s3
   return ((w, x, y, z), s4)
+
+pop_' :: Stack -> IO (KValue, Stack)
+pop_' = retOrThrow . pop_
 
 pop' :: FromVal a => Stack -> IO (a, Stack)
 pop' = retOrThrow . pop
