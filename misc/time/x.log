@@ -1,0 +1,16 @@
+x.hs                        ~ 0.50s
+x.hs compiled               ~ 0.03s
+
+x.py                        ~ 0.05s
+
+x0.knk hs                   ~ 24s
+x0.knk js                   ~ 30s
+
+x1.knk hs                   ~ 13s
+x1.knk js                   ~ 16s
+
+x2.knk hs                   ~ 2.0s
+x2.knk js                   ~ 3.2s
+
+x2.knk hs w/ bltn dup&drop  ~ 1.5s
+x2.knk js w/ bltn dup&drop  ~ 2.7s

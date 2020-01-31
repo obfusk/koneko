@@ -1298,7 +1298,9 @@ const callableTypes =
 modules.set("__bltn__", new Map([
   mkPrimPP("str->int"  , x => [maybeJ(int  , pInt  (strVal(x)))], "str"),
   mkPrimPP("str->float", x => [maybeJ(float, pFloat(strVal(x)))], "str"),
-  ...types.map(t => mkPrimPP(t+"?", x => [bool(x.type == t)], "_"))
+  ...types.map(t => mkPrimPP(t+"?", x => [bool(x.type == t)], "_")),
+  // mkPrimPP("dup", x => [x, x], "_"),
+  // mkPrimPP("drop", x => [], "_"),
 ].map(([k, v]) => { v.prim = false; return [k, v] })))
 
 defMain()
