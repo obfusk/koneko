@@ -2,9 +2,9 @@
 --
 --  File        : Koneko/Test.hs
 --  Maintainer  : Felix C. Stegerman <flx@obfusk.net>
---  Date        : 2019-11-28
+--  Date        : 2020-01-31
 --
---  Copyright   : Copyright (C) 2019  Felix C. Stegerman
+--  Copyright   : Copyright (C) 2020  Felix C. Stegerman
 --  Version     : v0.0.1
 --  License     : GPLv3+
 --
@@ -39,7 +39,7 @@ import qualified Data.Text.Lazy.IO as T
 import qualified System.IO as IO
 import qualified System.IO.Silently as S
 
-import Koneko.Data (Context, Stack, emptyStack, initModule, mainModule)
+import Koneko.Data (Context, Stack, emptyStack, initMain)
 import Koneko.Eval (initContext)
 
 import qualified Koneko.Repl as RE
@@ -189,7 +189,7 @@ testExamples ctx verb ex = do
 testExampleGroup
   :: Context -> Verbosity -> ExampleGroup -> IO (Int, Int, Int)
 testExampleGroup ctx verb g = do
-    initModule ctx mainModule                                 --  TODO
+    initMain ctx                                              --  TODO
     let st = emptyStack; total = length g
     (ok, fail, _) <- loop 0 0 g ctx st
     when (verb == Loud) $ do printTTPF total ok fail; putStrLn ""

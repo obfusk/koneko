@@ -2,7 +2,7 @@
 //
 //  File        : koneko.js
 //  Maintainer  : Felix C. Stegerman <flx@obfusk.net>
-//  Date        : 2020-01-30
+//  Date        : 2020-01-31
 //
 //  Copyright   : Copyright (C) 2020  Felix C. Stegerman
 //  Version     : v0.0.1
@@ -1044,7 +1044,10 @@ const cmp_gte = c => bool(c ==  1 || c == 0)
 /* === modules & primitives === */
 
 const imports = new Map()
-const modules = new Map(["__prld__", "__main__"].map(k => [k, new Map()]))
+const modules = new Map([["__prld__", new Map()]])
+
+const defMain = () => modules.set("__main__",
+  new Map([["__args__", list([])], ["__repl__", F]]))
 
 modules.set("__prim__", new Map([                             //  {{{1
   mkPrim("__call__", call),
@@ -1298,7 +1301,7 @@ modules.set("__bltn__", new Map([
   ...types.map(t => mkPrimPP(t+"?", x => [bool(x.type == t)], "_"))
 ].map(([k, v]) => { v.prim = false; return [k, v] })))
 
-modules.get("__main__").set("__args__", list([]))           // default
+defMain()
 
 /* === miscellaneous === */
 
@@ -1426,6 +1429,7 @@ const read_line = (prompt = null) =>                          //  {{{1
 // NB: node.js only
 
 const repl_init = (c, show = true) => {
+  scope.define(c, "__repl__", T)
   const xs = ["display!", "clear-stack!", ...(show ? ["show-stack!"] : [])]
   const alias = (x, y) => scope.define(c, x, scope.lookup(c, y))
   for (const x of xs.slice(1)) { alias(x, `__${x}__`) }
@@ -1576,7 +1580,7 @@ const testExamples = async (es, verbose = false) => {         //  {{{1
 // NB: Promise
 const testExampleGroup = async (g, verbose = false) => {      //  {{{1
   const wr = l => ({ write: s => l.push(s.slice(0, -1)) })
-  modules.set("__main__", new Map())                          //  TODO
+  defMain()                                                   //  TODO
   const c = scope.new(); let s = stack.new(); repl_init(c)
   let ok = 0, fail = 0
   for (const e of g) {

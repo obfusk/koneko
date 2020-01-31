@@ -2,7 +2,7 @@
 --
 --  File        : Koneko/Prim.hs
 --  Maintainer  : Felix C. Stegerman <flx@obfusk.net>
---  Date        : 2020-01-30
+--  Date        : 2020-01-31
 --
 --  Copyright   : Copyright (C) 2020  Felix C. Stegerman
 --  Version     : v0.0.1
@@ -409,6 +409,7 @@ replDef ctx = do
     alias "show-stack!"  showStack ; alias "s!" showStack
     alias "clear-stack!" clearStack; alias "c!" clearStack
     defineIn ctx "d!" =<< lookupModule' ctx "display!" "__prld__"
+    defineIn ctx "__repl__" true
   where
     alias n f = defineIn ctx n $ KBuiltin f
 

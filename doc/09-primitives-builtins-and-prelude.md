@@ -2,7 +2,7 @@
 
     File        : doc/09-primitives-builtins-and-prelude.md
     Maintainer  : Felix C. Stegerman <flx@obfusk.net>
-    Date        : 2020-01-26
+    Date        : 2020-01-31
 
     Copyright   : Copyright (C) 2020  Felix C. Stegerman
     Version     : v0.0.1
@@ -169,7 +169,7 @@ What's your name? Foo
 >>> __name__
 :__main__
 >>> __module-defs__
-( :answer :c! :clear-stack! :d! :s! :show-stack! )
+( :__args__ :__repl__ :answer :c! :clear-stack! :d! :s! :show-stack! )
 >>> :answer :__main__ __module-get__
 42
 >>> __modules__ [ show ":__" starts-with? ] filter ->list

@@ -2,7 +2,7 @@
 --
 --  File        : Koneko/Data.hs
 --  Maintainer  : Felix C. Stegerman <flx@obfusk.net>
---  Date        : 2020-01-26
+--  Date        : 2020-01-31
 --
 --  Copyright   : Copyright (C) 2020  Felix C. Stegerman
 --  Version     : v0.0.1
@@ -65,13 +65,13 @@ module Koneko.Data (
   emptyStack, push', push, rpush, rpush1, pop, pop2, pop3, pop4, pop',
   pop2', pop3', pop4', popN', pop1push, pop2push, pop1push1,
   pop2push1, primModule, bltnModule, prldModule, mainModule,
-  initMainContext, initModule, forkContext, forkScope, defineIn,
-  importIn, importFromIn, lookup, lookupModule', moduleKeys,
-  moduleNames, typeNames, typeOfPrim, typeOf, typeToKwd, typeToStr,
-  typeAsStr, isNil, isBool, isInt, isFloat, isStr, isKwd, isPair,
-  isList, isDict, isIdent, isQuot, isBlock, isBuiltin, isMulti,
-  isRecordT, isRecord, isThunk, isCallable, isFunction, nil, false,
-  true, bool, int, float, str, kwd, pair, list, dict, block,
+  initMainContext, initMain, initModule, forkContext, forkScope,
+  defineIn, defineIn', importIn, importFromIn, lookup, lookupModule',
+  moduleKeys, moduleNames, typeNames, typeOfPrim, typeOf, typeToKwd,
+  typeToStr, typeAsStr, isNil, isBool, isInt, isFloat, isStr, isKwd,
+  isPair, isList, isDict, isIdent, isQuot, isBlock, isBuiltin,
+  isMulti, isRecordT, isRecord, isThunk, isCallable, isFunction, nil,
+  false, true, bool, int, float, str, kwd, pair, list, dict, block,
   dictLookup, mkPrim, mkBltn, defPrim, defMulti, truthy, retOrThrow,
   recordTypeSig, underscored, digitParams, unKwds
 ) where
@@ -730,9 +730,14 @@ initMainContext :: IO Context
 initMainContext = do
   modules <- HT.new; imports <- HT.new
   let ctxScope = _newScope mainModule; ctx = Context{..}
-  traverse_ (initModule ctx)
-    [primModule, bltnModule, prldModule, mainModule]
-  return ctx
+  traverse_ (initModule ctx) [primModule, bltnModule, prldModule]
+  ctx <$ initMain ctx
+
+initMain :: Context -> IO ()
+initMain c = do
+  initModule c mainModule
+  let d = defineIn' c mainModule
+  d "__args__" $ KList $ List []; d "__repl__" false
 
 initModule :: Context -> Identifier -> IO ()
 initModule ctx m = HT.new >>= HT.insert (modules ctx) m
@@ -761,7 +766,11 @@ forkScope l c Block{..} = do
 -- TODO: error if already exists (or prim, etc.)
 -- throws ModuleNameError
 defineIn :: Context -> Identifier -> KValue -> IO ()
-defineIn c k v = do curMod <- scopeModule c; HT.insert curMod k v
+defineIn c k v = defineIn' c (modName $ ctxScope c) k v
+
+-- throws ModuleNameError
+defineIn' :: Context -> Identifier -> Identifier -> KValue -> IO ()
+defineIn' c mn k v = do m <- getModule c mn; HT.insert m k v
 
 importIn :: Context -> Identifier -> IO ()
 importIn c k  = HT.mutate (imports c) (modName $ ctxScope c)
@@ -774,10 +783,6 @@ importIn c k  = HT.mutate (imports c) (modName $ ctxScope c)
 importFromIn :: Context -> Identifier -> [Identifier] -> IO ()
 importFromIn c m
   = traverse_ $ \k -> defineIn c k =<< lookupModule' c k m
-
--- throws ModuleNameError
-scopeModule :: Context -> IO Module
-scopeModule c = getModule c $ modName $ ctxScope c
 
 -- Prim -> Scope* -> Module -> Import* -> Bltn -> Prld
 -- throws ModuleNameError
@@ -961,7 +966,8 @@ defPrim ctx f = defineIn ctx (biName f) $ KBuiltin f
 -- TODO: error if already exists, name not the same
 defMulti :: Context -> Identifier -> [Identifier] -> Block -> IO ()
 defMulti c mn sig b = do
-    curMod <- scopeModule c; HT.mutateIO curMod mn f
+    curMod <- getModule c $ modName $ ctxScope c
+    HT.mutateIO curMod mn f
   where
     f Nothing = do
       mt <- HT.new; HT.insert mt sig b
