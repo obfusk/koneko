@@ -35,7 +35,7 @@ class KonekoLexer(RegexLexer):
     space, nonsp = r'[, \t]', r'[^, \t\n]'
     sep = r'('+space+r'+|$)'
     par = r'([(){}\[\]])'
-    par_ = par[:-1] + '?)'
+    opar = r'([({\[]?)'
 
     builtin_prims = words("""
       def call apply apply-dict if defmulti defrecord => dict show
@@ -44,7 +44,7 @@ class KonekoLexer(RegexLexer):
       ceil floor int->float record->dict record-type record-values
       record-type-name record-type-fields fail rx-match rx-sub par
       sleep
-    """.split(), suffix=par_+sep)
+    """.split(), suffix=opar+sep)
 
     tokens = {
         'root': [
@@ -100,11 +100,11 @@ class KonekoLexer(RegexLexer):
             # primitives
             (builtin_prims,
              bygroups(Keyword, Punctuation, Text)),
-            (r'(__'+nonsp+r'+__)'+par_+sep,
+            (r'(__'+nonsp+r'+__)'+opar+sep,
              bygroups(Keyword, Punctuation, Text)),
 
             # ident
-            (r"([^':.!, \t]"+nonsp+r'*?)'+par_+sep,
+            (r"([^':.!, \t]"+nonsp+r'*?)'+opar+sep,
              bygroups(Name.Function, Punctuation, Text)),
 
             # quot (& '[)
