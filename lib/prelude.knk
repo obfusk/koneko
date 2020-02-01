@@ -2,7 +2,7 @@
 ;
 ; File        : prelude.knk
 ; Maintainer  : Felix C. Stegerman <flx@obfusk.net>
-; Date        : 2020-01-30
+; Date        : 2020-02-01
 ;
 ; Copyright   : Copyright (C) 2020  Felix C. Stegerman
 ; Version     : v0.0.1
@@ -1088,14 +1088,13 @@
 ; ( 1 2 3 )
 
 :seq    ( :nil    ) [ ] defmulti
+:seq    ( :str    ) [ ->nil '->list ~>  ] defmulti              ; TODO
+:seq    ( :dict   ) [ ->nil '.pairs ~>  ] defmulti              ; TODO
+:seq    ( :list   ) [ ->nil             ] defmulti
+:seq    ( :Range  ) [ ->nil             ] defmulti
+:seq    ( :LSeq   ) [ lseq-seq          ] defmulti
 
-:seq    ( :str    ) [ ->nil '->list ~> ] defmulti               ; TODO
-:seq    ( :dict   ) [ ->nil '.pairs ~> ] defmulti               ; TODO
-
-:seq    ( :list   ) [ ->nil ] defmulti
-:seq    ( :Range  ) [ ->nil ] defmulti
-
-:seq    ( :LSeq   ) [ dup .chunk empty? [ !thunk seq ] when ] defmulti
+:lseq-seq [ dup .chunk empty? [ !thunk seq ] when ] def
 
 ; generic "uncons"
 ;
@@ -1115,8 +1114,9 @@
 
 :unseq  ( :list   ) [ [ nil nil ] [] ^list ] defmulti
 :unseq  ( :Range  ) [ range-unseq ] defmulti
-:unseq  ( :LSeq   ) [ [ t . [ t unseq ] [ unseq 't LSeq ] ~seq ]
-                      ^LSeq ] defmulti
+:unseq  ( :LSeq   ) [ lseq-unseq  ] defmulti
+
+:lseq-unseq [ [ t . [ t unseq ] [ unseq 't LSeq ] ~seq ] ^LSeq ] def
 
 ; generic "head" & "tail"
 ;
@@ -1900,6 +1900,21 @@
 ; 8
 
 :times  [ [1-n] swap 'drop % each ] def
+
+; loop
+;
+; >>> 12 [ dup d! [ 2 div ] [ 3 * 1 + ] 'even? ~? dup 1 not= ] loop drop
+; 12
+; 6
+; 3
+; 10
+; 5
+; 16
+; 8
+; 4
+; 2
+
+:loop   [ f . f [ 'f loop ] when ] def
 
 ; print str or value to stdout
 ;

@@ -2,7 +2,7 @@
 --
 --  File        : Koneko/Prim.hs
 --  Maintainer  : Felix C. Stegerman <flx@obfusk.net>
---  Date        : 2020-01-31
+--  Date        : 2020-02-01
 --
 --  Copyright   : Copyright (C) 2020  Felix C. Stegerman
 --  Version     : v0.0.1
@@ -14,7 +14,7 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE RecordWildCards #-}
 
-module Koneko.Prim (initCtx, replDef) where
+module Koneko.Prim (initCtx, replDef, swap) where
 
 import Control.Arrow ((***))
 import Control.Concurrent (threadDelay)

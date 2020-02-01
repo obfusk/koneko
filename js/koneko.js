@@ -145,8 +145,10 @@ const scope = {                                               //  {{{1
     for (const x of [modules.get("__prim__"), c.table]) {
       if (x.has(k)) { return x.get(k) }
     }
-    const imps = imports.get(c.module) || []
-    for (const m of [c.module, ...imps, "__bltn__", "__prld__"]) {
+    const imps  = imports.get(c.module) || []
+    const bp    = ["__bltn__", "__prld__"]
+    const imbp  = [c.module, ...imps, ...bp]
+    for (const m of c.module == "__prld__" ? bp : imbp) {
       const mod = modules.get(m)
       if (mod && mod.has(k)) { return mod.get(k) }
     }
@@ -530,7 +532,7 @@ const call = (c0, s0, tailPos = false) => {                   //  {{{1
               throw new KE(...E.NotImplemented(`${op}: step other than 1`))
             }
             return [str_(xl.slice(i_, j_ < 0 ? xl.length + j_ : j_))]
-          } , "_", "_", "int")
+          }, "_", "_", "int")
         case "empty?":
           return r(bool(!xl.length))
         case "len":
@@ -591,7 +593,7 @@ const call = (c0, s0, tailPos = false) => {                   //  {{{1
               throw new KE(...E.NotImplemented(`${op}: step other than 1`))
             }
             return [list(xv.slice(i_, j_ < 0 ? xv.length + j_ : j_))]
-          } , "_", "_", "int")
+          }, "_", "_", "int")
         case "empty?":
           return r(bool(!xv.length))
         case "len":
@@ -709,9 +711,7 @@ const apply = (c0, s0) => {                                   //  {{{1
       const as = new Map(zip(nparms, l1).concat(sparms_.map(p => [p, nil]))
                                         .concat([["&", list(l2)]]))
       const c1 = scope.fork(x, as)
-      return evaluate(x)(c1, stack.new()).then(
-        s3 => stack.push(s2, ...s3)
-      )
+      return evaluate(x)(c1).then(s3 => stack.push(s2, ...s3))
     }
     case "multi":
       throw new KE(...E.NotImplemented("apply multi"))
@@ -741,9 +741,7 @@ const apply_dict = (c0, s0) => {                              //  {{{1
       const as = new Map(zip(nparms, vs).concat(sparms_.map(p => [p, nil]))
                                         .concat([["&&", d_]]))
       const c1 = scope.fork(x, as)
-      return evaluate(x)(c1, stack.new()).then(
-        s3 => stack.push(s2, ...s3)
-      )
+      return evaluate(x)(c1).then(s3 => stack.push(s2, ...s3))
     }
     case "multi":
       throw new KE(...E.NotImplemented("apply-dict multi"))
@@ -827,9 +825,8 @@ const compile = x => {                                        //  {{{1
     case "kwd":
       return b((c, s) => stack.push(s, x))
     case "list":
-      return b((c, s) =>
-        evaluate({ code: x.value })(c).then(l => stack.push(s, list(l)))
-      )
+      return b((c, s) => evaluate({ code: x.value })(c)
+                         .then(l => stack.push(s, list(l))))
     case "ident":
       return b((c, s) => new Defer(p(c, s)))
     case "quot":
@@ -1090,6 +1087,8 @@ const modules = new Map([["__prld__", new Map()]])
 const defMain = () => modules.set("__main__",
   new Map([["__args__", list([])], ["__repl__", F]]))
 
+defMain()
+
 modules.set("__prim__", new Map([                             //  {{{1
   mkPrim("__call__", call),
   mkPrim("__apply__", apply),
@@ -1336,15 +1335,81 @@ const functionTypes = ["block", "builtin", "multi", "record-type"]
 const callableTypes =
   ["str", "pair", "list", "dict", "record", "thunk"].concat(functionTypes)
 
-modules.set("__bltn__", new Map([
+/* === builtins === */
+
+const isls = x => x.type == "record" && x.rectype.name == "LSeq"
+const prld = x => modules.get("__prld__").get(x)
+
+// TODO
+const seq = async (c, s0) => {                                //  {{{1
+  const [[x], s1] = stack.pop(s0, "_")
+  if (isls(x)) {
+    const y = await lseq_merge(x)
+    if (isls(y)) { return stack.push(s1, y) }
+    return await seq(c, stack.push(s1, y))
+  }
+  switch (x.type) {
+    case "nil":
+      return s0
+    case "list":
+      return x.value.length ? s0 : stack.push(s1, nil)
+    default:
+      return await call(c, stack.push(s0, prld("seq")))
+  }
+}                                                             //  }}}1
+
+// TODO
+const unseq = async (c, s0) => {                              //  {{{1
+  const [[x], s1] = stack.pop(s0, "_")
+  if (isls(x)) {
+    const y = await lseq_merge(x)
+    if (isls(y)) { return await lseq_un(c, s1, x.rectype, y) }
+    return await unseq(c, stack.push(s1, y))
+  }
+  return await call(c, stack.push(s0, prld("unseq")))
+}                                                             //  }}}1
+
+// TODO
+const mat_seq = async (c, s0) => {                            //  {{{1
+  const [[x, f, g], s1] = stack.pop(s0, "_", "_", "_")
+  if (isls(x)) {
+    const [y] = await seq(c, stack.new(x))
+    if (isls(y)) {
+      const s2 = await lseq_un(c, s1, x.rectype, y)
+      return await call(c, stack.push(s2, g))
+    }
+    if (y.type == "nil") { return await call(c, stack.push(s1, f)) }
+    return await mat_seq(c, stack.push(s1, y, f, g))
+  }
+  return await call(c, stack.push(s0, prld("^seq")))
+}                                                             //  }}}1
+
+// TODO
+const lseq_merge = async x => {
+  let y = x
+  while (isls(y) && !y.values[0].value.length) {
+    const t = y.values[1]; y = await t.run()
+    if (x !== y) { x.thunk = t }
+  }
+  return y
+}
+
+// TODO
+const lseq_un = async (c, s, t, y) => {
+  const [z, zt] = await unseq(c, stack.new(y.values[0]))
+  return stack.push(s, z, record(t, [zt, y.values[1]]))
+}
+
+// TODO
+modules.set("__bltn__", new Map([                             //  {{{1
   mkPrimPP("str->int"  , x => [maybeJ(int  , pInt  (strVal(x)))], "str"),
   mkPrimPP("str->float", x => [maybeJ(float, pFloat(strVal(x)))], "str"),
   ...types.map(t => mkPrimPP(t+"?", x => [bool(x.type == t)], "_")),
   // mkPrimPP("dup", x => [x, x], "_"),
   // mkPrimPP("drop", x => [], "_"),
-].map(([k, v]) => { v.prim = false; return [k, v] })))
-
-defMain()
+  // mkPrim("swap", modules.get("__prim__").get("__swap__").run),
+  mkPrim("seq", seq), mkPrim("unseq", unseq), mkPrim("^seq", mat_seq),
+].map(([k, v]) => { v.prim = false; return [k, v] })))        //  }}}1
 
 /* === miscellaneous === */
 

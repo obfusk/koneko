@@ -2,7 +2,7 @@
 --
 --  File        : Koneko/Bltn.hs
 --  Maintainer  : Felix C. Stegerman <flx@obfusk.net>
---  Date        : 2020-01-31
+--  Date        : 2020-02-01
 --
 --  Copyright   : Copyright (C) 2020  Felix C. Stegerman
 --  Version     : v0.0.1
@@ -19,12 +19,13 @@ import Data.Monoid ((<>))
 
 import Koneko.Data
 import Koneko.Misc (pInt, pFloat, parseMaybe)
+-- import Koneko.Prim (swap)
 
 initCtx :: Context -> IO ()
 initCtx ctxMain = do
   ctx <- forkContext bltnModule ctxMain
   traverse_ (defPrim ctx) $ typePreds ++ [strToInt, strToFloat]
-  --  ++ [dup, drop_]
+  --  ++ [dup, drop_, mkBltn "swap" (biRun swap)]
 
 typePreds :: [Builtin]
 typePreds = [ mkBltn (x <> "?") $ pop1push1

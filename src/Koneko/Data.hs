@@ -2,7 +2,7 @@
 --
 --  File        : Koneko/Data.hs
 --  Maintainer  : Felix C. Stegerman <flx@obfusk.net>
---  Date        : 2020-01-31
+--  Date        : 2020-02-01
 --
 --  Copyright   : Copyright (C) 2020  Felix C. Stegerman
 --  Version     : v0.0.1
@@ -796,15 +796,13 @@ importFromIn c m
 lookup :: Context -> Identifier -> IO (Maybe KValue)
 lookup c k = do
     imp <- maybe [] id <$> HT.lookup (imports c) m
-    M.firstJust [lookupPrim, lookupScope s, lookupImp imp,
-                 lookupBltn, lookupPrld]
+    let bp = map look [bltnModule, prldModule]
+        mi = [look m, lookupImp imp]
+    M.firstJust $ [look primModule, lookupScope s] ++
+      if m == prldModule then bp else mi ++ bp
   where
-    s = ctxScope c; m = modName s
-    lookupScope = maybe (look m) (return . Just) . H.lookup k . table
-    lookupPrim  = look primModule
-    lookupBltn  = look bltnModule
-    lookupPrld  = look prldModule
-    look        = lookupModule c k
+    s = ctxScope c; m = modName s; look = lookupModule c k
+    lookupScope = return . H.lookup k . table
     lookupImp   = M.firstJust . map look
 
 -- throws ModuleNameError
