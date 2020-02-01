@@ -1337,79 +1337,14 @@ const callableTypes =
 
 /* === builtins === */
 
-const isls = x => x.type == "record" && x.rectype.name == "LSeq"
-const prld = x => modules.get("__prld__").get(x)
-
-// TODO
-const seq = async (c, s0) => {                                //  {{{1
-  const [[x], s1] = stack.pop(s0, "_")
-  if (isls(x)) {
-    const y = await lseq_merge(x)
-    if (isls(y)) { return stack.push(s1, y) }
-    return await seq(c, stack.push(s1, y))
-  }
-  switch (x.type) {
-    case "nil":
-      return s0
-    case "list":
-      return x.value.length ? s0 : stack.push(s1, nil)
-    default:
-      return await call(c, stack.push(s0, prld("seq")))
-  }
-}                                                             //  }}}1
-
-// TODO
-const unseq = async (c, s0) => {                              //  {{{1
-  const [[x], s1] = stack.pop(s0, "_")
-  if (isls(x)) {
-    const y = await lseq_merge(x)
-    if (isls(y)) { return await lseq_un(c, s1, x.rectype, y) }
-    return await unseq(c, stack.push(s1, y))
-  }
-  return await call(c, stack.push(s0, prld("unseq")))
-}                                                             //  }}}1
-
-// TODO
-const mat_seq = async (c, s0) => {                            //  {{{1
-  const [[x, f, g], s1] = stack.pop(s0, "_", "_", "_")
-  if (isls(x)) {
-    const [y] = await seq(c, stack.new(x))
-    if (isls(y)) {
-      const s2 = await lseq_un(c, s1, x.rectype, y)
-      return await call(c, stack.push(s2, g))
-    }
-    if (y.type == "nil") { return await call(c, stack.push(s1, f)) }
-    return await mat_seq(c, stack.push(s1, y, f, g))
-  }
-  return await call(c, stack.push(s0, prld("^seq")))
-}                                                             //  }}}1
-
-// TODO
-const lseq_merge = async x => {
-  let y = x
-  while (isls(y) && !y.values[0].value.length) {
-    const t = y.values[1]; y = await t.run()
-    if (x !== y) { x.thunk = t }
-  }
-  return y
-}
-
-// TODO
-const lseq_un = async (c, s, t, y) => {
-  const [z, zt] = await unseq(c, stack.new(y.values[0]))
-  return stack.push(s, z, record(t, [zt, y.values[1]]))
-}
-
-// TODO
-modules.set("__bltn__", new Map([                             //  {{{1
+modules.set("__bltn__", new Map([
   mkPrimPP("str->int"  , x => [maybeJ(int  , pInt  (strVal(x)))], "str"),
   mkPrimPP("str->float", x => [maybeJ(float, pFloat(strVal(x)))], "str"),
   ...types.map(t => mkPrimPP(t+"?", x => [bool(x.type == t)], "_")),
   // mkPrimPP("dup", x => [x, x], "_"),
   // mkPrimPP("drop", x => [], "_"),
   // mkPrim("swap", modules.get("__prim__").get("__swap__").run),
-  mkPrim("seq", seq), mkPrim("unseq", unseq), mkPrim("^seq", mat_seq),
-].map(([k, v]) => { v.prim = false; return [k, v] })))        //  }}}1
+].map(([k, v]) => { v.prim = false; return [k, v] })))
 
 /* === miscellaneous === */
 
