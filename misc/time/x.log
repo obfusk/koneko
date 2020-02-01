@@ -1,9 +1,11 @@
 what            time        time w/ bltn dup&drop&swap
 ----            ----        --------------------------
 
-x.hs            ~ 0.4s
-x.hs compiled   ~ 0.016s
-x.py            ~ 0.04s
+x.hs            ~ 0.4s      n/a
+x.hs compiled   ~ 0.016s    n/a
+
+x.py            ~ 0.04s     n/a
+x1.py           ~ 0.3s      n/a
 
 x0.knk hs       ~ 12s       ~ 12s
 x0.knk js       ~ 15s       ~ 15s
@@ -16,3 +18,6 @@ x2.knk js       ~ 1.9s      ~ 1.8s
 
 x3.knk hs       ~ 1.3s      ~ 1.2s
 x3.knk js       ~ 2.1s      ~ 2.0s
+
+x4.knk hs       ~ 15s       ?
+x4.knk js       ~ 19s       ?
