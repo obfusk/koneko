@@ -2,7 +2,7 @@
 //
 //  File        : koneko.js
 //  Maintainer  : Felix C. Stegerman <flx@obfusk.net>
-//  Date        : 2020-01-31
+//  Date        : 2020-02-01
 //
 //  Copyright   : Copyright (C) 2020  Felix C. Stegerman
 //  Version     : v0.0.1
@@ -422,9 +422,11 @@ const read = s => {
 
 /* === evaluation === */
 
+/*
 const pushSelf  = x => (c, s) => [false, stack.push(s, x)]
 const pushIdent = x => (c, s) =>
   [false, stack.push(s, scope.lookup(c, x.value))]
+*/
 
 const popArgs = (s0, params) => {
   const [vs, s1] = stack.popN(s0, params.length)
@@ -473,8 +475,8 @@ const debug = (c, f) => {
 }
 
 class Eval {
-  constructor(code, c, s) {
-    this.code = code; this.scope = c; this.stack = s
+  constructor(b, c, s) {
+    this.block = b; this.scope = c; this.stack = s
   }
 }
 
@@ -648,11 +650,11 @@ const call = (c0, s0, tailPos = false) => {                   //  {{{1
       const cm = "__caller-module__"
       const nparms_ = nparms.filter(x => x != cm)
       const cma = nparms.includes(cm) ? [[cm, kwd(c0.module)]] : []
-      const [ps, s2] = popArgs(s1, nparms_)
-      const as = new Map(ps.concat(sparms.map(p => [p, nil])).concat(cma))
-      const c1 = scope.fork(x, as)
-      return tailPos ? new Eval(x.code, c1, s2)
-                     : evaluate(x.code)(c1, s2)
+      const [as, s2] = popArgs(s1, nparms_)
+      const as_ = as.concat(sparms.map(p => [p, nil])).concat(cma)
+      const c1 = scope.fork(x, new Map(as_))
+      return tailPos ? new Eval(x, c1, s2)
+                     : evaluate(x)(c1, s2)
     }
     case "builtin":
       return x.run(c0, s1)
@@ -707,7 +709,7 @@ const apply = (c0, s0) => {                                   //  {{{1
       const as = new Map(zip(nparms, l1).concat(sparms_.map(p => [p, nil]))
                                         .concat([["&", list(l2)]]))
       const c1 = scope.fork(x, as)
-      return evaluate(x.code)(c1, stack.new()).then(
+      return evaluate(x)(c1, stack.new()).then(
         s3 => stack.push(s2, ...s3)
       )
     }
@@ -739,7 +741,7 @@ const apply_dict = (c0, s0) => {                              //  {{{1
       const as = new Map(zip(nparms, vs).concat(sparms_.map(p => [p, nil]))
                                         .concat([["&&", d_]]))
       const c1 = scope.fork(x, as)
-      return evaluate(x.code)(c1, stack.new()).then(
+      return evaluate(x)(c1, stack.new()).then(
         s3 => stack.push(s2, ...s3)
       )
     }
@@ -761,44 +763,83 @@ const apply_dict = (c0, s0) => {                              //  {{{1
   }
 }                                                             //  }}}1
 
+// TODO
 // NB: Promise
-const evaluate = code0 =>                                     //  {{{1
-  async (c = scope.new(), s = stack.new()) => {
-    let code = code0
+const evaluate = x => {                                       //  {{{1
+  if (x._eval) { return x._eval }
+  const comp = x => x._ccode || (x._ccode = x.code.map(compile))
+  const ev = async (c = scope.new(), s = stack.new()) => {
+    let code = comp(x)
     for (let i = 0; i < code.length; ++i) {
-      const x = code[i]
+      const f = code[i]
       debug(c, () => {
-        putErr(`==> eval ${show(x)}`)
+        putErr(`==> eval ${show(f)}`)
         putErr("--> " + s.map(show).join(" "))
       })
-      const [deferred, s_] = evl[x.type](x)(c, s); s = await s_
-      debug(c, () => putErr("<-- " + s.map(show).join(" ")))
-      if (deferred) {
+      s = await f.run(c, s)
+      debug(c, () => putErr("<-- " + (s.it || s).map(show).join(" ")))
+      if (s instanceof Defer) {
         const tailPos = i == code.length - 1
-        s = await call(c, s, tailPos)
+        s = await call(c, s.it, tailPos)
         if (tailPos && s instanceof Eval) {
           debug(c, () => putErr("*** tail call ***"))
-          code = s.code; c = s.scope; s = s.stack; i = -1
+          code = comp(s.block); c = s.scope; s = s.stack; i = -1
         }
       }
     }
     return s
-  }                                                           //  }}}1
+  }
+  return x._eval = ev
+}                                                             //  }}}1
 
+/*
 // -> [boolean, stack | Promise]
 const evl = {
   nil: pushSelf, bool: pushSelf, int: pushSelf, float: pushSelf,
   str: pushSelf, kwd: pushSelf, quot: pushIdent,
-  list:  x => (c, s) => [false, evaluate(x.value)(c).then(
+  list:  x => (c, s) => [false, evaluate({ code: x.value })(c).then(
                                   l => stack.push(s, list(l))
                                 )],
   ident: x => (c, s) => [true , pushIdent(x)(c, s)[1]],
   block: x => (c, s) => [false, stack.push(s, { ...x, scope: c })],
 }
+*/
 
 // NB: Promise
 const evalText = (text, c = undefined, s = undefined) =>
-  evaluate(read(text))(c, s)
+  evaluate({ code: read(text) })(c, s)
+
+/* === compilation === */
+
+class Defer { constructor(it) { this.it = it } }
+
+// TODO
+// NB: maybe Defer
+const compile = x => {                                        //  {{{1
+  const b = f => builtin("__compiled__", f)
+  const p = (c, s) => stack.push(s, scope.lookup(c, x.value))
+  switch (x.type) {
+    case "nil":
+    case "bool":
+    case "int":
+    case "float":
+    case "str":
+    case "kwd":
+      return b((c, s) => stack.push(s, x))
+    case "list":
+      return b((c, s) =>
+        evaluate({ code: x.value })(c).then(l => stack.push(s, list(l)))
+      )
+    case "ident":
+      return b((c, s) => new Defer(p(c, s)))
+    case "quot":
+      return b(p)
+    case "block":
+      return b((c, s) => stack.push(s, { ...x, scope: c }))
+    default:
+      throw new Error("WTF")
+  }
+}                                                             //  }}}1
 
 /* === show, toJS, fromJS === */
 
