@@ -11,7 +11,7 @@ syn match   knkIdent      '[^\':.! \t][^, \t]*[({[]\@1<!'
 
 syn match   knkLit        'nil\%([, \t]\|$\)\@='
 syn match   knkBool       '#[tf]\%([, \t]\|$\)\@='
-syn match   knkInt        '[\'.!]\@1<!-\?\d\+\%([, \t]\|$\)\@='
+syn match   knkInt        '[\'.!]\@1<!\%(-\?\d\+\|0x[0-9a-fA-F]\+\|0b[01]\+\)\%([, \t]\|$\)\@='
 syn match   knkKwd        ':[^, \t]\+'
 syn match   knkKey        '[^, \t]\+:\%([, \t]\|$\)\@='
 syn match   knkStr        '"\%(\\.\|[^\\"]\)*"\%([, \t]\|$\)\@='

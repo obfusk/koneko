@@ -2,7 +2,7 @@
 
     File        : doc/08-syntactic-sugar.md
     Maintainer  : Felix C. Stegerman <flx@obfusk.net>
-    Date        : 2020-01-30
+    Date        : 2020-02-02
 
     Copyright   : Copyright (C) 2020  Felix C. Stegerman
     Version     : v0.0.1
@@ -108,12 +108,18 @@ The repl provides some aliases.
 ```koneko
 >>> , 1 2
 >>> ,s!                         ; s! ⇔ show-stack! ⇔ __show-stack!__
+--- STACK ---
 2
 1
+---  END  ---
 >>> c!                          ; c! ⇔ clear-stack! ⇔ __clear-stack!__
+*** STACK CLEARED ***
 
 >>> 1 2 + d!                    ; d! ⇔ display!
 3
+>>> 1 2 + D! 3 +                ; D! ⇔ dup&display!
+3
+6
 ```
 
 <!-- vim: set tw=70 sw=2 sts=2 et fdm=marker : -->

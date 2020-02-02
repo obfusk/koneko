@@ -1,5 +1,5 @@
 #!/usr/bin/env -S cabal -v0 v2-run koneko
 ; ^ TODO
 :f  [ dup 5000 > 'drop [ dup dup __int*__ dup 3 mod 0 =
-      [ show say! ] 'drop if 1 __int+__ f ] if ] def
+      [ __show__ say! ] 'drop if 1 __int+__ f ] if ] def
 1 f

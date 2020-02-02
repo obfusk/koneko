@@ -2,7 +2,7 @@
 ;
 ; File        : prelude.knk
 ; Maintainer  : Felix C. Stegerman <flx@obfusk.net>
-; Date        : 2020-02-01
+; Date        : 2020-02-02
 ;
 ; Copyright   : Copyright (C) 2020  Felix C. Stegerman
 ; Version     : v0.0.1
@@ -14,9 +14,18 @@
 
 ; -- TODO --
 ;
+; * WIP: slicing, string formatting
 ; * more functions!
 ; * refactor!
-; * generate docs!
+;
+; * (chunked) sequences; map, each, iterate, zip, ...
+;
+; * cond1, cond=, is-nan?
+; * range-elem?'; seq str & dict; ++, ->list
+; * unzip, scan*; split*; init; sort-by; update-with
+; * I/O; math; ...
+;
+; * improve docs generation!
 ;
 ; --
 
@@ -36,7 +45,6 @@
 :=>                 '__=>__                   def
 :dict               '__dict__                 def
 
-:show               '__show__                 def
 :say!               '__say!__                 def
 :ask!               '__ask!__                 def
 
@@ -93,61 +101,78 @@
 
 ; swap top 2 values
 ;
-; >>> , 1 2 show-stack!
+; >>> , 1 2 s!
+; --- STACK ---
 ; 2
 ; 1
-; >>> , swap show-stack!
+; ---  END  ---
+; >>> , swap s!
+; --- STACK ---
 ; 1
 ; 2
+; ---  END  ---
 
-:swap   [ x y . 'y 'x ] def                   ; ⇔ '__swap__
+:swap   [ x y . 'y 'x ] def                   ; ⇔ '__swap__     ; bltn
 :><     'swap           def
 
 ; rotate top 3 values
 ;
-; >>> , 1 2 3 rot> show-stack!
+; >>> , 1 2 3 rot> s!
+; --- STACK ---
 ; 2
 ; 1
 ; 3
-; >>> , <rot show-stack!
+; ---  END  ---
+; >>> , <rot s!
+; --- STACK ---
 ; 3
 ; 2
 ; 1
+; ---  END  ---
 
 :rot>   [ x y z . 'z 'x 'y  ] def             ; ⇔ [ [] $ 2dip ]
 :<rot   [ x y z . 'y 'z 'x  ] def             ; ⇔ [ [] 2$ dip ]
 
 ; rotate top 4 values
 ;
-; >>> , 1 2 3 4 rot4> show-stack!
+; >>> , 1 2 3 4 rot4> s!
+; --- STACK ---
 ; 3
 ; 2
 ; 1
 ; 4
-; >>> , <rot4 show-stack!
+; ---  END  ---
+; >>> , <rot4 s!
+; --- STACK ---
 ; 4
 ; 3
 ; 2
 ; 1
+; ---  END  ---
 
 :rot4>  [ w x y z . 'z 'w 'x 'y ] def
 :<rot4  [ w x y z . 'x 'y 'z 'w ] def
 
 ; duplicate top value(s)
 ;
-; >>> , 42 dup show-stack!
+; >>> , 42 dup s!
+; --- STACK ---
 ; 42
 ; 42
-; >>> clear-stack!
-; >>> , 1 2 2dup show-stack!
+; ---  END  ---
+; >>> c!
+; *** STACK CLEARED ***
+; >>> , 1 2 2dup s!
+; --- STACK ---
 ; 2
 ; 1
 ; 2
 ; 1
+; ---  END  ---
 ; >>> ( 1 2 3 3dup )
 ; ( 1 2 3 1 2 3 )
 
- :dup   [ x   . 'x 'x       ] def
+ :dup   [ x   . 'x 'x       ] def                               ; bltn
 :2dup   [ x y . 'x 'y 'x 'y ] def             ; ⇔ [ over over ]
 :3dup   [ 2over over2 ] def
 
@@ -161,41 +186,50 @@
 ; >>> 42 37 2drop
 ; >>> 1 2 3 3drop
 
- :drop  [ _     . ] def
+ :drop  [ _     . ] def                                         ; bltn
 :2drop  [ _ _   . ] def                       ; ⇔ [ drop drop ]
 :3drop  [ _ _ _ . ] def
 
 ; drop value immediately preceding the top
 ;
-; >>> , 42 37 nip show-stack!
+; >>> , 42 37 nip s!
+; --- STACK ---
 ; 37
+; ---  END  ---
 
 :nip    [ _ y . 'y ] def                      ; ⇔ [ 'drop dip ]
 
 ; copy value(s) immediately preceding the top "over" the top
 ;
-; >>> , 1 2 over show-stack!
+; >>> , 1 2 over s!
+; --- STACK ---
 ; 1
 ; 2
 ; 1
-; >>> clear-stack!
-; >>> , 1 2 3 2over show-stack!
+; ---  END  ---
+; >>> c!
+; *** STACK CLEARED ***
+; >>> , 1 2 3 2over s!
+; --- STACK ---
 ; 2
 ; 1
 ; 3
 ; 2
 ; 1
+; ---  END  ---
 
  :over  [ x y   . 'x 'y 'x        ] def       ; ⇔ [ 'dup dip swap ]
 :2over  [ x y z . 'x 'y 'z 'x 'y  ] def       ; ⇔ [ over2 over2 ]
 
 ; copy value "over" the topmost 2
 ;
-; >>> , 1 2 3 over2 show-stack!
+; >>> , 1 2 3 over2 s!
+; --- STACK ---
 ; 1
 ; 3
 ; 2
 ; 1
+; ---  END  ---
 
 :over2  [ x y z . 'x 'y 'z 'x ] def           ; ⇔ [ 'over dip swap ]
 
@@ -230,12 +264,12 @@
 ; >>> 1 [ + + + ], 2 3 4 3$$, call
 ; 10
 
- :$     '[ '1 .2       ] def                                    ; TODO
-:2$     '[ '1 '2 .3    ] def
+ :$     '[ '1 .2       ] def                                    ; bltn
+:2$     '[ '1 '2 .3    ] def                                    ; TODO
 :3$     '[ '1 '2 '3 .4 ] def
 
-:@      '[ .1 .2 ] def
-:%      '[ .2 .1 ] def
+:@      '[ .1 .2 ] def                                          ; bltn
+:%      '[ .2 .1 ] def                                          ; bltn
 
  :$$    '[ f . '1 f       ] def
 :2$$    '[ f . '1 '2 f    ] def
@@ -243,50 +277,68 @@
 
 ; remove top value(s), call function, restore value(s)
 ;
-; >>> , 1 2 'dup dip show-stack!
+; >>> , 1 2 'dup dip s!
+; --- STACK ---
 ; 2
 ; 1
 ; 1
-; >>> clear-stack!
-; >>> , 1 2 3 4 '- 2dip show-stack!
+; ---  END  ---
+; >>> c!
+; *** STACK CLEARED ***
+; >>> , 1 2 3 4 '- 2dip s!
+; --- STACK ---
 ; 4
 ; 3
 ; -1
-; >>> clear-stack!
-; >>> , 1 2 3 4 'neg 3dip show-stack!
+; ---  END  ---
+; >>> c!
+; *** STACK CLEARED ***
+; >>> , 1 2 3 4 'neg 3dip s!
+; --- STACK ---
 ; 4
 ; 3
 ; 2
 ; -1
+; ---  END  ---
 
- :dip   [ x f   . f 'x    ] def
+ :dip   [ x f   . f 'x    ] def                                 ; bltn
 :2dip   [ x y f . f 'x 'y ] def               ; ⇔ [ 'dip $ dip ]
 :3dip   [ '2dip $ dip     ] def
 
 ; copy top value(s), call function, push value(s)
 ;
-; >>> , 2 [ dup * ] keep show-stack!
+; >>> , 2 [ dup * ] keep s!
+; --- STACK ---
 ; 2
 ; 4
-; >>> clear-stack!
-; >>> , 2 3 '* 2keep show-stack!
+; ---  END  ---
+; >>> c!
+; *** STACK CLEARED ***
+; >>> , 2 3 '* 2keep s!
+; --- STACK ---
 ; 3
 ; 2
 ; 6
+; ---  END  ---
 
  :keep  [  over 'call  dip  ] def             ; ⇔ [ x f . 'x f 'x ]
 :2keep  [ 2over 'call 2dip  ] def             ; ⇔ [ '2dup dip 2dip ]
 
 ; call multiple functions on one value
 ;
-; >>> , 35 [ 2 + ] [ 7 + ] bi show-stack!
+; >>> , 35 [ 2 + ] [ 7 + ] bi s!
+; --- STACK ---
 ; 42
 ; 37
-; >>> clear-stack!
-; >>> , 2 [ 1 + ] [ 2 * ] [ 3 - ] tri show-stack!
+; ---  END  ---
+; >>> c!
+; *** STACK CLEARED ***
+; >>> , 2 [ 1 + ] [ 2 * ] [ 3 - ] tri s!
+; --- STACK ---
 ; -1
 ; 4
 ; 3
+; ---  END  ---
 ;
 ; >>> ( 2 ( [ 1 + ] [ 2 * ] [ 3 - ] ) mlt )
 ; ( 3 4 -1 )
@@ -300,11 +352,14 @@
 ;
 ; >>> 2 3 [ dup * ] bi$ +
 ; 13
-; >>> clear-stack!
-; >>> , 2 3 4 [ dup * ] tri$ show-stack!
+; >>> c!
+; *** STACK CLEARED ***
+; >>> , 2 3 4 [ dup * ] tri$ s!
+; --- STACK ---
 ; 16
 ; 9
 ; 4
+; ---  END  ---
 ;
 ; >>> ( ( 2 3 4 ) [ dup * ] mlt$ )                    ; mlt$ ⇔ each
 ; ( 4 9 16 )
@@ -334,10 +389,13 @@
 
 ; call multiple functions on their "paired" value
 ;
-; >>> , 4 9 [ 2 + ] [ 3 div ] bi~ show-stack!
+; >>> , 4 9 [ 2 + ] [ 3 div ] bi~ s!
+; --- STACK ---
 ; 3
 ; 6
-; >>> clear-stack!
+; ---  END  ---
+; >>> c!
+; *** STACK CLEARED ***
 ; >>> ( 1 2 3 :x :y :z '[ '1 swap => ] tri$ tri~ )
 ; ( :x 1 => :y 2 => :z 3 => )
 ;
@@ -353,50 +411,67 @@
 
 ; call multiple functions on each of multiple values
 ;
-; >>> , 2 3 [ dup * ] 'neg bi* show-stack!
+; >>> , 2 3 [ dup * ] 'neg bi* s!
+; --- STACK ---
 ; -3
 ; -2
 ; 9
 ; 4
+; ---  END  ---
 
 :bi*    [ [ 'bi$ $ 2keep ] dip bi$ ] def
 
 ; call multiple functions on two values
 ;
-; >>> , 1 2 '+ '- 2bi show-stack!
+; >>> , 1 2 '+ '- 2bi s!
+; --- STACK ---
 ; -1
 ; 3
-; >>> clear-stack!
-; >>> , 7 2 '+ '- 'div 2tri show-stack!
+; ---  END  ---
+; >>> c!
+; *** STACK CLEARED ***
+; >>> , 7 2 '+ '- 'div 2tri s!
+; --- STACK ---
 ; 3
 ; 5
 ; 9
+; ---  END  ---
 
 :2bi    [ '2keep dip call ] def
 :2tri   [ '2keep 2dip 2bi ] def
 
 ; call one function on each of multiple pairs of values
 ;
-; >>> , :x 1 :y 2 '=> 2bi$ show-stack!
+; >>> , :x 1 :y 2 '=> 2bi$ s!
+; --- STACK ---
 ; :y 2 =>
 ; :x 1 =>
-; >>> clear-stack!
-; >>> , :x :y 1 2 '=> 2bi$' show-stack!
+; ---  END  ---
+; >>> c!
+; *** STACK CLEARED ***
+; >>> , :x :y 1 2 '=> 2bi$' s!
+; --- STACK ---
 ; :y 2 =>
 ; :x 1 =>
+; ---  END  ---
 
 :2bi$   [ dup 2bi~        ] def
 :2bi$'  [ 'swap 2dip 2bi$ ] def
 
 ; call multiple functions on their "paired" pair of values
 ;
-; >>> , 1 2 3 4 '+ '- 2bi~ show-stack!
+; >>> , 1 2 3 4 '+ '- 2bi~ s!
+; --- STACK ---
 ; -1
 ; 3
-; >>> clear-stack!
-; >>> , 1 3 2 4 '+ '- 2bi~' show-stack!
+; ---  END  ---
+; >>> c!
+; *** STACK CLEARED ***
+; >>> , 1 3 2 4 '+ '- 2bi~' s!
+; --- STACK ---
 ; -1
 ; 3
+; ---  END  ---
 
 :2bi~   [ '2dip dip call  ] def
 :2bi~'  [ 'swap 3dip 2bi~ ] def
@@ -447,9 +522,12 @@
 ; >>> 1 2 = [ "oh no!" say! ] when                    ; -0 +0 = 0
 ; >>> 1 1 = [ "good!"  say! ] when
 ; good!
-; >>> , 42 dup 2 mod 0 = [ 2 div ] when show-stack!   ; -1 +1 = 0
+; >>> , 42 dup 2 mod 0 = [ 2 div ] when s!            ; -1 +1 = 0
+; --- STACK ---
 ; 21
-; >>> clear-stack!
+; ---  END  ---
+; >>> c!
+; *** STACK CLEARED ***
 ; >>> 1 2 2dup = '+ when1                             ; -2 +1 = 1
 ; 1
 ; >>> 2 2 2 2dup = [ + * ] when2                      ; -3 +1 = 2
@@ -470,7 +548,7 @@
 ; >>> 19 collatz ->list
 ; ( 19 58 29 88 44 22 11 34 17 52 26 13 40 20 10 5 16 8 4 2 1 )
 
-:~?     [ 'dup % 2dip if ] def
+:~?     [ 'dup % 2dip if ] def                                  ; bltn
 
 ; bool, logical inverse, conjunction & disjunction
 ;
@@ -765,6 +843,30 @@
 :ord    '.ord     def
 :chr    '__chr__  def
 
+; convert to readable str
+;
+; >>> 42 show
+; "42"
+; >>> 0x20 show
+; "32"
+; >>> "foo" show
+; "\"foo\""
+; >>> :foo show
+; ":foo"
+; >>> x: 42 show
+; ":x 42 =>"
+; >>> { x: [1-), y: ( 1 nil :x ) } show
+; "{ :x 1 [m-) =>, :y ( 1 nil :x ) => }"
+
+:show ( :pair   ) [ [ 'show bi$ " " ++sep++ " =>" ++ ] ^pair ] defmulti
+:show ( :list   ) [ [ "()"  ] [ "( " " "  " )" _showseq ] ~seq ] defmulti
+:show ( :dict   ) [ [ "{ }" ] [ "{ " ", " " }" _showseq ] ~seq ] defmulti
+:show ( :_      ) [ '_showrec '__show__ 'record? ~? ] defmulti
+
+:_showrec [ [ record-type record-type-name __show__ 1 [i-) ]
+            [ record->dict show ] bi ++ ] def
+:_showseq [ b d a . 'show map 'b swap 'd join-with 'a ++ ++ ] def
+
 ; convert to str
 ;
 ; >>> "foo" show
@@ -850,7 +952,7 @@
 ; >>> ( 3 4 ) ( 'rest 'first [ 1 + ] ) ~~>
 ; 5
 
-:~nil   [ [ 'drop % ] dip 'nil? ~? ] def
+:~nil   [ [ 'drop % ] dip 'nil? ~? ] def                        ; bltn
 :~>     [ [ nil ] swap ~nil ] def
 :~~>    [ [ .[ .1 '2 ~~> ] ~> ] ^seq' ] def
 
@@ -898,13 +1000,18 @@
 
 ; pair "pattern match" & key/value
 ;
-; >>> , x: 42 'swap ^pair, show-stack!
+; >>> , x: 42 'swap ^pair, s!
+; --- STACK ---
 ; :x
 ; 42
-; >>> clear-stack!
-; >>> , y: 37 'val 'key bi, show-stack!
+; ---  END  ---
+; >>> c!
+; *** STACK CLEARED ***
+; >>> , y: 37 'val 'key bi, s!
+; --- STACK ---
 ; :y
 ; 37
+; ---  END  ---
 
 :^pair  [ [ 'key 'val bi ] dip call ] def
 
@@ -917,6 +1024,13 @@
 
 ; NB: inclusive; infinite if stop is nil.
 :Range ( :start :stop :step ) defrecord
+
+:show ( :Range )  [ [ m n s . { f: [ show " " ++ ] } let[ (
+                      'm f
+                      'n [ "" "" ")"  ] [ f "n" "]" ] ~nil
+                      's [ drop "" "" ] [ f ":s" ] 1 ~[eq]
+                      <rot [ "[m-" <rot ] 2dip
+                    ) ] join ] ^Range ] defmulti
 
 :range        [ 3dup 3list 'float? any? [ '_->float tri$ ] when
                 2dup float? and [ [ 2.0 / + ] keep ] when Range ] def
@@ -1056,6 +1170,8 @@
 
 :LSeq ( :chunk :thunk ) defrecord   ; NB: chunk must be a list
 
+:show ( :LSeq ) [ .chunk show "#<seq" swap "(...)>" ++ ++ ] defmulti
+
 :lseq     [ __thunk__  LSeq ] def
 :lseq1    [ '1list dip lseq ] def
 :lazy-seq [ () swap    lseq ] def
@@ -1100,17 +1216,25 @@
 ;
 ; unseq ⇔ 'first 'rest bi
 ;
-; >>> , ( 1 2 ) unseq show-stack!
+; >>> , ( 1 2 ) unseq s!
+; --- STACK ---
 ; ( 2 )
 ; 1
-; >>> clear-stack!
-; >>> , 3 10 [m-n] unseq ->list show-stack!
+; ---  END  ---
+; >>> c!
+; *** STACK CLEARED ***
+; >>> , 3 10 [m-n] unseq ->list s!
+; --- STACK ---
 ; ( 4 5 6 7 8 9 10 )
 ; 3
-; >>> clear-stack!
-; >>> , [ ( 1 2 ) ] lazy-seq unseq show-stack!
+; ---  END  ---
+; >>> c!
+; *** STACK CLEARED ***
+; >>> , [ ( 1 2 ) ] lazy-seq unseq s!
+; --- STACK ---
 ; ( 2 )
 ; 1
+; ---  END  ---
 
 :unseq  ( :nil    ) [ nil ] defmulti
 :unseq  ( :list   ) [ [ nil nil ] [] ^list ] defmulti
@@ -1330,27 +1454,32 @@
 ; ( 9 4 1 )
 ; >>> "foobar" reverse
 ; "raboof"
+; >>> 10 20 [m-n] reverse ->list
+; ( 20 19 18 17 16 15 14 13 12 11 10 )
 
-:reverse  ( :str  ) [ .reverse        ] defmulti
-:reverse  ( :_    ) [ reverse-as-list ] defmulti
+:reverse  ( :str    ) [ .reverse        ] defmulti
+:reverse  ( :Range  ) [ range-reverse   ] defmulti
+:reverse  ( :_      ) [ reverse-as-list ] defmulti
 
-; TODO: finite range
-
-:reverse-as-list [ () [ swap cons ] foldl ] def
+:range-reverse    [ [ m n s . 'n [ "reverse: infinite range" fail ]
+                      [ 'm 's neg Range ] ~nil ] ^Range ] def
+:reverse-as-list  [ () [ swap cons ] foldl ] def
 
 ; iterating over a sequence
 ;
 ; >>> , ( "Hello" "World" ) 'say! each
 ; Hello
 ; World
-; >>> , ( 1 2 3 ) [] each show-stack!
+; >>> , ( 1 2 3 ) [] each s!
+; --- STACK ---
 ; 3
 ; 2
 ; 1
+; ---  END  ---
 ; >>> ( ( 1 2 ) 'dup each )
 ; ( 1 1 2 2 )
 
-:each   [ f . unseq dup [ 'f dip 'f each ] when2 ] def
+:each   [ f . unseq dup [ 'f dip 'f each ] when2 ] def          ; TODO
       ; [ f . [ 'f dip 'f each ] ^seq' ]    ; currently 2x slower :(
 
 ; generating (infinite) sequences & taking subsequences
@@ -1369,7 +1498,7 @@
 ; ( 1 3 5 7 9 )
 
 :iterate    [ x f . ( 'x [ dup f ] 31 times ) dup 31 swap !get^
-              .[ '1 f 'f iterate ] lseq ] def
+              .[ '1 f 'f iterate ] lseq ] def                   ; TODO
           ; [ f . () swap [ [ 1list ++ ] keep f ] 32 times
           ;   .[ '1 'f iterate ] lseq ]                 ; slower :(
           ; [ x f . 'x [ 'x f 'f iterate ] lseq1 ]      ; w/o chunking
@@ -1444,9 +1573,11 @@
 ; 1
 ; >>> drop dup tail^
 ; ( 2 3 )
-; >>> , drop uncons^ show-stack!
+; >>> , drop uncons^ s!
+; --- STACK ---
 ; ( 2 3 )
 ; 1
+; ---  END  ---
 ; >>> cons
 ; ( 1 2 3 )
 ;
@@ -1524,11 +1655,14 @@
 ; >>> drop vals
 ; ( 1 2 )
 ;
-; >>> clear-stack!
+; >>> c!
+; *** STACK CLEARED ***
 ; >>> , :Point ( :x :y ) defrecord
-; >>> , Point( 1 2 ) 'keys 'vals bi show-stack!
+; >>> , Point( 1 2 ) 'keys 'vals bi s!
+; --- STACK ---
 ; ( 1 2 )
 ; ( :x :y )
+; ---  END  ---
 
 :keys   ( :dict   ) [ .keys   ] defmulti
 :values ( :dict   ) [ .values ] defmulti
@@ -1673,9 +1807,11 @@
 ;
 ; >>> :x :y 2list
 ; ( :x :y )
-; >>> , '1st '2nd bi show-stack!
+; >>> , '1st '2nd bi s!
+; --- STACK ---
 ; :y
 ; :x
+; ---  END  ---
 
 :1st    'first def
 :2nd    [ rest 'first ~> ] def
@@ -1693,12 +1829,12 @@
 ; >>> ( :x :y :z ) last
 ; :z
 
-:last   ( :_    ) [ dup len dec nth ] defmulti
 :last   ( :LSeq ) [ :_ nil <rot [ 'nip dip unseq dup ] loop 2drop ] defmulti
+:last   ( :_    ) [ dup len dec nth ] defmulti
 
-:last^  ( :_    ) [ dup len dec get^ ] defmulti                 ; TODO
 :last^  ( :nil  ) [ drop "last^: nil" fail ] defmulti
 :last^  ( :LSeq ) [ [ "last^: empty list" fail ] 'last ~seq ] defmulti
+:last^  ( :_    ) [ dup len dec get^ ] defmulti                 ; TODO
 
 ; nth element
 ;
@@ -1950,10 +2086,25 @@
 ;
 ; >>> 42 display!
 ; 42
-; >>> "foo" display!
+; >>> "foo" dup&display!
 ; foo
+; "foo"
 
-:display! [ ->str say! ] def
+:display!     [ ->str say!    ] def
+:dup&display! [ dup display!  ] def
+
+; output message & show stack (use for debugging only!)
+;
+; >>> , :foo [ 1 2, "foo" trace!, + ] def
+; >>> foo
+; --- TRACE: foo ---
+; --- STACK ---
+; 2
+; 1
+; ---  END  ---
+; 3
+
+:trace! [ 1list "--- TRACE: ${0} ---" fmt say! __show-stack!__ ] def
 
 ; read lines from stdin
 ;

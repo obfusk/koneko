@@ -2,7 +2,7 @@
 //
 //  File        : koneko.js
 //  Maintainer  : Felix C. Stegerman <flx@obfusk.net>
-//  Date        : 2020-02-01
+//  Date        : 2020-02-02
 //
 //  Copyright   : Copyright (C) 2020  Felix C. Stegerman
 //  Version     : v0.0.1
@@ -1163,6 +1163,7 @@ modules.set("__prim__", new Map([                             //  {{{1
     const p = maybeK(strVal, x)
     return ask(p).then(r => stack.push(s1, maybeJ(str, r)))
   }),
+  mkPrimPP("__types__", () => [list(types.map(kwd))]),
   mkPrimPP("__type__", x => [kwd(x.type, "_")], "_"),
   mkPrimPP("__callable?__",
     x => [bool(callableTypes.includes(x.type))], "_"
@@ -1311,11 +1312,16 @@ modules.set("__prim__", new Map([                             //  {{{1
     await new Promise((resolve, _) => setTimeout(resolve, ms))
     return s1
   }),
-  mkPrim("__show-stack!__", (c, s) => {
-    for (const x of stack.toArray(s)) { say(show(x)) }
+  mkPrim("__show-stack!__", async (c, s) => {
+    say("--- STACK ---")
+    for (const x of stack.toArray(s)) { say(await prld_show(x)) }
+    say("---  END  ---")
     return s
   }),
-  mkPrim("__clear-stack!__", (c, s) => stack.new()),
+  mkPrim("__clear-stack!__", (c, s) => {
+    say("*** STACK CLEARED ***")
+    return stack.new()
+  }),
   mkPrim("__nya!__", (c, s) => nya().then(() => s)),
 ]))                                                           //  }}}1
 
@@ -1506,12 +1512,13 @@ const read_line = (prompt = null) =>                          //  {{{1
 
 // NB: node.js only
 
-const repl_init = (c, show = true) => {
+const repl_init = (c, w_show = true) => {
+  const alias = (xs, y = `__${xs[0]}__`) =>
+    xs.forEach(x => scope.define(c, x, scope.lookup(c, y)))
+  if (w_show) { alias(["show-stack!", "s!"]) }
+  alias(["clear-stack!", "c!"])
+  alias(["d!"], "display!"); alias(["D!"], "dup&display!")
   scope.define(c, "__repl__", T)
-  const xs = ["display!", "clear-stack!", ...(show ? ["show-stack!"] : [])]
-  const alias = (x, y) => scope.define(c, x, scope.lookup(c, y))
-  for (const x of xs.slice(1)) { alias(x, `__${x}__`) }
-  for (const x of xs) { alias(`${x[0]}!`, x) }
 }
 
 // NB: Promise
@@ -1521,7 +1528,7 @@ const repl_process_line =                                     //  {{{1
     try {
       s = await evalText(line, c, s)
       if (!stack.null(s) && !",;".includes(line[0])) {
-        stdout.write(show(stack.top(s)) + "\n")
+        stdout.write(show(stack.top(s)) + "\n")               //  TODO
       }
     } catch(e) {
       if (e instanceof KonekoError) {
@@ -1754,6 +1761,14 @@ const main_ = async () => {                                   //  {{{1
 
 /* === exports & overrides === */
 
+// NB: Promise
+const prld_show = async x => {
+  const p = modules.get("__prld__").get("show")
+  const s = await call(scope.new(), stack.new(x, p))
+  const [[y], _] = stack.pop(s, "str")
+  return strVal(y)
+}
+
 const say = s => (overrides.say || (_req ? putOut : console.log))(s)
 
 // NB: Promise
@@ -1776,7 +1791,7 @@ const overrides = {}
 
 _mod[_exp] = {
   KonekoError, read, evaluate, evalText, show, toJS, fromJS,
-  loadPrelude, overrides, repl_init,
+  loadPrelude, overrides, repl_init, prld_show,
   initContext: scope.new, emptyStack: stack.new,
   ...(_req ? { repl, doctest, doctest_, main } : {})
 }

@@ -1,0 +1,6 @@
+#!/usr/bin/env -S cabal -v0 v2-run koneko
+; ^ TODO
+:fizzbuzz [ [1-n] [ dup 3 "fizz" 5 "buzz" '[ '1 div? '2 "" ? ] 2bi$ bi
+            ++ 'show 'nip ~seq say! ] each ] def
+{ :n '__args__ 1st [ 100 ] 'str->int ~nil => }
+[ 'n fizzbuzz ] let

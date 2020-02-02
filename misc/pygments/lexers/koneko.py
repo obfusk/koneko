@@ -73,7 +73,7 @@ class KonekoLexer(RegexLexer):
              bygroups(Name.Constant, Text)),
 
             # int & float
-            (r"(-?\d+)"+sep,
+            (r"(-?\d+|0x[0-9a-fA-F]+|0b[01]+)"+sep,
              bygroups(Number, Text)),
             (r'(-?\d+(?:\.\d+e\d+|\.\d+|e\d+))'+sep,
              bygroups(Number, Text)),

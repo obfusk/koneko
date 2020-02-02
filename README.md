@@ -2,7 +2,7 @@
 
     File        : README.md
     Maintainer  : Felix C. Stegerman <flx@obfusk.net>
-    Date        : 2020-01-30
+    Date        : 2020-02-02
 
     Copyright   : Copyright (C) 2020  Felix C. Stegerman
     Version     : v0.0.1
@@ -95,11 +95,12 @@ Hello, World!
 >>> ( 3 4 )                   ; literals push a value onto the stack
 ( 3 4 )
 
-                              ; unquoted identifiers are calls,
->>> 'show                     ; quoted identifiers push themselves
-#<primitive:__show__>
+>>> len dup                   ; unquoted identifiers are calls
+2
+>>> '+                        ; quoted identifiers push themselves
+#<multi:2:+>
 >>> call                      ; and can then be called explicitly
-"( 3 4 )"
+4
 
 >>> ( 1 2 3 )
 ( 1 2 3 )
@@ -115,12 +116,15 @@ Hello, World!
 >>> -
 5
 
->>> ,show-stack!              ; show the stack (non-browser repl only)
+>>> ,s!                       ; show the stack (non-browser repl only)
+--- STACK ---
 5
 ( 4 5 6 )
 "( 3 2 1 )"
-"( 3 4 )"
+4
+---  END  ---
 >>> clear-stack!              ; clear the stack (repl only)
+*** STACK CLEARED ***
 ```
 
 NB: use whitespace to separate tokens since "special" characters like
@@ -201,9 +205,11 @@ name.
 
 ```koneko
 >>> , :myswap [ x y . 'y 'x ] def         ; named parameters
->>> , 1 2 myswap show-stack!
+>>> , 1 2 myswap s!
+--- STACK ---
 1
 2
+---  END  ---
 
 >>> 1 2 [ x y . y x ] call                ; remember to quote non-calls
 *** ERROR: type int is not callable
@@ -252,9 +258,11 @@ Hello!
 
 ```koneko
 >>> , 35 [ 2 + ] [ 7 + ] bi     ; call two functions on 1 value
->>> , show-stack!
+>>> , s!
+--- STACK ---
 42
 37
+---  END  ---
 ```
 
 ### Syntactic Sugar

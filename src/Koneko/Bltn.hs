@@ -2,7 +2,7 @@
 --
 --  File        : Koneko/Bltn.hs
 --  Maintainer  : Felix C. Stegerman <flx@obfusk.net>
---  Date        : 2020-02-01
+--  Date        : 2020-02-02
 --
 --  Copyright   : Copyright (C) 2020  Felix C. Stegerman
 --  Version     : v0.0.1
@@ -27,9 +27,12 @@ import Koneko.Prim (swap)
 initCtx :: Context -> Evaluator -> IO ()
 initCtx ctxMain call = do
   ctx <- forkContext bltnModule ctxMain
-  traverse_ (defPrim ctx) $ typePreds ++ [strToInt, strToFloat]
-    ++ [dup, drop_, mkBltn "swap" (biRun swap), dip call]
-    ++ [dollar, at, percent] ++ [br_pred call, br_nil call]
+  traverse_ (defPrim ctx) $ typePreds ++ [
+      strToInt, strToFloat,
+      dup, drop_, mkBltn "swap" (biRun swap), dip call,
+      dollar, at, percent,
+      br_pred call, br_nil call
+    ]
 
 typePreds :: [Builtin]
 typePreds = [ mkBltn (x <> "?") $ pop1push1
@@ -59,6 +62,7 @@ compose f g = block [] [KIdent $ _ID "f", KIdent $ _ID "g"]
 partial x f = block [] [KQuot $ _ID "_x", KIdent $ _ID "f"]
             $ _sc [("_x", x), ("f", f), ("name", KIdent $ _ID "$")]
 
+-- UNSAFE!
 _ID :: Identifier -> Ident
 _ID = fromJust . ident
 

@@ -4,7 +4,7 @@
 
     File        : index.html
     Maintainer  : Felix C. Stegerman <flx@obfusk.net>
-    Date        : 2020-01-30
+    Date        : 2020-02-02
 
     Copyright   : Copyright (C) 2020  Felix C. Stegerman
     Version     : v0.0.1
@@ -75,9 +75,9 @@
               throw e
             }
           }
-          st.value  = ">>> " + l + "\n" + "--- STACK ---\n" +
-                      s.map(x => koneko.show(x) + "\n").reverse().join("") +
-                      "\n" + st.value
+          let v = ""
+          for (const x of s) { v = await koneko.prld_show(x) +"\n"+v }
+          st.value = `>>> ${l}\n--- STACK ---\n${v}\n${st.value}`
         }                                                     //  }}}1
         const hist_scroll = () => {
           line.value = history[history.length - hist_idx] || ""

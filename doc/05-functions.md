@@ -2,7 +2,7 @@
 
     File        : doc/05-functions.md
     Maintainer  : Felix C. Stegerman <flx@obfusk.net>
-    Date        : 2020-01-30
+    Date        : 2020-02-02
 
     Copyright   : Copyright (C) 2020  Felix C. Stegerman
     Version     : v0.0.1
@@ -55,9 +55,11 @@ separated from the code by a `.`.
 >>> , :myswap [ x y . 'y 'x ] def ; a block with named parameters
 >>> 1 2 myswap
 1
->>> ,show-stack!
+>>> ,s!
+--- STACK ---
 1
 2
+---  END  ---
 ```
 
 ### Calling vs Applying

@@ -2,7 +2,7 @@
 --
 --  File        : Koneko/Prim.hs
 --  Maintainer  : Felix C. Stegerman <flx@obfusk.net>
---  Date        : 2020-02-01
+--  Date        : 2020-02-02
 --
 --  Copyright   : Copyright (C) 2020  Felix C. Stegerman
 --  Version     : v0.0.1
@@ -55,7 +55,7 @@ initCtx ctxMain load call apply apply_dict callBlock = do
       mkPrim "call" call, mkPrim "apply" apply,
       mkPrim "apply-dict" apply_dict, if' call,
       def, defmulti, defrecord call, mkPair, mkDict, swap,
-      show', say, ask, type', callable, function,
+      show', say, ask, types, type', callable, function,
       defmodule call, modules, moduleGet, moduleDefs, moduleName,
       import', importFrom, loadModule load,
       comp "=" (==), comp "not=" (/=),
@@ -80,7 +80,7 @@ initCtx ctxMain load call apply apply_dict callBlock = do
       mkIdent, mkQuot, mkBlock, blockParams, blockCode,
       rxMatch, rxSub callBlock,
       par callBlock, sleep,
-      showStack, clearStack, nya
+      showStack call, clearStack, nya
     ]
 
 -- primitives: important --
@@ -138,7 +138,7 @@ swap = mkPrim "swap" $ pop2push $ \x y -> [y, x] :: [KValue]
 
 -- primitives: miscellaneous --
 
-show', say, ask, type', callable, function :: Builtin
+show', say, ask, types, type', callable, function :: Builtin
 
 show' = mkPrim "show" $ pop1push1 $ T.pack . (show :: KValue -> String)
 
@@ -149,6 +149,7 @@ say = mkPrim "say!" $ \_ s -> do (x, s') <- pop' s; s' <$ T.putStrLn x
 ask = mkPrim "ask!" $ \_ s -> do
   (x, s') <- pop' s; prompt x >>= rpush1 s'
 
+types     = mkPrim "types" $ const $ flip rpush1 $ map kwd typeNames
 type'     = mkPrim "type"       $ pop1push1 $ typeToKwd . typeOf
 callable  = mkPrim "callable?"  $ pop1push1 isCallable
 function  = mkPrim "function?"  $ pop1push1 isFunction
@@ -406,20 +407,28 @@ sleep = mkPrim "sleep" $ \_ s -> do
 
 replDef :: Context -> IO ()
 replDef ctx = do
-    alias "show-stack!"  showStack ; alias "s!" showStack
-    alias "clear-stack!" clearStack; alias "c!" clearStack
-    defineIn ctx "d!" =<< lookupModule' ctx "display!" "__prld__"
+    alias ["show-stack!" , "s!"] Nothing primModule
+    alias ["clear-stack!", "c!"] Nothing primModule
+    alias ["d!"] (Just     "display!")   prldModule
+    alias ["D!"] (Just "dup&display!")   prldModule
     defineIn ctx "__repl__" true
   where
-    alias n f = defineIn ctx n $ KBuiltin f
-
-showStack, clearStack :: Builtin
+    alias new old m = do                            -- safe!
+      x <- lookupModule' ctx (maybe (underscored $ head new) id old) m
+      traverse_ (flip (defineIn ctx) x) new
 
 -- TODO
-showStack = mkPrim "show-stack!" $ \_ s ->
-  s <$ traverse_ (putStrLn . show) s
+showStack :: Evaluator -> Builtin
+showStack call = mkPrim "show-stack!" $ \c s -> s <$ do
+  p <- lookupModule' c "show" prldModule
+  let f x = fst <$> (pop' =<< call c [p, x]) >>= T.putStrLn
+  putStrLn "--- STACK ---"
+  traverse_ f s
+  putStrLn "---  END  ---"
 
-clearStack = mkPrim "clear-stack!" $ \_ _ -> return emptyStack
+clearStack :: Builtin
+clearStack = mkPrim "clear-stack!" $ \_ _ ->
+  emptyStack <$ T.putStrLn "*** STACK CLEARED ***"
 
 -- nya --
 

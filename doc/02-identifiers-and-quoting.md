@@ -2,7 +2,7 @@
 
     File        : doc/02-identifiers-and-quoting.md
     Maintainer  : Felix C. Stegerman <flx@obfusk.net>
-    Date        : 2020-01-24
+    Date        : 2020-02-02
 
     Copyright   : Copyright (C) 2020  Felix C. Stegerman
     Version     : v0.0.1
@@ -90,8 +90,8 @@ the value found is pushed onto the stack.
 ```koneko
 >>> 1 2 +                                   ; push and call "+"
 3
->>> 'show                                   ; push "show"
-#<primitive:__show__>
+>>> '+                                      ; push "+"
+#<multi:2:+>
 >>> 1 2 '+ call                             ; push "+", then call it
 3
 ```

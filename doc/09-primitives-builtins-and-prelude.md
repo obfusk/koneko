@@ -169,7 +169,7 @@ What's your name? Foo
 >>> __name__
 :__main__
 >>> __module-defs__
-( :__args__ :__repl__ :answer :c! :clear-stack! :d! :s! :show-stack! )
+( :D! :__args__ :__repl__ :answer :c! :clear-stack! :d! :s! :show-stack! )
 >>> :answer :__main__ __module-get__
 42
 >>> __modules__ [ show ":__" starts-with? ] filter ->list
@@ -180,10 +180,15 @@ What's your name? Foo
 
 ```koneko
 >>> clear-stack!                ; only available in the repl
+*** STACK CLEARED ***
 >>> ,show-stack!
->>> , 1 2 show-stack!
+--- STACK ---
+---  END  ---
+>>> , 1 2 s!                    ; s! ⇔ show-stack!
+--- STACK ---
 2
 1
+---  END  ---
 ```
 
 #### Exceptions
@@ -218,9 +223,11 @@ nil
 
 ```koneko
 >>> , [ 0.1 sleep :one ] [ 0.05 sleep :two ] par    ; concurrency
->>> ,show-stack!
+>>> ,s!
+--- STACK ---
 :two
 :one
+---  END  ---
 ```
 
 Of course `def` and `=>` are also primitives.
@@ -286,19 +293,27 @@ functions.
 #### Stack Shuffling
 
 ```koneko
->>> , 1 2 show-stack!
+>>> , 1 2 s!
+--- STACK ---
 2
 1
->>> , swap show-stack!            ; swap top 2 values on stack
+---  END  ---
+>>> , swap s!                     ; swap top 2 values on stack
+--- STACK ---
 1
 2
->>> , dup show-stack!             ; dup(licate) top of stack
+---  END  ---
+>>> , dup s!                      ; dup(licate) top of stack
+--- STACK ---
 1
 1
 2
->>> , drop show-stack!            ; drop (pop & discard) top of stack
+---  END  ---
+>>> , drop s!                     ; drop (pop & discard) top of stack
+--- STACK ---
 1
 2
+---  END  ---
 ```
 
 See also: `rot>`, `<rot`, `2dup`, `2drop`, `3drop`, `nip`, `over`,
@@ -310,9 +325,11 @@ See also: `rot>`, `<rot`, `2dup`, `2drop`, `3drop`, `nip`, `over`,
 
 ```koneko
 >>> , 35 [ 2 + ] [ 7 + ] bi
->>> , show-stack!
+>>> , s!
+--- STACK ---
 42
 37
+---  END  ---
 
 >>> 3 '+ dip *                    ; pop x, call f, push x
 237
@@ -402,9 +419,11 @@ nil
 ```
 
 ```koneko
->>> , ( 1 2 3 ) uncons^ show-stack!
+>>> , ( 1 2 3 ) uncons^ s!
+--- STACK ---
 ( 2 3 )
 1
+---  END  ---
 >>> cons
 ( 1 2 3 )
 >>> ( 3 4 ) 2 swap cons
