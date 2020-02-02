@@ -101,9 +101,10 @@ const chkIdent = i => {
 const applyMissing = (x, op) =>
   `block to have parameter named ${x} for ${op}`
 
-const nilToDef  = (x, d, t) => x.type == "nil" ? d : expect(x, t).value
+const isNil     = x => x.type == "nil"
+const nilToDef  = (x, d, t) => isNil(x) ? d : expect(x, t).value
 const maybeJ    = (f, x, d = nil) => x == null ? d : f(x)
-const maybeK    = (f, x, d = null) => x.type == "nil" ? d : f(x)
+const maybeK    = (f, x, d = null) => isNil(x) ? d : f(x)
 
 // TODO: inefficient implementation
 const stack = {                                               //  {{{1
@@ -175,8 +176,8 @@ const dict_ = m => _tv("dict", m)
 const ident = i => _tv("ident", chkIdent(i))
 const quot  = i => _tv("quot" , chkIdent(i))
 
-const block = (params, code, scope = null) =>
-  ({ type: "block", params, code, scope })
+const block = (params, code, scope = null, name = undefined) =>
+  ({ type: "block", params, code, scope, name })
 const builtin = (name, run, prim = true) =>
   ({ type: "builtin", prim, name, run })
 const multi = (arity, name, table) =>
@@ -253,7 +254,7 @@ const digitParams = b => {
 }
 
 const truthy = x =>
-  !(x.type == "nil" || (x.type == "bool" && x.value == false))
+  !(isNil(x) || (x.type == "bool" && x.value == false))
 
 const dictToList = d => list([...d.value.keys()].sort().map(
   k => pair(kwd(k), d.value.get(k))
@@ -877,6 +878,10 @@ const show = x => {                                           //  {{{1
     case "quot":
       return "'" + x.value
     case "block": {
+      if (x.scope && x.scope.module == null) {
+        return [...x.scope.table.values()].map(show).join(" ")
+          + " " + x.name
+      }
       const f = xs => xs.map(show).join(" ")
       if (!x.params.length && !x.code.length) {
         return "[ ]"
@@ -1337,14 +1342,44 @@ const callableTypes =
 
 /* === builtins === */
 
-modules.set("__bltn__", new Map([
+modules.set("__bltn__", new Map([                             //  {{{1
   mkPrimPP("str->int"  , x => [maybeJ(int  , pInt  (strVal(x)))], "str"),
   mkPrimPP("str->float", x => [maybeJ(float, pFloat(strVal(x)))], "str"),
   ...types.map(t => mkPrimPP(t+"?", x => [bool(x.type == t)], "_")),
-  // mkPrimPP("dup", x => [x, x], "_"),
-  // mkPrimPP("drop", x => [], "_"),
-  // mkPrim("swap", modules.get("__prim__").get("__swap__").run),
-].map(([k, v]) => { v.prim = false; return [k, v] })))
+
+  /* slightly faster (?!) versions of prelude functions */
+  mkPrimPP("dup" , x => [x, x], "_"),
+  mkPrimPP("drop", x => [], "_"),
+  mkPrim("swap", modules.get("__prim__").get("__swap__").run),
+  mkPrim("dip", async (c, s0) => {
+    const [[x, f], s1] = stack.popN(s0, 2)
+    const s2 = await call(c, stack.push(s1, f))
+    return stack.push(s2, x)
+  }),
+
+  /* nicer (!) versions of prelude functions */
+  mkPrimPP("$", (x, f) => [partial(x, f)], "_", "_"),
+  mkPrimPP("@", (f, g) => [compose(f, g)], "_", "_"),
+  mkPrimPP("%", (g, f) => [compose(f, g)], "_", "_"),
+
+  /* noticably faster (!) versions of prelude functions */
+  mkPrim("~?", async (c, s0) => {
+    const [[x, f, g, p], s1] = stack.popN(s0, 4)
+    const s2 = await call(c, stack.push(s1, x, x, p))
+    const [[b], s3] = stack.popN(s2, 1)
+    return call(c, stack.push(s3, truthy(b) ? f : g))
+  }),
+  mkPrim("~nil", async (c, s0) => {
+    const [[x, f, g], s1] = stack.popN(s0, 3)
+    return call(c, stack.push(s1, ...(isNil(x) ? [f] : [x, g])))
+  }),
+].map(([k, v]) => { v.prim = false; return [k, v] })))        //  }}}1
+
+const compose = (f, g) => block([], ["f", "g"].map(ident),
+  { module: null, table: new Map([["f", f], ["g", g]]) }, "@")
+
+const partial = (x, f) => block([], [quot("x"), ident("f")],
+  { module: null, table: new Map([["x", x], ["f", f]]) }, "$")
 
 /* === miscellaneous === */
 
@@ -1691,11 +1726,7 @@ const printFail = (ex, out, err) => {                         //  {{{1
 
 // NB: Promise
 const main = () => main_().catch(e => {
-  if (e instanceof KonekoError) {
-    putErr("koneko: " + e.message)
-  } else {
-    console.error(e)
-  }
+  putErr("koneko: " + e.message)
   process.exit(1)
 })
 

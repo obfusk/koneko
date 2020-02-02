@@ -19,13 +19,13 @@ import Data.Monoid ((<>))
 
 import Koneko.Data
 import Koneko.Misc (pInt, pFloat, parseMaybe)
--- import Koneko.Prim (swap)
+import Koneko.Prim (swap)
 
 initCtx :: Context -> IO ()
 initCtx ctxMain = do
   ctx <- forkContext bltnModule ctxMain
   traverse_ (defPrim ctx) $ typePreds ++ [strToInt, strToFloat]
-  --  ++ [dup, drop_, mkBltn "swap" (biRun swap)]
+    ++ [dup, drop_, mkBltn "swap" (biRun swap)]
 
 typePreds :: [Builtin]
 typePreds = [ mkBltn (x <> "?") $ pop1push1
@@ -35,8 +35,10 @@ strToInt, strToFloat :: Builtin
 strToInt    = mkBltn "str->int"   $ pop1push1 $ parseMaybe pInt
 strToFloat  = mkBltn "str->float" $ pop1push1 $ parseMaybe pFloat
 
--- dup, drop_ :: Builtin
--- dup   = mkBltn "dup"  $ \_ s -> push' s . fst <$> pop_' s
--- drop_ = mkBltn "drop" $ \_ s -> snd <$> pop_' s
+dup, drop_ :: Builtin
+dup   = mkBltn "dup"  $ \_ s -> push' s . fst <$> pop_' s
+drop_ = mkBltn "drop" $ \_ s -> snd <$> pop_' s
+
+-- TODO: dip, $, @, %, ~?, ~nil (JS has these)
 
 -- vim: set tw=70 sw=2 sts=2 et fdm=marker :

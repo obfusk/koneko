@@ -1,23 +1,38 @@
-what            time        time w/ bltn dup&drop&swap
-----            ----        --------------------------
+what              time          time w/ bltn dup&drop&swap
+----              ----          --------------------------
 
-x.hs            ~ 0.4s      n/a
-x.hs compiled   ~ 0.016s    n/a
+x.hs              ~ 0.4s        n/a
+x.hs compiled     ~ 0.016s      n/a
 
-x.py            ~ 0.04s     n/a
-x1.py           ~ 0.3s      n/a
+x.py              ~ 0.04s       n/a
+x1.py             ~ 0.3s        n/a
 
-x0.knk hs       ~ 12s       ~ 12s
-x0.knk js       ~ 15s       ~ 15s
+x0.knk hs         ~ 12s         ~ 12s         ~ 10s w/ new each
+x0.knk js         ~ 15s         ~ 15s         ~ 13s ^
+                                              ~ 8.5 w/ bltns
 
-x1.knk hs       ~ 7s        ~ 7s
-x1.knk js       ~ 8s        ~ 7s
+x1.knk hs         ~ 7s          ~ 7s          ~ 3.3s w/ new each
+x1.knk js         ~ 8s          ~ 7s          ~ 4.7s ^
 
-x2.knk hs       ~ 1.1s      ~ 0.9s
-x2.knk js       ~ 1.9s      ~ 1.8s
+x2.knk hs         ~ 1.1s        ~ 0.9s
+x2.knk js         ~ 1.9s        ~ 1.8s
 
-x3.knk hs       ~ 1.3s      ~ 1.2s
-x3.knk js       ~ 2.1s      ~ 2.0s
+x3.knk hs         ~ 1.3s        ~ 1.2s
+x3.knk js         ~ 2.1s        ~ 2.0s
 
-x4.knk hs       ~ 15s       ?
-x4.knk js       ~ 19s       ?
+x4.knk hs         ~ 15s         ?             ~ 12s w/ new stuff
+x4.knk js         ~ 19s         ?             ~ 11s ^
+
+
+                  old (each)    new (recurse)
+                  ----------    -------------
+
+times 3k hs       ~ 3s          ~ 0.5s
+times 3k js       ~ 4.5s        ~ 1.5s
+
+
+                  old           new (chunked)
+                  ---           -------------
+
+iterate 8k hs     ~ 4s          ~ 3.2s
+iterate 8k js     ~ 6s          ~ 4.5s
