@@ -59,7 +59,7 @@ module Koneko.Data (
   applyMissing, expected, unexpected, Kwd(..), Ident, unIdent, ident,
   Pair(..), List(..), Dict(..), Block(..), Builtin(..), Multi(..),
   RecordT(..), Record, recType, recValues, record, Thunk, runThunk,
-  thunk, Scope, modName, Context, ctxScope, KPrim(..), KValue(..),
+  thunk, Scope(..), Context, ctxScope, KPrim(..), KValue(..),
   KType(..), Stack, freeVars, Cmp(..), escapeFrom, escapeTo, ToVal,
   toVal, FromVal, fromVal, toVals, fromVals, maybeToVal, eitherToVal,
   emptyStack, push', push, rpush, rpush1, pop_, pop, pop2, pop3, pop4,
@@ -395,6 +395,8 @@ instance Show Dict where
 
 -- TODO
 instance Show Block where
+  show (Block _ _ (Just s)) | modName s == bltnModule
+    = intercalate " " $ map (show . snd) $ sort $ H.toList $ table s
   show (Block p c _) = case (p, c) of
       ([], [])  -> "[ ]"
       ([], _ )  -> "[ " ++ f c ++ " ]"

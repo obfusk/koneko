@@ -2,7 +2,7 @@
 --
 --  File        : Koneko/Eval.hs
 --  Maintainer  : Felix C. Stegerman <flx@obfusk.net>
---  Date        : 2020-01-31
+--  Date        : 2020-02-01
 --
 --  Copyright   : Copyright (C) 2020  Felix C. Stegerman
 --  Version     : v0.0.1
@@ -391,7 +391,7 @@ initContext = do
   ctx <- initMainContext
   let load = loadMod ctx
   Prim.initCtx ctx load call apply apply_dict callBlock
-  Bltn.initCtx ctx
+  Bltn.initCtx ctx call
   Prld.initCtx ctx load
   return ctx
 
