@@ -46,7 +46,7 @@
 -- foo
 -- >>> q "foo"
 -- 'foo
--- >>> block [id "x", id "y"] [q "y", q "x"] undefined
+-- >>> block [id "x", id "y"] [q "y", q "x"] Nothing
 -- [ x y . 'y 'x ]
 --
 -- ... TODO ...
