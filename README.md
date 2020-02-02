@@ -24,7 +24,8 @@
 → [Description](#description),
 → [Whirlwind Tour](#whirlwind-tour),
 → [Language Reference](#language-reference),
-→ [More Examples](#more-examples);
+→ [More Examples](#more-examples),
+→ [Doctests](#doctests);
 <br/>
 → [Installing](#installing),
 → [Running](#running),
@@ -359,6 +360,78 @@ fizzbuzz
 ## More Examples
 
 → [More Examples](doc/more-examples.md)
+
+## Doctests
+
+Like Python (& Haskell), koneko supports "doctests": executable pieces
+of documentation that look like interactive REPL sessions.  Doctests
+make it easy to write user tutorials, documentation, and regression
+tests at the same time and confirm that examples in documentation are
+correct and up to date.
+
+NB: this README, the Language Reference, and koneko's Prelude &
+Standard Library are full of doctests.
+
+Lets look at an example, `myswap.knk`:
+
+```koneko
+; swap top 2 values
+;
+; >>> :myswap use
+; >>> , 1 2 s!
+; --- STACK ---
+; 2
+; 1
+; ---  END  ---
+; >>> , myswap s!
+; --- STACK ---
+; 1
+; 2
+; ---  END  ---
+
+:myswap [ x y . 'y 'x ] def
+```
+
+We run koneko with the `--doctest` option (in this case also with `-v`
+for verbosity) to execute the tests in a koneko -- or markdown --
+file:
+
+```bash
+$ KONEKOPATH=. koneko --doctest -v myswap.knk
+=== Testing myswap.knk (koneko) ===
+Trying:
+  :myswap use
+Expecting:
+ok
+Trying:
+  , 1 2 s!
+Expecting:
+  --- STACK ---
+  2
+  1
+  ---  END  ---
+ok
+Trying:
+  , myswap s!
+Expecting:
+  --- STACK ---
+  1
+  2
+  ---  END  ---
+ok
+Total: 3, Tried: 3, Passed: 3, Failed: 0.
+=== Summary ===
+Total: 3, Tried: 3, Passed: 3, Failed: 0.
+Test passed.
+
+=== Summary ===
+Files: 1.
+Total: 3, Tried: 3, Passed: 3, Failed: 0.
+Test passed.
+```
+
+NB: we need to set `KONEKOPATH` to the current directory to be able to
+`use` the `myswap.knk` file.
 
 ## Installing
 
