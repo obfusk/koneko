@@ -134,6 +134,7 @@ data KException
     | EmptyList !String
     | IndexError !String !Integer
     | KeyError !String !String
+    | RangeError !String
     | DivideByZero
     | InvalidRx !String
     | Fail !String
@@ -359,6 +360,7 @@ instance Show KException where
   show (IndexError op i)        = op ++ ": index " ++ show i ++
                                   " is out of range"
   show (KeyError op k)          = op ++ ": key " ++ k ++ " not found"
+  show (RangeError msg)         = "range error: " ++ msg
   show  DivideByZero            = "divide by zero"
   show (InvalidRx msg)          = "invalid regex: " ++ msg
   show (Fail msg)               = msg

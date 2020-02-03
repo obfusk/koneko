@@ -72,6 +72,7 @@ const E = {                                                   //  {{{1
   EmptyList:          op            => [`${op}: empty list`, { op }],
   IndexError:         (op, index)   => [`${op}: index ${index} is out of range`, { op, index }],
   KeyError:           (op, key)     => [`${op}: key ${key} not found`, { op, key }],
+  RangeError:         msg           => [`range error: ${msg}`, { msg }],
   DivideByZero:       ()            => ["divide by zero", {}],
   InvalidRx:          msg           => [`invalid regex: ${msg}`, { msg }],
   Fail:               msg           => [msg, { msg }],
@@ -1404,7 +1405,10 @@ modules.set("math", new Map([                                 //  {{{1
     n => [n.type == "int" ? int((n.value > 0) - (n.value < 0)) :
           float(Math.sign(n.value))], "int or float"
   ),
-  mkPrim("^",     opI((x, y) => x ** y)),
+  mkPrim("^",     opI((x, y) => {
+    if (y < 0) { throw new KE(...E.RangeError("negative exponent")) }
+    return x ** y
+  })),
   mkPrim("**",    opF(Math.pow)),
   mkPrimPP("pi",  () => [float(Math.PI)]),
   mkPF1("exp",    Math.exp),
