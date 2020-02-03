@@ -52,7 +52,7 @@ repl_node:
 	scripts/repl_js
 
 repl_browser:
-	cd js && python3 -m http.server
+	cd js && python3 -m http.server --bind 127.0.0.1
 
 link_vim_syntax:
 	scripts/copy-or-link-vim-syntax link
