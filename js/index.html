@@ -4,7 +4,7 @@
 
     File        : index.html
     Maintainer  : Felix C. Stegerman <flx@obfusk.net>
-    Date        : 2020-02-02
+    Date        : 2020-02-03
 
     Copyright   : Copyright (C) 2020  Felix C. Stegerman
     Version     : v0.0.1
@@ -51,6 +51,8 @@
         const [line, cons, st] = ["line", "console", "stack"].map(elem)
         const history = []; let hist_idx = 0
         line.value = stack.value = ""; cons.value = ""
+        const version = (await koneko.get_version()).join(".")
+        elem("version").innerText = "koneko 「子猫」 " + version
         await koneko.loadPrelude()
         const print = text => {
           cons.value += text + "\n"
@@ -137,8 +139,8 @@
     </div>
     <noscript>
       <br/>
-      <b>To use this JavaScript implementation of koneko, you'll need
-      to... enable JavaScript.</b>
+      <b style="color: red">To use this JavaScript implementation of
+      koneko, you'll need to... enable JavaScript.</b>
       <br/>
       All JavaScript on this page is Free Software: koneko and its
       standard library are licensed under GPLv3+ and LGPLv3+
@@ -185,7 +187,8 @@
                src="https://travis-ci.org/obfusk/m.svg?branch=master"/>
         </a>
       </div>
-      <span class="small">© 2020 Felix C. Stegerman</span>
+      <span class="small" id="version"></span>
+      <span class="small">» © 2020 Felix C. Stegerman</span>
     </footer>
   </body>
 </html>

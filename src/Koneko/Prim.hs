@@ -2,7 +2,7 @@
 --
 --  File        : Koneko/Prim.hs
 --  Maintainer  : Felix C. Stegerman <flx@obfusk.net>
---  Date        : 2020-02-02
+--  Date        : 2020-02-03
 --
 --  Copyright   : Copyright (C) 2020  Felix C. Stegerman
 --  Version     : v0.0.1
@@ -28,6 +28,7 @@ import Data.Foldable (traverse_)
 import Data.List (isSuffixOf, sort)
 import Data.Monoid ((<>))
 import Data.Text.Lazy (Text)
+import Data.Version (showVersion, versionBranch)
 import Prelude hiding (lookup)
 import System.Directory (listDirectory)
 import System.FilePath ((</>))
@@ -39,12 +40,14 @@ import qualified Data.ByteString.Lazy as BL
 import qualified Data.Text.Lazy as T
 import qualified Data.Text.Lazy.Encoding as LE
 import qualified Data.Text.Lazy.IO as T
+import qualified System.Info as I
 import qualified Text.Regex.PCRE as RE
 import qualified Text.Regex.PCRE.ByteString.Lazy as RE
 
 import Koneko.Data
 import Koneko.Misc (prompt)
-import Paths_koneko (getDataFileName)
+
+import qualified Paths_koneko as P
 
 -- TODO
 initCtx :: Context -> (Identifier -> IO ()) -> Evaluator -> Evaluator
@@ -80,6 +83,7 @@ initCtx ctxMain load call apply apply_dict callBlock = do
       mkIdent, mkQuot, mkBlock, blockParams, blockCode,
       rxMatch, rxSub callBlock,
       par callBlock, sleep,
+      version,
       showStack call, clearStack, nya
     ]
 
@@ -136,7 +140,7 @@ mkDict = mkPrim "dict" $ \_ s -> do
 -- needed as primitive by read for .foo
 swap = mkPrim "swap" $ pop2push $ \x y -> [y, x] :: [KValue]
 
--- primitives: miscellaneous --
+-- primitives: show, I/O & types --
 
 show', say, ask, types, type', callable, function :: Builtin
 
@@ -410,6 +414,21 @@ sleep = mkPrim "sleep" $ \_ s -> do
   let ms = either (1000 *) (round . ((1000 :: Double) *)) n
   s' <$ threadDelay (fromInteger $ 1000 * ms)
 
+-- primitives: miscellaneous --
+
+version :: Builtin
+version = mkPrim "version" $ const $ flip rpush1
+        $ [list $ map int _koneko_version, kwd("hs"),
+           list $ map str _platform]
+
+_koneko_version :: [Integer]
+_koneko_version = map toInteger $ versionBranch P.version
+
+_platform :: [Text]
+_platform = map T.pack [I.os ++ " " ++ I.arch, c ++ " " ++ v]
+  where
+    c = I.compilerName; v = showVersion I.compilerVersion
+
 -- repl --
 
 replDef :: Context -> IO ()
@@ -441,7 +460,7 @@ clearStack = mkPrim "clear-stack!" $ \_ _ ->
 
 nya :: Builtin
 nya = mkPrim "nya!" $ \_ s -> s <$ do
-  nyaD  <- getDataFileName "nya"
+  nyaD  <- P.getDataFileName "nya"
   cats  <- filter (isSuffixOf ".cat") <$> listDirectory nyaD
   unless (null cats) $ do
     i   <- getStdRandom $ randomR (0, length cats -1)

@@ -2,7 +2,7 @@
 //
 //  File        : koneko.js
 //  Maintainer  : Felix C. Stegerman <flx@obfusk.net>
-//  Date        : 2020-02-02
+//  Date        : 2020-02-03
 //
 //  Copyright   : Copyright (C) 2020  Felix C. Stegerman
 //  Version     : v0.0.1
@@ -1322,6 +1322,12 @@ modules.set("__prim__", new Map([                             //  {{{1
     await new Promise((resolve, _) => setTimeout(resolve, ms))
     return s1
   }),
+  mkPrim("__version__", async (c, s) => {
+    const v = list((await koneko_version()).map(int))
+    const t = kwd("js-" + (_req ? "node" : "browser"))
+    const p = list(platform().map(str))
+    return stack.push(s, list([v, t, p]))
+  }),
   mkPrim("__show-stack!__", async (c, s) => {
     say("--- STACK ---")
     for (const x of stack.toArray(s)) { say(await prld_show(x)) }
@@ -1518,6 +1524,30 @@ const loadMod = async name => {                               //  {{{1
 // NB: Promise
 const loadPrelude = () => {
   if (!modules.get("__prld__").size) { return loadMod("prelude") }
+}
+
+/* === version information === */
+
+let _version = null
+
+// NB: Promise
+const koneko_version = async () => {
+  if (!_version) {
+    const pj = "package.json"
+    _version = (_req ? _req(bpath(pj)) :
+      JSON.parse(await requestFile(pj))).version.split(".")
+  }
+  return _version
+}
+
+const platform = () => {
+  if (_req) {
+    const p = process
+    return [`${p.platform} ${p.arch}`, `${p.release.name} ${p.version}`]
+  } else {
+    const n = navigator
+    return [n.platform.toLowerCase(), n.userAgent]
+  }
 }
 
 /* === output === */
@@ -1798,8 +1828,8 @@ const main_ = async () => {                                   //  {{{1
   const args    = argv.filter(a => !a.startsWith("-"))
   const verbose = opts.includes("-v")
   if (opts.includes("--version")) {
-    const version = _req(bpath("package.json")).version
-    putOut(`koneko 「子猫」 ${version}`)
+    const version = await koneko_version()
+    putOut(`koneko 「子猫」 ${version.join(".")}`)
   } else if (opts.includes("--doctest")) {
     await doctest_(args, verbose)
   } else if (args.length) {
@@ -1844,6 +1874,7 @@ const overrides = {}
 _mod[_exp] = {
   KonekoError, read, evaluate, evalText, show, toJS, fromJS,
   loadPrelude, overrides, repl_init, prld_show,
+  get_version: koneko_version,
   initContext: scope.new, emptyStack: stack.new,
   ...(_req ? { repl, doctest, doctest_, main } : {})
 }
