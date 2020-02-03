@@ -16,6 +16,8 @@
 
 ## Standard Library
 
+→ [Math](#math), ...
+
 ### Math
 
 NB: the `math` module is built-in (and does not need to be `require`d
