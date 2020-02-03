@@ -451,6 +451,8 @@ const opF = op => popPush(
   (x, y) => [float(op(x.value, y.value))], "float", "float"
 )
 
+const opF1 = op => popPush(x => [float(op(x.value))], "float")
+
 const partitionSpecial = (params, cur = null) => {            //  {{{1
   const sparms = [], sparms_ = [], nparms = []
   for (const p of params) {
@@ -850,6 +852,7 @@ const show = x => {                                           //  {{{1
     case "int":
       return x.value.toString()
     case "float": {
+      if (x.value == 0 && 1/x.value < 0) { return "-0.0" }
       const s = x.value.toString()
       return isInt(s) ? s + ".0" : s
     }
@@ -1238,6 +1241,9 @@ modules.set("__prim__", new Map([                             //  {{{1
     n => [n.type == "float" ? float(Math.abs(n.value)) :
           n.value < 0 ? int(-n.value) : n], "int or float"
   ),
+  mkPrimPP("__neg__",
+    n => [(n.type == "int" ? int : float)(-n.value)], "int or float"
+  ),
   mkPrimPP("__trunc__", n => [int(Math.trunc(n.value))], "float"),
   mkPrimPP("__round__", n => [int(round     (n.value))], "float"),
   mkPrimPP("__ceil__" , n => [int(Math.ceil (n.value))], "float"),
@@ -1348,6 +1354,8 @@ const callableTypes =
 
 /* === builtins === */
 
+const unprim = ([k, v]) => { v.prim = false; return [k, v] }
+
 modules.set("__bltn__", new Map([                             //  {{{1
   mkPrimPP("str->int"  , x => [maybeJ(int  , pInt  (strVal(x)))], "str"),
   mkPrimPP("str->float", x => [maybeJ(float, pFloat(strVal(x)))], "str"),
@@ -1379,13 +1387,43 @@ modules.set("__bltn__", new Map([                             //  {{{1
     const [[x, f, g], s1] = stack.popN(s0, 3)
     return call(c, stack.push(s1, ...(isNil(x) ? [f] : [x, g])))
   }),
-].map(([k, v]) => { v.prim = false; return [k, v] })))        //  }}}1
+].map(unprim)))                                               //  }}}1
 
 const compose = (f, g) => block([], ["f", "g"].map(ident),
   { module: null, table: new Map([["f", f], ["g", g]]) }, "@")
 
 const partial = (x, f) => block([], [quot("x"), ident("f")],
   { module: null, table: new Map([["x", x], ["f", f]]) }, "$")
+
+/* === math === */
+
+const mkPF1 = (name, op) => mkPrim(name, opF1(op))
+
+modules.set("math", new Map([                                 //  {{{1
+  mkPrimPP("sign",
+    n => [n.type == "int" ? int((n.value > 0) - (n.value < 0)) :
+          float(Math.sign(n.value))], "int or float"
+  ),
+  mkPrim("^",     opI((x, y) => x ** y)),
+  mkPrim("**",    opF(Math.pow)),
+  mkPrimPP("pi",  () => [float(Math.PI)]),
+  mkPF1("exp",    Math.exp),
+  mkPF1("log",    Math.log),
+  mkPF1("sqrt",   Math.sqrt),
+  mkPF1("sin",    Math.sin),
+  mkPF1("cos",    Math.cos),
+  mkPF1("tan",    Math.tan),
+  mkPF1("asin",   Math.asin),
+  mkPF1("acos",   Math.acos),
+  mkPF1("atan",   Math.atan),
+  mkPF1("sinh",   Math.sinh),
+  mkPF1("cosh",   Math.cosh),
+  mkPF1("tanh",   Math.tanh),
+  mkPF1("asinh",  Math.asinh),
+  mkPF1("acosh",  Math.acosh),
+  mkPF1("atanh",  Math.atanh),
+  mkPrim("atan2", opF(Math.atan2)),
+].map(unprim)))                                               //  }}}1
 
 /* === miscellaneous === */
 
@@ -1733,7 +1771,11 @@ const printFail = (ex, out, err) => {                         //  {{{1
 
 // NB: Promise
 const main = () => main_().catch(e => {
-  putErr("koneko: " + e.message)
+  if (e instanceof KonekoError || e.name == "Error") {
+    putErr("koneko: " + e.message)
+  } else {
+    console.error("koneko:", e)
+  }
   process.exit(1)
 })
 

@@ -25,6 +25,8 @@
 ; * unzip, scan*; split*; init; sort-by; update-with
 ; * I/O; math; ...
 ;
+; * div/mod vs quot/rem
+;
 ; * improve docs generation!
 ;
 ; --
@@ -714,6 +716,8 @@
 
 ; -- Arithmetic --                                              ; {{{1
 
+; NB: see also math.
+
 ; addition, subtraction & multiplication
 ;
 ; NB: when mixing ints and floats, ints are coerced to floats and may
@@ -756,7 +760,7 @@
 ; >>> 3.14 neg
 ; -3.14
 
-:neg    [ 0 swap - ] def
+:neg    '__neg__ def
 
 ; division & modulo
 ;
@@ -817,14 +821,6 @@
 
 :inc    [ 1 + ] def
 :dec    [ 1 - ] def
-
-; -- TODO --
-;
-; * div/mod vs quot/rem
-; * pi, exp, log, sqrt, sin, cos, ...
-; * ^ :math import ?!
-;
-; --
 
                                                                 ; }}}1
 
@@ -1679,7 +1675,7 @@
 ; * (currently) other sequences -- e.g. list -- only support step = 1;
 ; * neither infinite ranges nor lazy sequences support negative indices.
 ;
-; See also: take-first, drop-first, take-nth
+; NB: see also take-first, drop-first, take-nth.
 ;
 ; >>> "0123456789" 5 [i-)
 ; "56789"

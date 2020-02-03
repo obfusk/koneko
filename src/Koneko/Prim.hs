@@ -70,7 +70,7 @@ initCtx ctxMain load call apply apply_dict callBlock = do
       arithI "div" div, arithI "mod" mod,
       arithF "float+" (+), arithF "float-" (-),
       arithF "float*" (*), arithF "float/" (/),
-      abs',
+      abs', neg,
       floatToInt "trunc" (truncate), floatToInt "round" (round),
       floatToInt "ceil"  (ceiling) , floatToInt "floor" (floor),
       chr', intToFloat, recordToDict,
@@ -224,10 +224,15 @@ arithF :: Identifier -> (Double  -> Double  -> Double ) -> Builtin
 arithI = arith
 arithF = arith
 
-abs' :: Builtin
-abs' = mkPrim "abs" $ pop1push1 $ \case
-  Left  x -> toVal (abs x :: Integer)
-  Right x -> toVal (abs x :: Double)
+abs', neg :: Builtin
+
+abs' = mkPrim "abs" $ pop1push1 $ either
+  (toVal . (abs :: Integer -> Integer))
+  (toVal . (abs :: Double  -> Double ))
+
+neg = mkPrim "neg" $ pop1push1 $ either
+  (toVal . (negate :: Integer -> Integer))
+  (toVal . (negate :: Double  -> Double ))
 
 -- primitives: conversion --
 

@@ -2,7 +2,7 @@
 --
 --  File        : Koneko/Eval.hs
 --  Maintainer  : Felix C. Stegerman <flx@obfusk.net>
---  Date        : 2020-02-01
+--  Date        : 2020-02-02
 --
 --  Copyright   : Copyright (C) 2020  Felix C. Stegerman
 --  Version     : v0.0.1
@@ -75,6 +75,7 @@ import Paths_koneko (getDataFileName)
 import qualified Koneko.Read as R
 
 import qualified Koneko.Bltn as Bltn
+import qualified Koneko.Math as Math
 import qualified Koneko.Prim as Prim
 import qualified Koneko.Prld as Prld
 
@@ -393,6 +394,7 @@ initContext = do
   Prim.initCtx ctx load call apply apply_dict callBlock
   Bltn.initCtx ctx call
   Prld.initCtx ctx load
+  Math.initCtx ctx
   return ctx
 
 -- utilities: block call/apply --

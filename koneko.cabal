@@ -84,6 +84,7 @@ library
     Koneko.Bltn
     Koneko.Data
     Koneko.Eval
+    Koneko.Math
     Koneko.Misc
     Koneko.Prim
     Koneko.Prld
@@ -114,6 +115,7 @@ executable koneko
     Koneko.Bltn
     Koneko.Data
     Koneko.Eval
+    Koneko.Math
     Koneko.Misc
     Koneko.Prim
     Koneko.Prld
