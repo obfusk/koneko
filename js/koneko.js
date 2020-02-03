@@ -1245,13 +1245,16 @@ modules.set("__prim__", new Map([                             //  {{{1
   mkPrimPP("__neg__",
     n => [(n.type == "int" ? int : float)(-n.value)], "int or float"
   ),
-  mkPrimPP("__trunc__", n => [int(Math.trunc(n.value))], "float"),
-  mkPrimPP("__round__", n => [int(round     (n.value))], "float"),
-  mkPrimPP("__ceil__" , n => [int(Math.ceil (n.value))], "float"),
-  mkPrimPP("__floor__", n => [int(Math.floor(n.value))], "float"),
-  mkPrimPP("__chr__",
-    x => [str(String.fromCodePoint(intToNum(x.value)))], "int"
-  ),
+  mkPrimPP("__trunc__", n => [f2i(Math.trunc(n.value))], "float"),
+  mkPrimPP("__round__", n => [f2i(round     (n.value))], "float"),
+  mkPrimPP("__ceil__" , n => [f2i(Math.ceil (n.value))], "float"),
+  mkPrimPP("__floor__", n => [f2i(Math.floor(n.value))], "float"),
+  mkPrimPP("__chr__", x => {
+    if (x.value < 0 || x.value >= 0x110000) {
+      throw new KE(...E.Expected("int in range [0,0x110000) on stack"))
+    }
+    return [str(String.fromCodePoint(intToNum(x.value)))]
+  }, "int"),
   mkPrimPP("__int->float__", n => [float(intToNum(n.value))], "int"),
   mkPrimPP("__record->dict__"     , x => [recordToDict(x)], "record"),
   mkPrimPP("__record-type__"      , x => [x.rectype]      , "record"),
@@ -1436,6 +1439,9 @@ const round = f => {
   const i = Math.round(f)
   return i % 2 && f + 0.5 == i ? i - 1 : i
 }
+
+// TODO
+const f2i = f => Number.isFinite(f) ? int(f) : nil
 
 // TODO
 const zip = (xs, ys) => xs.map((x, i) => [x, ys[i]])

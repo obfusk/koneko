@@ -237,7 +237,9 @@ neg = mkPrim "neg" $ pop1push1 $ either
 -- primitives: conversion --
 
 floatToInt :: Identifier -> (Double -> Integer) -> Builtin
-floatToInt name = mkPrim name . pop1push1
+floatToInt name f = mkPrim name $ pop1push1 g
+  where
+    g n = if isNaN n || isInfinite n then nil else int $ f n
 
 chr', intToFloat, recordToDict :: Builtin
 

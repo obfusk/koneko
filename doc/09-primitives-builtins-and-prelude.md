@@ -2,7 +2,7 @@
 
     File        : doc/09-primitives-builtins-and-prelude.md
     Maintainer  : Felix C. Stegerman <flx@obfusk.net>
-    Date        : 2020-01-31
+    Date        : 2020-02-02
 
     Copyright   : Copyright (C) 2020  Felix C. Stegerman
     Version     : v0.0.1
@@ -128,6 +128,8 @@ converting `int->float`) and reject all other mixed type comparisons.
 10
 >>> -10.5 round
 -10
+>>> 0.0 0.0 / round             ; NaN or Infinite -> nil
+nil
 >>> -3.14 floor
 -4
 >>> -3.14 ceil
