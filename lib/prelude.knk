@@ -2,7 +2,7 @@
 ;
 ; File        : prelude.knk
 ; Maintainer  : Felix C. Stegerman <flx@obfusk.net>
-; Date        : 2020-02-02
+; Date        : 2020-02-03
 ;
 ; Copyright   : Copyright (C) 2020  Felix C. Stegerman
 ; Version     : v0.0.1
@@ -344,11 +344,28 @@
 ;
 ; >>> ( 2 ( [ 1 + ] [ 2 * ] [ 3 - ] ) mlt )
 ; ( 3 4 -1 )
+;
+;
+; >>> 42  'num? 'pos? bi-and
+; #t
+; >>> -1  'num? 'pos? bi-and
+; #f
+; >>> nil 'num? 'pos? bi-and                        ; "short-circuits"
+; #f
+; >>> nil 'num? 'pos? bi and                        ; oops
+; *** ERROR: types nil and int are not comparable
+; >>> nil 'nil? 'pos? bi-or
+; #t
+; >>> nil 'nil? 'pos? bi or
+; *** ERROR: types nil and int are not comparable
 
 :bi     [ x f g   . 'x f 'x g       ] def     ; ⇔ [ 'keep dip call ]
 :tri    [ x f g h . 'x f 'x g 'x h  ] def     ; ⇔ [ 'keep 2dip bi ]
 
 :mlt    [ swap $$ each ] def
+
+:bi-and [ x p1? p2? . [ 'x p1? ] [ 'x p2? ] and' ] def
+:bi-or  [ x p1? p2? . [ 'x p1? ] [ 'x p2? ] or'  ] def
 
 ; call one function on each of multiple values
 ;
@@ -377,6 +394,12 @@
 ; #t
 ;
 ; NB: either? and both? do not "short-circuit".
+;
+;
+; >>> -1 nil 'pos? bi$-and                          ; "short-circuits"
+; #f
+; >>> 42 nil 'pos? bi$-or
+; #t
 
 :bi$    [ x y f   . 'x f 'y f       ] def     ; ⇔ [ dup bi~ ]
 :tri$   [ x y z f . 'x f 'y f 'z f  ] def     ; ⇔ [ 2dup tri~ ]
@@ -388,6 +411,9 @@
 
 :all?   [ p? . [ #t ] [ >< p? dup [ drop 'p? all? ] 'nip if ] ^seq ] def
 :any?   [ p? . [ #f ] [ >< p? dup 'nip [ drop 'p? any? ] if ] ^seq ] def
+
+:bi$-and  [ x y p? . [ 'x p? ] [ 'y p? ] and' ] def
+:bi$-or   [ x y p? . [ 'x p? ] [ 'y p? ] or'  ] def
 
 ; call multiple functions on their "paired" value
 ;
@@ -554,6 +580,8 @@
 
 ; bool, logical inverse, conjunction & disjunction
 ;
+; NB: see also bi-and, bi-or, bi$-and, bi$-or.
+;
 ; NB: "and" and "or" return one of their operands (which are tested
 ; for "truthyness", but do not need to be bools).  They also cannot
 ; "short-circuit" because they operate on the stack, not on
@@ -573,11 +601,19 @@
 ; 2
 ; >>> 2 3 and
 ; 3
+;
+; >>> [ nil ] [ "oops" fail ] and'                  ; "short-circuits"
+; nil
+; >>> [ 42  ] [ "oops" fail ] or'
+; 42
 
 :bool   [ not not    ] def
 :not    [ #f #t    ? ] def
 :and    [ over     ? ] def
 :or     [ 'dup dip ? ] def
+
+:and'   [ f g . f dup [ drop g ] [] if ] def
+:or'    [ f g . f dup [] [ drop g ] if ] def
 
 ; comparison "branch"
 ;
@@ -838,6 +874,13 @@
 
 :ord    '.ord     def
 :chr    '__chr__  def
+
+; is char (i.e. str of length 1)
+;
+; >>> ( "猫" "foo" "" 42 ) 'char? filter ->list
+; ( "猫" )
+
+:char?  [ 'str? [ len 1 = ] bi-and ] def
 
 ; convert to readable str
 ;
@@ -1799,7 +1842,7 @@
 :has?'  ( :Range  ) [ range-has?'  ] defmulti
 :elem?' ( :Range  ) [ range-elem?' ] defmulti
 
-; first & second element
+; first, second & third element
 ;
 ; >>> :x :y 2list
 ; ( :x :y )
@@ -1808,9 +1851,12 @@
 ; :y
 ; :x
 ; ---  END  ---
+; >>> ( 1 2 3 4 5 ) 3rd
+; 3
 
 :1st    'first def
-:2nd    [ rest 'first ~> ] def
+:2nd    [ rest '1st ~> ] def
+:3rd    [ rest '2nd ~> ] def
 
 ; last element
 ;
