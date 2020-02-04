@@ -2,7 +2,7 @@
 --
 --  File        : Koneko/Eval.hs
 --  Maintainer  : Felix C. Stegerman <flx@obfusk.net>
---  Date        : 2020-02-03
+--  Date        : 2020-02-04
 --
 --  Copyright   : Copyright (C) 2020  Felix C. Stegerman
 --  Version     : v0.0.1
@@ -186,7 +186,7 @@ callStr x _ s = do
     "len"     ->  p $ lengthT x
     "get^"    ->  pr $ \_ s1 -> do
                     (i, s2) <- pop' s1
-                    let err = throwIO $ IndexError (T.unpack o) i
+                    let err = throwIO $ IndexError (T.unpack o) $ show i
                     maybe err (rpush1 s2) $ indexT x i
     "has?"    ->  pr $ pop1push1 $ has lengthT x
     "elem?"   ->  pr $ pop1push1 (`T.isInfixOf` x)
@@ -224,7 +224,7 @@ callList (List l) _ s = do
     "len"     ->  p $ len l
     "get^"    ->  pr $ \_ s1 -> do
                     (i, s2) <- pop' s1
-                    let err = throwIO $ IndexError (T.unpack o) i
+                    let err = throwIO $ IndexError (T.unpack o) $ show i
                     maybe err (rpush1 s2) $ atMay l $ fromInteger i
     "has?"    ->  pr $ pop1push1 $ has len l
     "elem?"   ->  pr $ pop1push1 (`elem` l)

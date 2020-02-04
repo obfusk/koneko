@@ -2,7 +2,7 @@
 --
 --  File        : Koneko/Prim.hs
 --  Maintainer  : Felix C. Stegerman <flx@obfusk.net>
---  Date        : 2020-02-03
+--  Date        : 2020-02-04
 --
 --  Copyright   : Copyright (C) 2020  Felix C. Stegerman
 --  Version     : v0.0.1
@@ -303,10 +303,11 @@ try' callBlock = mkPrim "try" $ \c s0 -> do
     when (isNothing g) $ either throwIO (const $ return ()) r
     return s4
   where
-    cat cb g e = maybe (return []) (\b -> cb b $ info e) g
-    info :: KException -> [KValue]  -- NB: reverse order
-    info e = [dict [], str $ sh e, kwd $ sh $ toConstr e]     --  TODO
-    sh :: Show a => a -> Text; sh = T.pack . show
+    cat cb g e = maybe (return []) (\b -> cb b $ _errInfo e) g
+
+_errInfo :: KException -> [KValue]                -- NB: reverse order
+_errInfo e = [list $ map T.pack $ exceptionInfo e,
+              str $ T.pack $ show e, kwd $ T.pack $ show $ toConstr e]
 
 -- primitives: homoiconicity --
 

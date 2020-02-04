@@ -48,16 +48,15 @@
     <script>
       window.addEventListener("load", async () => {
         const elem = id => document.getElementById(id)
-        const [line, cons, st, ev] =
+        const [line, co, st, ev] =
           ["line", "console", "stack", "eval"].map(elem)
         const history = []; let hist_idx = 0
-        line.value = stack.value = ""; cons.value = ""
+        line.value = st.value = ""; co.value = ""
         const version = (await koneko.get_version()).join(".")
         elem("version").innerText = "koneko 「子猫」 " + version
         await koneko.loadPrelude()
         const print = text => {
-          cons.value += text + "\n"
-          cons.scrollTop = cons.scrollHeight
+          co.value += text + "\n"; co.scrollTop = co.scrollHeight
         }
         koneko.overrides.say = print
         koneko.overrides.ask = s => window.prompt(s || "")
@@ -66,34 +65,35 @@
         koneko.repl_init(c, false)
         const f = async () => {                               //  {{{1
           ev.disabled = line.disabled = true
-          const l = line.value; hist_idx = 0; line.value = ""
-          if (!l) { return }
-          if (l != history.slice(-1)[0]) { history.push(l) }
           try {
-            s = await koneko.evalText(l, c, s)
-          } catch(e) {
-            if (e instanceof koneko.KonekoError) {
-              print("*** ERROR: " + e.message)
-              return
-            } else {
-              throw e
+            const l = line.value; hist_idx = 0; line.value = ""
+            if (!l) { return }
+            if (l != history.slice(-1)[0]) { history.push(l) }
+            try {
+              s = await koneko.evalText(l, c, s)
+            } catch(e) {
+              if (e instanceof koneko.KonekoError) {
+                print("*** ERROR: " + e.message)
+                return
+              } else {
+                throw e
+              }
             }
+            let v = ""
+            for (const x of s) { v = await koneko.prld_show(x) +"\n"+v }
+            st.value = `>>> ${l}\n--- STACK ---\n${v}\n${st.value}`
+          } finally {
+            ev.disabled = line.disabled = false
           }
-          let v = ""
-          for (const x of s) { v = await koneko.prld_show(x) +"\n"+v }
-          st.value = `>>> ${l}\n--- STACK ---\n${v}\n${st.value}`
-          ev.disabled = line.disabled = false
         }                                                     //  }}}1
         const hist_scroll = () => {
           line.value = history[history.length - hist_idx] || ""
         }
         const hist_up = () => {
           hist_idx = Math.min(hist_idx + 1, history.length)
-          hist_scroll()
         }
         const hist_down = () => {
           hist_idx = Math.max(hist_idx - 1, 0)
-          hist_scroll()
         }
         ev.addEventListener("click", f)
         line.addEventListener("keyup", event => {
@@ -106,14 +106,16 @@
               break
             case "Up":
             case "ArrowUp":
-              hist_up()
+              hist_up(); hist_scroll()
               break
             case "Down":
             case "ArrowDown":
-              hist_down()
+              hist_down(); hist_scroll()
               break
           }
         })                                                    //  }}}1
+        window.clear_stack    = () => st.value = ""
+        window.clear_console  = () => co.value = ""
       })
     </script>
   </head>
@@ -160,7 +162,7 @@
     <br/>
     <div>
       <label>
-        Stack:
+        Expression & Stack History:
         <br/>
         <textarea id="stack" rows="10" cols="80" readonly></textarea>
       </label>
@@ -168,7 +170,7 @@
     <br/>
     <div>
       <label>
-        Console:
+        Console Output (stdin & stderr):
         <br/>
         <textarea id="console" rows="5" cols="80" readonly></textarea>
       </label>

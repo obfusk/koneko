@@ -2,7 +2,7 @@
 --
 --  File        : Koneko/Data.hs
 --  Maintainer  : Felix C. Stegerman <flx@obfusk.net>
---  Date        : 2020-02-03
+--  Date        : 2020-02-04
 --
 --  Copyright   : Copyright (C) 2020  Felix C. Stegerman
 --  Version     : v0.0.1
@@ -56,24 +56,24 @@
 
 module Koneko.Data (
   Identifier, Module, Evaluator, Args, KException(..), stackExpected,
-  applyMissing, expected, unexpected, Kwd(..), Ident, unIdent, ident,
-  Pair(..), List(..), Dict(..), Block(..), Builtin(..), Multi(..),
-  RecordT(..), Record, recType, recValues, record, Thunk, runThunk,
-  thunk, Scope(..), Context, ctxScope, KPrim(..), KValue(..),
-  KType(..), Stack, freeVars, Cmp(..), escapeFrom, escapeTo, ToVal,
-  toVal, FromVal, fromVal, toVals, fromVals, maybeToVal, eitherToVal,
-  emptyStack, push', push, rpush, rpush1, pop_, pop, pop2, pop3, pop4,
-  pop_', pop', pop2', pop3', pop4', popN', pop1push, pop2push,
-  pop1push1, pop2push1, primModule, bltnModule, prldModule,
-  mainModule, initMainContext, initMain, initModule, forkContext,
-  forkScope, defineIn, defineIn', importIn, importFromIn, lookup,
-  lookupModule', moduleKeys, moduleNames, typeNames, typeOfPrim,
-  typeOf, typeToKwd, typeToStr, typeAsStr, isNil, isBool, isInt,
-  isFloat, isStr, isKwd, isPair, isList, isDict, isIdent, isQuot,
-  isBlock, isBuiltin, isMulti, isRecordT, isRecord, isThunk,
-  isCallable, isFunction, nil, false, true, bool, int, float, str,
-  kwd, pair, list, dict, block, dictLookup, mkPrim, mkBltn, defPrim,
-  defMulti, truthy, retOrThrow, recordTypeSig, underscored,
+  applyMissing, expected, unexpected, exceptionInfo, Kwd(..), Ident,
+  unIdent, ident, Pair(..), List(..), Dict(..), Block(..),
+  Builtin(..), Multi(..), RecordT(..), Record, recType, recValues,
+  record, Thunk, runThunk, thunk, Scope(..), Context, ctxScope,
+  KPrim(..), KValue(..), KType(..), Stack, freeVars, Cmp(..),
+  escapeFrom, escapeTo, ToVal, toVal, FromVal, fromVal, toVals,
+  fromVals, maybeToVal, eitherToVal, emptyStack, push', push, rpush,
+  rpush1, pop_, pop, pop2, pop3, pop4, pop_', pop', pop2', pop3',
+  pop4', popN', pop1push, pop2push, pop1push1, pop2push1, primModule,
+  bltnModule, prldModule, mainModule, initMainContext, initMain,
+  initModule, forkContext, forkScope, defineIn, defineIn', importIn,
+  importFromIn, lookup, lookupModule', moduleKeys, moduleNames,
+  typeNames, typeOfPrim, typeOf, typeToKwd, typeToStr, typeAsStr,
+  isNil, isBool, isInt, isFloat, isStr, isKwd, isPair, isList, isDict,
+  isIdent, isQuot, isBlock, isBuiltin, isMulti, isRecordT, isRecord,
+  isThunk, isCallable, isFunction, nil, false, true, bool, int, float,
+  str, kwd, pair, list, dict, block, dictLookup, mkPrim, mkBltn,
+  defPrim, defMulti, truthy, retOrThrow, recordTypeSig, underscored,
   digitParams, unKwds
 ) where
 
@@ -81,7 +81,7 @@ import Control.DeepSeq (deepseq, NFData(..))
 import Control.Exception (Exception, throw, throwIO)
 import Control.Monad (liftM, when)
 import Data.Char (intToDigit, isPrint, ord)
-import Data.Data (Data)
+import Data.Data (Data, cast, gmapQ)
 import Data.Foldable (traverse_)
 import Data.Functor.Classes (liftCompare, liftCompare2)
 import Data.List (intercalate, maximum, sort)
@@ -132,7 +132,7 @@ data KException
     | UnapplicableType !String !String
     | UnknownField !String !String
     | EmptyList !String
-    | IndexError !String !Integer
+    | IndexError !String !String
     | KeyError !String !String
     | RangeError !String
     | DivideByZero
@@ -155,6 +155,10 @@ stackExpected = Expected . StackExpected
 applyMissing  = Expected . ApplyMissing
 expected      = Expected . OtherExpected . ("expected " ++)
 unexpected    = Expected . OtherExpected . ("unexpected " ++)
+
+exceptionInfo :: KException -> [String]
+exceptionInfo (Expected x) = [show x]
+exceptionInfo x = concat $ gmapQ (maybe [] (:[]) . cast) x
 
 -- TODO: intern?!
 newtype Kwd = Kwd { unKwd :: Identifier }
@@ -358,8 +362,7 @@ instance Show KException where
   show (UnapplicableType t op)  = "type " ++ t ++ " does not support " ++ op
   show (UnknownField f t)       = t ++ " has no field named " ++ f
   show (EmptyList op)           = op ++ ": empty list"
-  show (IndexError op i)        = op ++ ": index " ++ show i ++
-                                  " is out of range"
+  show (IndexError op i)        = op ++ ": index " ++ i ++ " is out of range"
   show (KeyError op k)          = op ++ ": key " ++ k ++ " not found"
   show (RangeError msg)         = "range error: " ++ msg
   show  DivideByZero            = "divide by zero"

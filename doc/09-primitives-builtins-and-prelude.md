@@ -2,7 +2,7 @@
 
     File        : doc/09-primitives-builtins-and-prelude.md
     Maintainer  : Felix C. Stegerman <flx@obfusk.net>
-    Date        : 2020-02-03
+    Date        : 2020-02-04
 
     Copyright   : Copyright (C) 2020  Felix C. Stegerman
     Version     : v0.0.1
@@ -200,11 +200,11 @@ What's your name? Foo
 *** ERROR: oops!
 
 >>> , [ :try 1 2 3 ... ]
-...   [ t m _ . :catch { type: 't, message: 'm } ]
+...   [ t m i . :catch { type: 't, message: 'm, info: 'i } ]
 ...   [ :finally ] try s!       ; try/catch/finally
 --- STACK ---
 :finally
-{ :message "name __ellipsis__ is not defined" =>, :type :NameError => }
+{ :info ( "__ellipsis__" ) =>, :message "name __ellipsis__ is not defined" =>, :type :NameError => }
 :catch
 ---  END  ---
 >>> c!
@@ -254,6 +254,15 @@ nil
 :two
 :one
 ---  END  ---
+
+>>> , [ [ 1 sleep "oops" fail ]
+...     [ 1 [ D! inc 0.2 sleep #t ] loop ] par ] [ 3list d! ] try-catch
+1
+2
+3
+4
+5
+( :Fail "oops" ( "oops" ) )
 ```
 
 Of course `def` and `=>` are also primitives.

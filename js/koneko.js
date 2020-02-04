@@ -2,7 +2,7 @@
 //
 //  File        : koneko.js
 //  Maintainer  : Felix C. Stegerman <flx@obfusk.net>
-//  Date        : 2020-02-03
+//  Date        : 2020-02-04
 //
 //  Copyright   : Copyright (C) 2020  Felix C. Stegerman
 //  Version     : v0.0.1
@@ -42,7 +42,7 @@ if (typeof BigInt === "undefined") {
 /* === error, stack, scope === */
 
 class KonekoError extends Error {
-  constructor(message, type, info = {}) {
+  constructor(message, type, info = []) {
     super(message)
     if (Error.captureStackTrace) {
       Error.captureStackTrace(this, KonekoError)
@@ -54,28 +54,28 @@ class KonekoError extends Error {
 const KE = KonekoError
 
 const E = {                                                   //  {{{1
-  ParseError:         msg           => [`parse error: ${msg}`, { msg }],
-  EvalUnexpected:     type          => [`cannot eval: ${type}`, { type }],
-  EvalScopelessBlock: ()            => ["cannot eval scopeless block", {}],
-  ModuleNameError:    name          => [`no loaded module named ${name}`, { name }],
-  ModuleLoadError:    name          => [`cannot load module ${name}`, { name }],
-  NameError:          name          => [`name ${name} is not defined`, { name }],
-  StackUnderflow:     ()            => ["stack underflow", {}],
-  Expected:           (msg, u = "") => [`${u}expected ${msg}`, { msg, un: !!u }],
-  MultiMatchFailed:   (name, sig)   => [`no signature ${sig} for multi ${name}`, {name, sig }],
-  UncomparableType:   type          => [`type ${type} is not comparable`, { type }],
-  UncomparableTypes:  (t1, t2)      => [`types ${t1} and ${t2} are not comparable`, { type1: t1, type2: t2 }],
-  UncallableType:     type          => [`type ${type} is not callable`, { type }],
-  UnapplicableType:   (type, op)    => [`type ${type} does not support ${op}`, { type, op }],
-  UnknownField:       (field, type) => [`${type} has no field named ${field}`, { field, type }],
-  EmptyList:          op            => [`${op}: empty list`, { op }],
-  IndexError:         (op, index)   => [`${op}: index ${index} is out of range`, { op, index }],
-  KeyError:           (op, key)     => [`${op}: key ${key} not found`, { op, key }],
-  RangeError:         msg           => [`range error: ${msg}`, { msg }],
-  DivideByZero:       ()            => ["divide by zero", {}],
-  InvalidRx:          msg           => [`invalid regex: ${msg}`, { msg }],
-  Fail:               msg           => [msg, { msg }],
-  NotImplemented:     what          => [`not implemented: ${what}`, { what }],
+  ParseError:         msg           => [`parse error: ${msg}`, [msg]],
+  EvalUnexpected:     type          => [`cannot eval ${type}`, [type]],
+  EvalScopelessBlock: ()            => ["cannot eval scopeless block"],
+  ModuleNameError:    name          => [`no loaded module named ${name}`, [name]],
+  ModuleLoadError:    name          => [`cannot load module ${name}`, [name]],
+  NameError:          name          => [`name ${name} is not defined`, [name]],
+  StackUnderflow:     ()            => ["stack underflow"],
+  Expected:           (msg, u = "") => { const m = `${u}expected ${msg}`; return [m, [m]] },
+  MultiMatchFailed:   (name, sig)   => [`no signature ${sig} for multi ${name}`, [name, sig]],
+  UncomparableType:   type          => [`type ${type} is not comparable`, [type]],
+  UncomparableTypes:  (t1, t2)      => [`types ${t1} and ${t2} are not comparable`, [t1, t2]],
+  UncallableType:     type          => [`type ${type} is not callable`, [type]],
+  UnapplicableType:   (type, op)    => [`type ${type} does not support ${op}`, [type, op]],
+  UnknownField:       (field, type) => [`${type} has no field named ${field}`, [field, type]],
+  EmptyList:          op            => [`${op}: empty list`, [op]],
+  IndexError:         (op, index)   => [`${op}: index ${index} is out of range`, [op, index.toString()]],
+  KeyError:           (op, key)     => [`${op}: key ${key} not found`, [op, key]],
+  RangeError:         msg           => [`range error: ${msg}`, [msg]],
+  DivideByZero:       ()            => ["divide by zero"],
+  InvalidRx:          msg           => [`invalid regex: ${msg}`, [msg]],
+  Fail:               msg           => [msg, [msg]],
+  NotImplemented:     what          => [`not implemented: ${what}`, [what]],
 }                                                             //  }}}1
 
 for (const k in E) {
@@ -139,6 +139,10 @@ const scope = {                                               //  {{{1
       if (!table.has(k) && fv.has(k)) { table.set(k, c.table.get(k)) }
     }
     return !n && table.size == c.table.size ? c : { ...c, table }
+  },
+  switch: (c0, c1) => {
+    if (c0._meta) { return { _meta: c0._meta, ...c1 } }
+    return c1
   },
   define: (c, k, v) => modules.get(c.module).set(k, v),
   lookup: (c, k, d = undefined) => {
@@ -656,9 +660,9 @@ const call = (c0, s0, tailPos = false) => {                   //  {{{1
       const cma = nparms.includes(cm) ? [[cm, kwd(c0.module)]] : []
       const [as, s2] = popArgs(s1, nparms_)
       const as_ = as.concat(sparms.map(p => [p, nil])).concat(cma)
-      const c1 = scope.fork(x, new Map(as_))
-      return tailPos ? new Eval(x, c1, s2)
-                     : evaluate(x)(c1, s2)
+      const c1 = scope.switch(c0, scope.fork(x, new Map(as_)))
+      if (tailPos) { return new Eval(x, c1, s2) }
+      return tick(evaluate(x)(c1, s2))
     }
     case "builtin":
       return x.run(c0, s1)
@@ -712,7 +716,7 @@ const apply = (c0, s0) => {                                   //  {{{1
       const l2 = l.value.slice(nparms.length)
       const as = new Map(zip(nparms, l1).concat(sparms_.map(p => [p, nil]))
                                         .concat([["&", list(l2)]]))
-      const c1 = scope.fork(x, as)
+      const c1 = scope.switch(c0, scope.fork(x, as))
       return evaluate(x)(c1).then(s3 => stack.push(s2, ...s3))
     }
     case "multi":
@@ -742,7 +746,7 @@ const apply_dict = (c0, s0) => {                              //  {{{1
       const d_ = dictWithout(d, nparms)
       const as = new Map(zip(nparms, vs).concat(sparms_.map(p => [p, nil]))
                                         .concat([["&&", d_]]))
-      const c1 = scope.fork(x, as)
+      const c1 = scope.switch(c0, scope.fork(x, as))
       return evaluate(x)(c1).then(s3 => stack.push(s2, ...s3))
     }
     case "multi":
@@ -771,6 +775,7 @@ const evaluate = x => {                                       //  {{{1
   const ev = async (c = scope.new(), s = stack.new()) => {
     let code = comp(x)
     for (let i = 0; i < code.length; ++i) {
+      if (c._meta && c._meta.abort) { throw new Error("ABORT") }
       const f = code[i]
       debug(c, () => {
         putErr(`==> eval ${show(f)}`)
@@ -783,7 +788,8 @@ const evaluate = x => {                                       //  {{{1
         s = await call(c, s.it, tailPos)
         if (tailPos && s instanceof Eval) {
           debug(c, () => putErr("*** tail call ***"))
-          code = comp(s.block); c = s.scope; s = s.stack; i = -1
+          code = comp(s.block); c = scope.switch(c, s.scope)
+          s = s.stack; i = -1
         }
       }
     }
@@ -1271,8 +1277,7 @@ modules.set("__prim__", new Map([                             //  {{{1
     throw new KE(...E.Fail(strVal(msg)))
   }),
   mkPrim("__try__", async (c, s0) => {
-    const info = e => [kwd(e.type), str(e.message),
-      fromJS(new Map(Object.entries(e.info)))]
+    const info = e => [kwd(e.type), str(e.message), list(e.info.map(str))]
     let s2, err = null
     const [[f, g, h], s1] = stack.pop(s0, "block", "block or nil", "block")
     try {
@@ -1328,11 +1333,17 @@ modules.set("__prim__", new Map([                             //  {{{1
     }
     return stack.push(s1, t)
   }),
-  mkPrim("__par__", async (c, s0) => {
+  mkPrim("__par__", async (c0, s0) => {
     const [[f, g], s1] = stack.pop(s0, "block", "block")      //  TODO
-    const p = async h => await call(c, stack.new(h))
-    const [l1, l2] = await Promise.all([p(f), p(g)])
-    return stack.push(s1, ...l1, ...l2)
+    const cf = { ...c0, _meta: {} }, cg = { ...c0, _meta: {} }
+    const p = async (h, c) => await call(c, stack.new(h))
+    try {
+      const [l1, l2] = await Promise.all([p(f, cf), p(g, cg)])
+      return stack.push(s1, ...l1, ...l2)
+    } catch(e) {
+      cf._meta.abort = cg._meta.abort = true
+      throw e
+    }
   }),
   mkPrim("__sleep__", async (c, s0) => {
     const [[n], s1] = stack.pop(s0, "int or float")
@@ -1411,7 +1422,7 @@ modules.set("__bltn__", new Map([                             //  {{{1
     const [[b], s3] = stack.popN(s2, 1)
     return call(c, stack.push(s3, truthy(b) ? f : g))
   }),
-  mkPrim("~nil", async (c, s0) => {
+  mkPrim("~nil", (c, s0) => {
     const [[x, f, g], s1] = stack.popN(s0, 3)
     return call(c, stack.push(s1, ...(isNil(x) ? [f] : [x, g])))
   }),
@@ -1455,6 +1466,15 @@ modules.set("math", new Map([                                 //  {{{1
   mkPF1("atanh",  Math.atanh),
   mkPrim("atan2", opF(Math.atan2)),
 ].map(unprim)))                                               //  }}}1
+
+/* === event loop === */
+
+let _last_tick = Date.now()
+const tick = p => new Promise((...args) => {
+  const f = () => p.then(...args), t = Date.now()
+  if (t - _last_tick < 100) { f() }                           //  TODO
+  else { _last_tick = t; setTimeout(f, 0) }
+})
 
 /* === miscellaneous === */
 
@@ -1526,8 +1546,9 @@ const evalFile = (fname, c = undefined, s = undefined) => {
 // NB: Promise
 const loadMod = async name => {                               //  {{{1
   if (!_req) {
-    return await evalFile(join("lib", `${name}.knk`)).catch(() => {
-      throw new KE(...E.ModuleLoadError(name))
+    return await evalFile(join("lib", `${name}.knk`)).catch(e => {
+      throw e instanceof ProgressEvent ?
+        new KE(...E.ModuleLoadError(name)) : e
     })
   }
   const fs = _req("fs"), d = _path.delimiter
@@ -1659,10 +1680,6 @@ const repl = async (verbose = false) => {                     //  {{{1
 // NB: Promise
 const doctest = (files, verbose = false) =>
   testFiles(files, verbose).then(([t,o,fail]) => fail == 0)
-
-// NB: Promise
-const doctest_ = (files, verbose = false) =>
-  doctest(files, verbose).then(ok => ok || process.exit(1))
 
 // NB: Promise
 const testFiles = async (files, verbose = false) => {         //  {{{1
@@ -1834,7 +1851,7 @@ const main = () => main_().catch(e => {
   } else {
     console.error("koneko:", e)
   }
-  process.exit(1)
+  process.exitCode = 1
 })
 
 // TODO: fix args; --eval, --interactive, ...
@@ -1849,7 +1866,7 @@ const main_ = async () => {                                   //  {{{1
     const version = await koneko_version()
     putOut(`koneko 「子猫」 ${version.join(".")}`)
   } else if (opts.includes("--doctest")) {
-    await doctest_(args, verbose)
+    if (!(await doctest(args, verbose))) { process.exitCode = 1 }
   } else if (args.length) {
     const c = scope.new()
     scope.define(c, "__args__", list(args.slice(1).map(str)))
@@ -1894,7 +1911,7 @@ _mod[_exp] = {
   loadPrelude, overrides, repl_init, prld_show,
   get_version: koneko_version,
   initContext: scope.new, emptyStack: stack.new,
-  ...(_req ? { repl, doctest, doctest_, main } : {})
+  ...(_req ? { repl, doctest, main } : {})
 }
 
 // NB: node.js only
