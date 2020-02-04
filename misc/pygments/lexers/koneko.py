@@ -42,7 +42,7 @@ class KonekoLexer(RegexLexer):
       say! ask!  type callable? function? defmodule import import-from
       = not= < <= > >= <=> eq neq lt lte gt gte cmp abs trunc round
       ceil floor int->float record->dict record-type record-values
-      record-type-name record-type-fields fail rx-match rx-sub par
+      record-type-name record-type-fields fail try rx-match rx-sub par
       sleep
     """.split(), suffix=opar+sep)
 

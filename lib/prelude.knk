@@ -90,6 +90,7 @@
 :record-type-fields '__record-type-fields__   def
 
 :fail               '__fail__                 def
+:try                '__try__                  def
 
 :rx-match           '__rx-match__             def
 :rx-sub             '__rx-sub__               def
@@ -912,13 +913,21 @@
 ; "\"foo\""
 ; >>> "foo" ->str
 ; "foo"
+;
+; >>> :foo show
+; ":foo"
 ; >>> :foo ->str
 ; ":foo"
+; >>> :foo kwd->str
+; "foo"
+;
 ; >>> 42 ->str
 ; "42"
 
-:->str  ( :str  ) [       ] defmulti
-:->str  ( :_    ) [ show  ] defmulti
+:->str  ( :str  ) [      ] defmulti
+:->str  ( :_    ) [ show ] defmulti
+
+:kwd->str [ show [ 2 -1 ] [ 1 nil ] [ "\"" ends-with? ] ~? [i-j) ] def
 
 ; join a sequence of strings (separated by a separator)
 ;
@@ -2154,6 +2163,16 @@
 
 :read-line! [ nil ask! ] def                                    ; TODO
 :lines!     [ read-line! [ 'lines! lseq1 ] ~> ] def
+
+; try w/o finally/catch
+;
+; >>> [ ... ] [ _ _ _ . :caught ] try-catch
+; :caught
+; >>> [ ... ] [ :finally ] try-finally
+; *** ERROR: name __ellipsis__ is not defined
+
+:try-catch    [ [] try        ] def
+:try-finally  [ nil swap try  ] def
 
                                                                 ; }}}1
 

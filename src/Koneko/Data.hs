@@ -2,7 +2,7 @@
 --
 --  File        : Koneko/Data.hs
 --  Maintainer  : Felix C. Stegerman <flx@obfusk.net>
---  Date        : 2020-02-02
+--  Date        : 2020-02-03
 --
 --  Copyright   : Copyright (C) 2020  Felix C. Stegerman
 --  Version     : v0.0.1
@@ -10,7 +10,7 @@
 --
 --  --                                                          ; }}}1
 
-{-# LANGUAGE DeriveAnyClass, DeriveGeneric #-}
+{-# LANGUAGE DeriveAnyClass, DeriveGeneric, DeriveDataTypeable #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE OverloadedStrings #-}
@@ -81,6 +81,7 @@ import Control.DeepSeq (deepseq, NFData(..))
 import Control.Exception (Exception, throw, throwIO)
 import Control.Monad (liftM, when)
 import Data.Char (intToDigit, isPrint, ord)
+import Data.Data (Data)
 import Data.Foldable (traverse_)
 import Data.Functor.Classes (liftCompare, liftCompare2)
 import Data.List (intercalate, maximum, sort)
@@ -88,7 +89,6 @@ import Data.Maybe (catMaybes, isNothing)
 import Data.Monoid ((<>))
 import Data.String (IsString)
 import Data.Text.Lazy (Text)
-import Data.Typeable (Typeable)
 import GHC.Generics (Generic)
 import Numeric (showHex)
 import Prelude hiding (lookup)
@@ -139,14 +139,15 @@ data KException
     | InvalidRx !String
     | Fail !String
     | NotImplemented !String
-  deriving Typeable
+  deriving Data
 
 instance Exception KException
 
 data EExpected
-  = StackExpected !String
-  | ApplyMissing !Bool
-  | OtherExpected !String
+    = StackExpected !String
+    | ApplyMissing !Bool
+    | OtherExpected !String
+  deriving Data
 
 stackExpected, expected, unexpected :: String -> KException
 applyMissing :: Bool -> KException

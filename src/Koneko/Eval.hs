@@ -2,7 +2,7 @@
 --
 --  File        : Koneko/Eval.hs
 --  Maintainer  : Felix C. Stegerman <flx@obfusk.net>
---  Date        : 2020-02-02
+--  Date        : 2020-02-03
 --
 --  Copyright   : Copyright (C) 2020  Felix C. Stegerman
 --  Version     : v0.0.1
@@ -238,7 +238,7 @@ callDict (Dict h) _ s = do
   case op of
     "keys"    ->  p $ map kwd $ H.keys h
     "values"  ->  p $ H.elems h
-    "pairs"   ->  p [ pair (Kwd k) v | (k, v) <- H.toList h ]
+    "pairs"   ->  p [ pair (Kwd k) v | (k, v) <- sort $ H.toList h ]
     "merge"   ->  pr $ \_ s1 -> do
                     (Dict h2, s2) <- pop' s1
                     rpush1 s2 $ Dict $ H.union h h2

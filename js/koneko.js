@@ -47,8 +47,7 @@ class KonekoError extends Error {
     if (Error.captureStackTrace) {
       Error.captureStackTrace(this, KonekoError)
     }
-    this.name = "KonekoError"; this.type = type
-    for (const k in info) { this["info_"+k] = info[k] }
+    this.name = "KonekoError"; this.type = type; this.info = info
   }
 }
 
@@ -625,7 +624,7 @@ const call = (c0, s0, tailPos = false) => {                   //  {{{1
         case "values":
           return r(list([...xv.values()]))
         case "pairs":
-          return r(list([...xv.entries()].map(
+          return r(list([...xv.entries()].sort().map(
             ([k, v]) => pair(kwd(k), v)
           )))
         case "merge":
@@ -1271,6 +1270,26 @@ modules.set("__prim__", new Map([                             //  {{{1
   mkPrim("__fail__", (c, s0) => {
     const [[msg], s1] = stack.pop(s0, "str")
     throw new KE(...E.Fail(strVal(msg)))
+  }),
+  mkPrim("__try__", async (c, s0) => {
+    const info = e => [kwd(e.type), str(e.message),
+      fromJS(new Map(Object.entries(e.info)))]
+    let s2, err = null
+    const [[f, g, h], s1] = stack.pop(s0, "block", "block or nil", "block")
+    try {
+      s2 = await call(c, stack.new(f))
+    } catch(e) {
+      if (e instanceof KonekoError) {
+        err = e
+      } else {
+        throw e
+      }
+    }
+    const s3 = !err ? s2 : isNil(g) ? [] :
+      await call(c, stack.new(...info(err), g))
+    const s4 = stack.push(s1, ...s3, ...(await call(c, stack.new(h))))
+    if (err && isNil(g)) { throw err }
+    return s4
   }),
   mkPrimPP("__ident__", x => [ident(x.value)], "kwd"),
   mkPrimPP("__quot__" , x => [quot (x.value)], "kwd"),

@@ -2,7 +2,7 @@
 
     File        : doc/09-primitives-builtins-and-prelude.md
     Maintainer  : Felix C. Stegerman <flx@obfusk.net>
-    Date        : 2020-02-02
+    Date        : 2020-02-03
 
     Copyright   : Copyright (C) 2020  Felix C. Stegerman
     Version     : v0.0.1
@@ -36,7 +36,7 @@ def call apply apply-dict if defmulti defrecord => dict show say! ask!
 type callable? function? defmodule import import-from = not= < <= > >=
 <=> eq neq lt lte gt gte cmp abs trunc round ceil floor int->float
 record->dict record-type record-values record-type-name
-record-type-fields fail rx-match rx-sub par sleep
+record-type-fields fail try rx-match rx-sub par sleep
 
 -->
 
@@ -198,6 +198,30 @@ What's your name? Foo
 ```koneko
 >>> "oops!" fail                ; raise exception
 *** ERROR: oops!
+
+>>> , [ :try 1 2 3 ... ]
+...   [ t m _ . :catch { type: 't, message: 'm } ]
+...   [ :finally ] try s!       ; try/catch/finally
+--- STACK ---
+:finally
+{ :message "name __ellipsis__ is not defined" =>, :type :NameError => }
+:catch
+---  END  ---
+>>> c!
+*** STACK CLEARED ***
+>>> , [ :no :errors :this :time ] [ ... ] [ :cleanup :here ] try s!
+--- STACK ---
+:here
+:cleanup
+:time
+:this
+:errors
+:no
+---  END  ---
+>>> , [ ... ] nil [ :finally ] try  ; w/o "catch"
+*** ERROR: name __ellipsis__ is not defined
+>>> , [ ... ] [ 3drop "ignoring error!" say! ] [] try
+ignoring error!
 ```
 
 #### Regexes
