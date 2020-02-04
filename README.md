@@ -2,7 +2,7 @@
 
     File        : README.md
     Maintainer  : Felix C. Stegerman <flx@obfusk.net>
-    Date        : 2020-02-02
+    Date        : 2020-02-04
 
     Copyright   : Copyright (C) 2020  Felix C. Stegerman
     Version     : v0.0.1
@@ -372,12 +372,14 @@ correct and up to date.
 NB: this README, the Language Reference, and koneko's Prelude &
 Standard Library are full of doctests.
 
-Lets look at an example, `myswap.knk`:
+Lets look at an example, `mylib.knk`:
 
 ```koneko
+:mylib defmodule[
+
 ; swap top 2 values
 ;
-; >>> :myswap use
+; >>> :mylib use
 ; >>> , 1 2 s!
 ; --- STACK ---
 ; 2
@@ -390,6 +392,8 @@ Lets look at an example, `myswap.knk`:
 ; ---  END  ---
 
 :myswap [ x y . 'y 'x ] def
+
+] ; defmodule
 ```
 
 We run koneko with the `--doctest` option (in this case also with `-v`
@@ -397,10 +401,10 @@ for verbosity) to execute the tests in a koneko -- or markdown --
 file:
 
 ```bash
-$ KONEKOPATH=. koneko --doctest -v myswap.knk
-=== Testing myswap.knk (koneko) ===
+$ KONEKOPATH=. koneko --doctest -v mylib.knk
+=== Testing mylib.knk (koneko) ===
 Trying:
-  :myswap use
+  :mylib use
 Expecting:
 ok
 Trying:
@@ -430,8 +434,8 @@ Total: 3, Tried: 3, Passed: 3, Failed: 0.
 Test passed.
 ```
 
-NB: we need to set `KONEKOPATH` to the current directory to be able to
-`use` the `myswap.knk` file.
+NB: for `:mylib use` to be able to load the `mylib.knk` file we need
+to add the current directory to `KONEKOPATH`.
 
 ## Installing
 
