@@ -138,8 +138,7 @@ const scope = {                                               //  {{{1
     for (const k of c.table.keys()) {
       if (!table.has(k) && fv.has(k)) { table.set(k, c.table.get(k)) }
     }
-    return !n && table.size == c.table.size ? c :
-      { module: c.module, table }
+    return !n && table.size == c.table.size ? c : { ...c, table }
   },
   define: (c, k, v) => modules.get(c.module).set(k, v),
   lookup: (c, k, d = undefined) => {
@@ -1331,7 +1330,7 @@ modules.set("__prim__", new Map([                             //  {{{1
   }),
   mkPrim("__par__", async (c, s0) => {
     const [[f, g], s1] = stack.pop(s0, "block", "block")      //  TODO
-    const p = async (h) => await call(c, stack.new(h))
+    const p = async h => await call(c, stack.new(h))
     const [l1, l2] = await Promise.all([p(f), p(g)])
     return stack.push(s1, ...l1, ...l2)
   }),
