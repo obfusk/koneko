@@ -4,7 +4,7 @@
 
     File        : index.html
     Maintainer  : Felix C. Stegerman <flx@obfusk.net>
-    Date        : 2020-02-03
+    Date        : 2020-02-04
 
     Copyright   : Copyright (C) 2020  Felix C. Stegerman
     Version     : v0.0.1
@@ -48,7 +48,8 @@
     <script>
       window.addEventListener("load", async () => {
         const elem = id => document.getElementById(id)
-        const [line, cons, st] = ["line", "console", "stack"].map(elem)
+        const [line, cons, st, ev] =
+          ["line", "console", "stack", "eval"].map(elem)
         const history = []; let hist_idx = 0
         line.value = stack.value = ""; cons.value = ""
         const version = (await koneko.get_version()).join(".")
@@ -64,6 +65,7 @@
         const c = koneko.initContext(); let s = koneko.emptyStack()
         koneko.repl_init(c, false)
         const f = async () => {                               //  {{{1
+          ev.disabled = line.disabled = true
           const l = line.value; hist_idx = 0; line.value = ""
           if (!l) { return }
           if (l != history.slice(-1)[0]) { history.push(l) }
@@ -80,6 +82,7 @@
           let v = ""
           for (const x of s) { v = await koneko.prld_show(x) +"\n"+v }
           st.value = `>>> ${l}\n--- STACK ---\n${v}\n${st.value}`
+          ev.disabled = line.disabled = false
         }                                                     //  }}}1
         const hist_scroll = () => {
           line.value = history[history.length - hist_idx] || ""
@@ -92,7 +95,7 @@
           hist_idx = Math.max(hist_idx - 1, 0)
           hist_scroll()
         }
-        elem("eval").addEventListener("click", f)
+        ev.addEventListener("click", f)
         line.addEventListener("keyup", event => {
           if (event.key == "Enter" && !event.shiftKey) { f() }
         })
