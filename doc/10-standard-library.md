@@ -2,7 +2,7 @@
 
     File        : doc/10-standard-library.md
     Maintainer  : Felix C. Stegerman <flx@obfusk.net>
-    Date        : 2020-02-02
+    Date        : 2020-02-03
 
     Copyright   : Copyright (C) 2020  Felix C. Stegerman
     Version     : v0.0.1
@@ -30,8 +30,8 @@ or `use`d; it can of course still be `import`ed).
 3.141592653589793
 >>> 1.0 math.exp
 2.718281828459045
->>> 10.0 math.log **
-10.000000000000002
+>>> 10.0 math.log ** round
+10
 
 >>> 2 10 ^
 1024
