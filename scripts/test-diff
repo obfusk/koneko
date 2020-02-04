@@ -23,7 +23,7 @@ defs_hs () {
   run_hs -e "$1" | grep -v ^:_ | grep -Ev ':([A-Z].*\?$|[~^][A-Z])'
 }
 
-for mod in __prim__ __bltn__ __prld__; do
+for mod in __prim__ __bltn__ __prld__ math; do
   echo "==> $mod"
   exp="$(mod_defs "$mod")"
   fmt_wc "$exp"
