@@ -2,7 +2,7 @@
 //
 //  File        : koneko.js
 //  Maintainer  : Felix C. Stegerman <flx@obfusk.net>
-//  Date        : 2020-02-04
+//  Date        : 2020-02-05
 //
 //  Copyright   : Copyright (C) 2020  Felix C. Stegerman
 //  Version     : v0.0.1
@@ -1470,11 +1470,12 @@ modules.set("math", new Map([                                 //  {{{1
 /* === event loop === */
 
 let _last_tick = Date.now()
-const tick = p => new Promise((...args) => {
-  const f = () => p.then(...args), t = Date.now()
-  if (t - _last_tick < 100) { f() }                           //  TODO
-  else { _last_tick = t; setTimeout(f, 0) }
-})
+const tick = p => {
+  const t = Date.now()
+  if (t - _last_tick < 100) { return p }                      //  TODO
+  _last_tick = t
+  return new Promise((...rr) => setTimeout(() => p.then(...rr), 0))
+}
 
 /* === miscellaneous === */
 
