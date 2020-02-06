@@ -23,7 +23,7 @@ test_node: doctest_knk_js
 
 doctest_knk_js:
 	@echo
-	node js/koneko --doctest $(TESTFILES)
+	node js/koneko --doctest $(TESTFILES) --coverage
 
 test_diff:
 	scripts/test-diff

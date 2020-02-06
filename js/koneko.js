@@ -1679,26 +1679,57 @@ const repl = async (verbose = false) => {                     //  {{{1
 // NB: node.js only
 
 // NB: Promise
-const doctest = (files, verbose = false) =>
-  testFiles(files, verbose).then(([t,o,fail]) => fail == 0)
+const doctest = (files, verbose = false, cov = false) =>
+  testFiles(files, verbose, cov).then(([t,o,fail]) => fail == 0)
 
 // NB: Promise
-const testFiles = async (files, verbose = false) => {         //  {{{1
+const testFiles = async (files, vbs = false, cov = false) => { // {{{1
   let total = 0, ok = 0, fail = 0
   const nl = fname => fileLines(fname).then(lines => [fname, lines])
   const fs = await Promise.all(files.map(nl))
+  if (cov) { coverageMonkeyPatch() }
   for (const [fname, lines] of fs) {
     const md      = /\.md$/u.test(fname)
     const test    = md ? testMarkdownFile : testKonekoFile
     putOut(`=== Testing ${fname} (${md ? "markdown" : "koneko"}) ===`)
-    const [t,o,f] = await test(fname, lines, verbose)
+    const [t,o,f] = await test(fname, lines, vbs)
     total += t; ok += o; fail += f
     putOut()
   }
   putOut("=== Summary ===")
   putOut(`Files: ${files.length}.`)
   printTestSummary(total, ok, fail)
+  if (cov) { coverageReport() }
   return [total, ok, fail]
+}                                                             //  }}}1
+
+const coverageMonkeyPatch = () => {                           //  {{{1
+  for (const m of modules.values()) {
+    m._get = m.get
+    m.get = k => {
+      const r = m._get(k)
+      if (!r._cov) { r._cov = 0 }; ++r._cov
+      return r
+    }
+  }
+}                                                             //  }}}1
+
+// TODO: select which modules w/ option
+const coverageReport = () => {                                //  {{{1
+  const blacklist = ["__main__", "_test", "foo", "no-such-module"]
+  putOut("\n=== Coverage ===")
+  for (const [mn, mo] of [...modules.entries()].sort()) {
+    if (blacklist.includes(mn)) { continue }
+    let uncov = [...mo.entries()].sort()
+      .filter(([k, v]) => !v._cov).map(([k, v]) => k)
+    if (mn == "__prld__") {
+      uncov = uncov.filter(k => !modules.get("__bltn__").has(k))
+    }
+    const pct = Math.round((mo.size - uncov.length) / mo.size * 100)
+    putOut(`Module: ${mn} (${pct}%)`)
+    if (uncov.length) { putOut(`Uncovered: ${uncov.join(" ")}.`) }
+    putOut()
+  }
 }                                                             //  }}}1
 
 const blocksToExamples = (fname, blocks) =>
@@ -1867,7 +1898,8 @@ const main_ = async () => {                                   //  {{{1
     const version = await koneko_version()
     putOut(`koneko 「子猫」 ${version.join(".")}`)
   } else if (opts.includes("--doctest")) {
-    if (!(await doctest(args, verbose))) { process.exitCode = 1 }
+    const cov = opts.includes("--coverage")
+    if (!(await doctest(args, verbose, cov))) { process.exitCode = 1 }
   } else if (args.length) {
     const c = scope.new()
     scope.define(c, "__args__", list(args.slice(1).map(str)))
