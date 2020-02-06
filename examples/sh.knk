@@ -1,0 +1,37 @@
+:sys defmodule[
+
+:glob!    [ 1list "<glob:${0}>" fmt ] def                       ; TODO
+:get-env! [ 1list "<env:${0}>"  fmt ] def                       ; TODO
+:run-cmd! [ 1list "<run:${0}>"  fmt say! ] def                  ; TODO
+
+] ; defmodule
+
+:sh defmodule[
+
+; shell DSL (PoC & WIP)
+;
+; >>> :sh use
+; >>> , sh![ echo $foo ]
+; <run:( "echo" "<env:foo>" )>
+; >>> , sh![ ls -l "*.knk" :g! ]
+; <run:( "ls" "-l" "<glob:*.knk>" )>
+; >>> , sh![ ls -l ( /path/to $foo "*.bar" ) :j/ :g! ]
+; <run:( "ls" "-l" "<glob:/path/to/<env:foo>/*.bar>" )>
+
+:sh!      [ _sh call ] def
+
+:g!       'sys.glob! def
+:j/       [ "/" join-with ] def
+
+:_sh      [ [ __block-code__ _sh-map 1list ( :run-cmd! _syscall ) ++ ]
+            keep () rot> __block__ ] def
+:_syscall [ :sys __module-get__ :__call__ __ident__ ] def
+:_sh-map  [ [ dup (
+              'ident? [ show dup "$" starts-with?
+                        [ 1 [i-) :get-env! _syscall ] when ]
+              'num?   [ show ], 'str? [], 'kwd? [ __ident__ ],
+              'list?  [ _sh-map ]
+              :else   [ type kwd->str 1list "unexpected {0}" fmt fail ]
+            ) cond1 ] map ->list ] def
+
+] ; defmodule
