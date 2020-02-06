@@ -2,9 +2,9 @@
 
     File        : doc/11-future.md
     Maintainer  : Felix C. Stegerman <flx@obfusk.net>
-    Date        : 2019-12-06
+    Date        : 2020-02-05
 
-    Copyright   : Copyright (C) 2019  Felix C. Stegerman
+    Copyright   : Copyright (C) 2020  Felix C. Stegerman
     Version     : v0.0.1
     License     : GPLv3+
 
@@ -13,14 +13,20 @@
 → [README](../README.md),
 → prev: [Standard Library](10-standard-library.md)
 
-## Future
+## Future Extensions
 
-### Possible Future Extensions
+### Planned
 
+* Optional (static & dynamic) type and arity checking.
 * Pattern matching (`( 1 Foo( #_ 2 ) ) [ x . ... ] ^~`).
-* Optional (static) type and/or arity checking.
+* Optimisations.
+* Self-hosting compiler.
+* ...
+
+### Undecided
+
+* #/regex/ syntax.
 * Protocols/interfaces.
-* Exception handling.
 * ...
 
 <!-- vim: set tw=70 sw=2 sts=2 et fdm=marker : -->
