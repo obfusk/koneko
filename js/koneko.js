@@ -2,7 +2,7 @@
 //
 //  File        : koneko.js
 //  Maintainer  : Felix C. Stegerman <flx@obfusk.net>
-//  Date        : 2020-02-05
+//  Date        : 2020-02-06
 //
 //  Copyright   : Copyright (C) 2020  Felix C. Stegerman
 //  Version     : v0.0.1
@@ -86,7 +86,7 @@ for (const k in E) {
   }
 }
 
-const expect = (x, t, msg = `${t} on stack`) => {
+const expect = (x, t, msg = `${t} on stack (not ${x.type})`) => {
   for (const t_ of t.split(" or ")) {
     if (x.type == t_) { return x }
   }
@@ -245,7 +245,7 @@ const freeVars = (vs, seen = {}, free = new Set()) => {       //  {{{1
   return free
 }                                                             //  }}}1
 
-const digitParams = b => {
+const digitParams = b => {                                    //  {{{1
   let n = 0
   for (const k of freeVars(b.code)) {
     let m
@@ -254,7 +254,7 @@ const digitParams = b => {
     }
   }
   return Array.from(Array(n), (_, i) => "__" + (i+1).toString() + "__")
-}
+}                                                             //  }}}1
 
 const truthy = x =>
   !(isNil(x) || (x.type == "bool" && x.value == false))
@@ -507,7 +507,9 @@ const call = (c0, s0, tailPos = false) => {                   //  {{{1
       switch (opv) {
         case "ord":
           if (xl.length != 1) {
-            throw new KE(...E.Expected("str of length 1 on stack"))
+            throw new KE(...E.Expected(
+              `str of length 1 on stack (not str of length ${xl.length})`
+            ))
           }
           return r(int(xl[0].codePointAt(0)))
         case "lower":
@@ -822,7 +824,9 @@ class Defer { constructor(it) { this.it = it } }
 // TODO
 // NB: maybe Defer
 const compile = x => {                                        //  {{{1
-  const b = f => builtin("__compiled__", f)
+  const b = f => {
+    const b = builtin("__compiled__", f); b._src = x; return b
+  }
   const p = (c, s) => stack.push(s, scope.lookup(c, x.value))
   switch (x.type) {
     case "nil":
@@ -902,6 +906,9 @@ const show = x => {                                           //  {{{1
       }
     }
     case "builtin":
+      if (x.name == "__compiled__") {
+        return "#<compiled:" + show(x._src) + ">"
+      }
       return "#<" + (x.prim ? "primitive" : "builtin") + ":" + x.name + ">"
     case "multi":
       return "#<multi:" + x.arity + ":" + x.name + ">"
@@ -1071,7 +1078,7 @@ const eqArray = (x, y, eq) => {
   return true
 }
 
-const cmpArray = (x, y, cmp) => {
+const cmpArray = (x, y, cmp) => {                             //  {{{1
   const m = Math.max(x.length, y.length)
   for (let i = 0; i < m; ++i) {
     if (i >= x.length && i < y.length) { return -1 }
@@ -1080,7 +1087,7 @@ const cmpArray = (x, y, cmp) => {
     if (c != 0) { return c }
   }
   return 0
-}
+}                                                             //  }}}1
 
 const eqPrim  = (a, b) => a == b
 const cmpPrim = (a, b) => a == b ? 0 : a < b ? -1 : 1
@@ -1144,7 +1151,11 @@ modules.set("__prim__", new Map([                             //  {{{1
     const mat = k => builtin(k, (c, s0) => {
       const [[x, f], s1] = stack.popN(s0, 2)
       if (!is_t(x)) {
-        throw new KE(...E.Expected(`record of type ${nm} on stack`))
+        const what = x.type == "record" ?
+          `record of type ${x.rectype.name}` : x.type
+        throw new KE(...E.Expected(
+          `record of type ${nm} on stack (not ${what})`
+        ))
       }
       return call(c, stack.push(s1, ...x.values, f))
     }, false)
@@ -1255,7 +1266,9 @@ modules.set("__prim__", new Map([                             //  {{{1
   mkPrimPP("__floor__", n => [f2i(Math.floor(n.value))], "float"),
   mkPrimPP("__chr__", x => {
     if (x.value < 0 || x.value >= 0x110000) {
-      throw new KE(...E.Expected("int in range [0,0x110000) on stack"))
+      throw new KE(...E.Expected(
+        `int in range [0,0x110000) on stack (not ${show(x)})`
+      ))
     }
     return [str(String.fromCodePoint(intToNum(x.value)))]
   }, "int"),
@@ -1513,7 +1526,7 @@ const baseDir = _req ? join(_path.dirname(module.filename), "..") : ""
 const bpath   = (...xs) => join(baseDir, ...xs)
 
 // NB: browser only; Promise
-const requestFile = fname => new Promise((resolve, reject) => {
+const requestFile = fname => new Promise((resolve, reject) => { //{{{1
   const r = new XMLHttpRequest()
   r.addEventListener("load", e =>
     r.status == 200 ? resolve(r.responseText) : reject(e)
@@ -1521,7 +1534,7 @@ const requestFile = fname => new Promise((resolve, reject) => {
   r.addEventListener("error", reject)
   r.open("GET", fname)
   r.send()
-})
+})                                                            //  }}}1
 
 // NB: node.js only; Promise
 const readFile = fname => new Promise((resolve, reject) => {
@@ -1659,11 +1672,11 @@ const repl_process_line =                                     //  {{{1
   }                                                           //  }}}1
 
 // NB: Promise
-const repl = async (verbose = false) => {                     //  {{{1
+const repl = async (verbose = false, c = scope.new()) => {    //  {{{1
   if (!process.stdin.isTTY && process.platform != "win32") {
     return evalFile("/dev/stdin")                             //  TODO
   }
-  const c = scope.new(); let s = stack.new(); repl_init(c)
+  let s = stack.new(); repl_init(c)
   if (verbose) { scope.define(c, "__debug__", T) }
   const f = async () => {
     const line = await read_line(">>> ")
@@ -1877,14 +1890,18 @@ const printFail = (ex, out, err) => {                         //  {{{1
 // NB: node.js only
 
 // NB: Promise
-const main = () => main_().catch(e => {
-  if (e instanceof KonekoError || e.name == "Error") {
-    putErr("koneko: " + e.message)
-  } else {
-    console.error("koneko:", e)
-  }
-  process.exitCode = 1
-})
+const main = () => {                                          //  {{{1
+  process.on("unhandledRejection" , e => {})
+  process.on("rejectionHandled"   , e => {})
+  main_().catch(e => {
+    if (e instanceof KonekoError || e.name == "Error") {
+      putErr("koneko: " + e.message)
+    } else {
+      console.error("koneko:", e)
+    }
+    process.exitCode = 1
+  })
+}                                                             //  }}}1
 
 // TODO: fix args; --eval, --interactive, ...
 // NB: Promise
@@ -1893,7 +1910,7 @@ const main_ = async () => {                                   //  {{{1
   const argv    = process.argv.slice(2)
   const opts    = argv.filter(a =>  a.startsWith("-"))        //  TODO
   const args    = argv.filter(a => !a.startsWith("-"))
-  const verbose = opts.includes("-v")
+  const verbose = opts.includes("-v") || opts.includes("--verbose")
   if (opts.includes("--version")) {
     const version = await koneko_version()
     putOut(`koneko 「子猫」 ${version.join(".")}`)
@@ -1904,6 +1921,9 @@ const main_ = async () => {                                   //  {{{1
     const c = scope.new()
     scope.define(c, "__args__", list(args.slice(1).map(str)))
     await evalFile(args[0], c)
+    if (opts.includes("-i") || opts.includes("--interactive")) {
+      await repl(verbose, c)
+    }
   } else {
     await repl(verbose)
   }
@@ -1925,7 +1945,7 @@ const say = s => (overrides.say || (_req ? putOut : console.log))(s)
 const ask = async s => await (overrides.ask || read_line)(s)
 
 // NB: Promise
-const nya = async () => {
+const nya = async () => {                                     //  {{{1
   if (overrides.nya) {
     return await overrides.nya()
   } else if (_req) {
@@ -1935,7 +1955,7 @@ const nya = async () => {
   } else {
     throw new KE(...E.NotImplemented("__nya__"))
   }
-}
+}                                                             //  }}}1
 
 const overrides = {}
 
