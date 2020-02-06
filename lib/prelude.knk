@@ -2,7 +2,7 @@
 ;
 ; File        : prelude.knk
 ; Maintainer  : Felix C. Stegerman <flx@obfusk.net>
-; Date        : 2020-02-04
+; Date        : 2020-02-05
 ;
 ; Copyright   : Copyright (C) 2020  Felix C. Stegerman
 ; Version     : v0.0.1
@@ -2093,7 +2093,7 @@
 
                                                                 ; }}}1
 
-; -- Miscellaneous --                                           ; {{{1
+; -- Miscellaneous: Looping, I/O, Exceptions, etc.              ; {{{1
 
 ; identity function
 ;
