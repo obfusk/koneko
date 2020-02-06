@@ -2,7 +2,7 @@
 --
 --  File        : Koneko/Data.hs
 --  Maintainer  : Felix C. Stegerman <flx@obfusk.net>
---  Date        : 2020-02-04
+--  Date        : 2020-02-06
 --
 --  Copyright   : Copyright (C) 2020  Felix C. Stegerman
 --  Version     : v0.0.1
@@ -144,17 +144,20 @@ data KException
 instance Exception KException
 
 data EExpected
-    = StackExpected !String
+    = StackExpected !String !String
     | ApplyMissing !Bool
     | OtherExpected !String
   deriving Data
 
-stackExpected, expected, unexpected :: String -> KException
+stackExpected :: Either String KValue -> String -> KException
+stackExpected x = Expected . StackExpected (either id typeAsStr x)
+
 applyMissing :: Bool -> KException
-stackExpected = Expected . StackExpected
-applyMissing  = Expected . ApplyMissing
-expected      = Expected . OtherExpected . ("expected " ++)
-unexpected    = Expected . OtherExpected . ("unexpected " ++)
+applyMissing = Expected . ApplyMissing
+
+expected, unexpected :: String -> KException
+expected   = Expected . OtherExpected . ("expected " ++)
+unexpected = Expected . OtherExpected . ("unexpected " ++)
 
 exceptionInfo :: KException -> [String]
 exceptionInfo (Expected x) = [show x]
@@ -371,7 +374,7 @@ instance Show KException where
   show (NotImplemented s)       = "not implemented: " ++ s
 
 instance Show EExpected where
-  show (StackExpected t)    = "expected " ++ t ++ " on stack"
+  show (StackExpected t u)      = "expected " ++ u ++ " on stack (not " ++ t ++ ")"
   show (ApplyMissing b)
       = "expected block to have parameter named " ++ x ++ " for " ++ op
     where
@@ -550,51 +553,51 @@ class FromVal a where
 
 instance FromVal () where
   fromVal (KPrim KNil)        = Right ()
-  fromVal _                   = Left $ stackExpected "nil"
+  fromVal x                   = Left $ stackExpected (Right x) "nil"
 
 instance FromVal Bool where
   fromVal (KPrim (KBool x))   = Right x
-  fromVal _                   = Left $ stackExpected "bool"
+  fromVal x                   = Left $ stackExpected (Right x) "bool"
 
 instance FromVal Integer where
   fromVal (KPrim (KInt x))    = Right x
-  fromVal _                   = Left $ stackExpected "int"
+  fromVal x                   = Left $ stackExpected (Right x) "int"
 
 instance FromVal Double where
   fromVal (KPrim (KFloat x))  = Right x
-  fromVal _                   = Left $ stackExpected "float"
+  fromVal x                   = Left $ stackExpected (Right x) "float"
 
 instance FromVal Text where
   fromVal (KPrim (KStr x))    = Right x
-  fromVal _                   = Left $ stackExpected "str"
+  fromVal x                   = Left $ stackExpected (Right x) "str"
 
 instance FromVal Kwd where
   fromVal (KPrim (KKwd x))    = Right x
-  fromVal _                   = Left $ stackExpected "kwd"
+  fromVal x                   = Left $ stackExpected (Right x) "kwd"
 
 instance FromVal Pair where
   fromVal (KPair x)           = Right x
-  fromVal _                   = Left $ stackExpected "pair"
+  fromVal x                   = Left $ stackExpected (Right x) "pair"
 
 instance FromVal [KValue] where
   fromVal (KList (List x))    = Right x
-  fromVal _                   = Left $ stackExpected "list"
+  fromVal x                   = Left $ stackExpected (Right x) "list"
 
 instance FromVal Dict where
   fromVal (KDict x)           = Right x
-  fromVal _                   = Left $ stackExpected "dict"
+  fromVal x                   = Left $ stackExpected (Right x) "dict"
 
 instance FromVal Block where
   fromVal (KBlock x)          = Right x
-  fromVal _                   = Left $ stackExpected "block"
+  fromVal x                   = Left $ stackExpected (Right x) "block"
 
 instance FromVal Record where
   fromVal (KRecord x)         = Right x
-  fromVal _                   = Left $ stackExpected "record"
+  fromVal x                   = Left $ stackExpected (Right x) "record"
 
 instance FromVal RecordT where
   fromVal (KRecordT x)        = Right x
-  fromVal _                   = Left $ stackExpected "record-type"
+  fromVal x                   = Left $ stackExpected (Right x) "record-type"
 
 instance FromVal KValue where
   fromVal x                   = Right x
@@ -608,10 +611,10 @@ instance (FromVal a, FromVal b) => FromVal (Either a b) where
       Right y   -> Right (Left y)
       Left e1   -> case fromVal x of
         Right y -> Right (Right y)
-        Left e2 -> Left $ stackExpected $ f e1 e2
+        Left e2 -> Left $ stackExpected (Right x) $ f e1 e2
     where
-      f (Expected (StackExpected s1))
-        (Expected (StackExpected s2)) = s1 ++ " or " ++ s2
+      f (Expected (StackExpected t1 _))
+        (Expected (StackExpected t2 _)) = t1 ++ " or " ++ t2
       f _ _ = error "WTF"
 
 -- NB: no FromVal for

@@ -2,7 +2,7 @@
 --
 --  File        : Koneko/Prim.hs
 --  Maintainer  : Felix C. Stegerman <flx@obfusk.net>
---  Date        : 2020-02-04
+--  Date        : 2020-02-06
 --
 --  Copyright   : Copyright (C) 2020  Felix C. Stegerman
 --  Version     : v0.0.1
@@ -116,13 +116,13 @@ defmulti = mkPrim "defmulti" $ \c s -> do
 -- TODO
 defrecord call = mkPrim "defrecord" $ \c s -> do
     ((Kwd recName, fs), s') <- pop2' s; recFields <- unKwds fs
-    let t = RecordT{..}; e = err $ T.unpack recName
+    let t = RecordT{..}; e x = err x $ T.unpack recName
     defineIn c recName $ KRecordT t
     defX c (recName <> "?") $ pop1push1 $ m t (const True) False
     defX c ("^" <> recName) $ \c1 s1 -> do
       ((x, f), s2) <- pop2' s1
       let go r = rpush s2 $ recValues r ++ [f]
-      call c1 =<< m t go e x
+      call c1 =<< m t go (e x) x
     defX c ("~" <> recName) $ \c1 s1 -> do
       ((x, f, g), s2) <- pop3' s1
       let go r = recValues r ++ [f]
@@ -132,7 +132,11 @@ defrecord call = mkPrim "defrecord" $ \c s -> do
     m t f d   = \case KRecord r | recType r == t -> f r; _ -> d
     defX c k  = defineIn c k . KBuiltin .
                 mkBltn (modName (ctxScope c) <> ":" <> k)
-    err t     = throwIO $ stackExpected $ "record of type " <> t
+    err x t   = throwIO $ stackExpected (Left $ tp x)
+              $ "record of type " <> t
+    tp        = \case KRecord r -> "record of type " ++
+                        T.unpack (recName $ recType r)
+                      x -> typeAsStr x
 
 mkPair = mkPrim "=>" $ pop2push1 Pair
 
@@ -253,7 +257,7 @@ chr', intToFloat, recordToDict :: Builtin
 chr' = mkPrim "chr" $ \_ s -> do
   (i, s') <- pop' s
   unless (0 <= i && i < 0x110000) $ throwIO $
-    stackExpected "int in range [0,0x110000)"
+    stackExpected (Left $ show i) "int in range [0,0x110000)"
   rpush1 s' $ T.singleton $ chr $ fromInteger i
 
 intToFloat

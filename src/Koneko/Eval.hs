@@ -2,7 +2,7 @@
 --
 --  File        : Koneko/Eval.hs
 --  Maintainer  : Felix C. Stegerman <flx@obfusk.net>
---  Date        : 2020-02-04
+--  Date        : 2020-02-06
 --
 --  Copyright   : Copyright (C) 2020  Felix C. Stegerman
 --  Version     : v0.0.1
@@ -161,8 +161,9 @@ callStr x _ s = do
   (Kwd op, s') <- pop' s
   let o = "str." <> op; p = rpush1 s'; pr = p . mkOp o
   case op of
-    "ord"     ->  do  unless (T.length x == 1) $ throwIO $
-                        stackExpected "str of length 1"
+    "ord"     ->  do  unless (T.length x == 1) $ throwIO $ stackExpected
+                        (Left $ "str of length " ++ show (T.length x))
+                        "str of length 1"
                       p $ toInteger $ ord $ T.head x
     "lower"   ->  p $ T.toLower x
     "upper"   ->  p $ T.toUpper x
