@@ -2259,12 +2259,12 @@
 ; >>> 4 right 'f >>=
 ; 16 right
 
-:>>= [ swap >>=' ] def
+:>>= [ swap =<< ] def
 
-:>>='       ( :list   ) [ swap map concat ] defmulti
-:>>='       ( :LSeq   ) [ swap map concat ] defmulti
-:>>='       ( :Left   ) [ nip             ] defmulti
-:>>='       ( :Right  ) [ swap ^Right     ] defmulti
+:=<<        ( :list   ) [ swap map concat ] defmulti
+:=<<        ( :LSeq   ) [ swap map concat ] defmulti
+:=<<        ( :Left   ) [ nip             ] defmulti
+:=<<        ( :Right  ) [ swap ^Right     ] defmulti
 
 :return-as  ( :list   ) [ drop 1list      ] defmulti
 :return-as  ( :LSeq   ) [ drop 1list      ] defmulti
