@@ -321,7 +321,8 @@ nil
 <br/>
 → [Strings, Chars, Nil, Numbers & Pairs](#strings-chars-nil-numbers--pairs),
 → [Lists, Dicts, Ranges & Sequences](#lists-dicts-ranges--sequences),
-→ [Miscellaneous](#miscellaneous)
+→ [Miscellaneous](#miscellaneous-1),
+→ [More](#more)
 
 A small set of standard definitions that is available automatically in
 all modules.
