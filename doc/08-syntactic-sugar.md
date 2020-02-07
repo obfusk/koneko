@@ -2,7 +2,7 @@
 
     File        : doc/08-syntactic-sugar.md
     Maintainer  : Felix C. Stegerman <flx@obfusk.net>
-    Date        : 2020-02-02
+    Date        : 2020-02-07
 
     Copyright   : Copyright (C) 2020  Felix C. Stegerman
     Version     : v0.0.1
@@ -95,7 +95,7 @@ Point{ :x 1 =>, :y 2 => }
 hi!
 
 >>> , :foo defmodule[ :x 1 def ]            ; block "constructor"
->>> , :foo [ :x 1 def ] defmodule           ; desugared
+>>> , :foo [ :y 2 def ] defmodule           ; desugared
 
 >>> ...                                     ; sugar for __ellipsis__
 *** ERROR: name __ellipsis__ is not defined

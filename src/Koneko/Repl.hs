@@ -2,7 +2,7 @@
 --
 --  File        : Koneko/Repl.hs
 --  Maintainer  : Felix C. Stegerman <flx@obfusk.net>
---  Date        : 2020-01-30
+--  Date        : 2020-02-07
 --
 --  Copyright   : Copyright (C) 2020  Felix C. Stegerman
 --  Version     : v0.0.1
@@ -44,13 +44,13 @@ repl' breakOnError pr ctx st = replDef ctx >> loop ctx st
     loop c s = prompt (Just pr) >>= maybe (s <$ T.putStrLn "") f
       where
         f line = if T.null line then loop c s else do
-          r <- tryK $ evalText "(repl)" line c s
+          r <- tryK $ et line c s >>= showTop c line
           let err e = do  hPutStrLn stderr $ errorText ++ show e
                           if breakOnError then return s else loop c s
-              ok s' = do  unless (shouldSkip s' line) $       --  TODO
-                            putStrLn $ show $ head s'         -- safe!
-                          loop c s'
-          either err ok r
+          either err (loop c) r
+    showTop c line s = s <$ unless (shouldSkip s line)
+      (() <$ et "__prld__.show __say!__" c (take 1 s))        --  TODO
+    et = evalText "(repl)"
 
 shouldSkip :: Stack -> Text -> Bool
 shouldSkip s line = null s || T.head line `elem` [',',';']    -- safe!

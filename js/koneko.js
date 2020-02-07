@@ -2,7 +2,7 @@
 //
 //  File        : koneko.js
 //  Maintainer  : Felix C. Stegerman <flx@obfusk.net>
-//  Date        : 2020-02-06
+//  Date        : 2020-02-07
 //
 //  Copyright   : Copyright (C) 2020  Felix C. Stegerman
 //  Version     : v0.0.1
@@ -27,7 +27,7 @@
 // TODO
 let mkInt, intToNum, strToInt
 if (typeof BigInt === "undefined") {
-  console.warn("no BigInt support, falling back to Number")
+  console.warn("warning: no BigInt support, falling back to Number")
   mkInt     = i => i|0
   intToNum  = i => i
   strToInt  = s => s.startsWith("0b") || s.startsWith("0x") ?
@@ -144,7 +144,13 @@ const scope = {                                               //  {{{1
     if (c0._meta) { return { _meta: c0._meta, ...c1 } }
     return c1
   },
-  define: (c, k, v) => modules.get(c.module).set(k, v),
+  define: (c, k, v) => {
+    const m = modules.get(c.module)
+    if (c.module != "__main__" && m.has(k)) {
+      putErr(`warning: redefining ${c.module}.${k}`)          //  TODO
+    }
+    m.set(k, v)
+  },
   lookup: (c, k, d = undefined) => {
     for (const x of [modules.get("__prim__"), c.table]) {
       if (x.has(k)) { return x.get(k) }
@@ -1659,7 +1665,7 @@ const repl_process_line =                                     //  {{{1
     try {
       s = await evalText(line, c, s)
       if (!stack.null(s) && !",;".includes(line[0])) {
-        stdout.write(show(stack.top(s)) + "\n")               //  TODO
+        stdout.write(await prld_show(stack.top(s)) + "\n")    //  TODO
       }
     } catch(e) {
       if (e instanceof KonekoError) {
@@ -1738,8 +1744,8 @@ const coverageReport = () => {                                //  {{{1
     if (mn == "__prld__") {
       uncov = uncov.filter(k => !modules.get("__bltn__").has(k))
     }
-    const pct = Math.round((mo.size - uncov.length) / mo.size * 100)
-    putOut(`Module: ${mn} (${pct}%)`)
+    const n = mo.size - uncov.length, p = Math.round(n / mo.size * 100)
+    putOut(`Module: ${mn} (${n}/${mo.size}, ${p}%)`)
     if (uncov.length) { putOut(`Uncovered: ${uncov.join(" ")}.`) }
     putOut()
   }

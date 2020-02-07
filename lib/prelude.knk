@@ -2,7 +2,7 @@
 ;
 ; File        : prelude.knk
 ; Maintainer  : Felix C. Stegerman <flx@obfusk.net>
-; Date        : 2020-02-05
+; Date        : 2020-02-07
 ;
 ; Copyright   : Copyright (C) 2020  Felix C. Stegerman
 ; Version     : v0.0.1
@@ -14,7 +14,7 @@
 
 ; -- TODO --
 ;
-; * WIP: slicing, string formatting
+; * WIP: slicing, string formatting, functor, monad
 ; * more functions!
 ; * refactor!
 ;
@@ -384,31 +384,24 @@
 ; >>> ( ( 2 3 4 ) [ dup * ] mlt$ )                    ; mlt$ ⇔ each
 ; ( 4 9 16 )
 ;
-; >>> 2 3 'even? either?                              ; ⇔ bi$ and
-; #t
-; >>> 2 4 'even? both?                                ; ⇔ bi$ or
-; #t
 ;
 ; >>> ( 0 2 4 ) 'even? all?
 ; #t
 ; >>> ( 37 42 ) 'even? any?
 ; #t
 ;
-; NB: either? and both? do not "short-circuit".
-;
 ;
 ; >>> -1 nil 'pos? bi$-and                          ; "short-circuits"
 ; #f
 ; >>> 42 nil 'pos? bi$-or
 ; #t
+; >>> 42 nil 'pos? bi$ or                           ; oops
+; *** ERROR: types nil and int are not comparable
 
 :bi$    [ x y f   . 'x f 'y f       ] def     ; ⇔ [ dup bi~ ]
 :tri$   [ x y z f . 'x f 'y f 'z f  ] def     ; ⇔ [ 2dup tri~ ]
 
 :mlt$   [ each ] def
-
-:both?    [ bi$ and ] def
-:either?  [ bi$ or  ] def
 
 :all?   [ p? . [ #t ] [ >< p? dup [ drop 'p? all? ] 'nip if ] ^seq ] def
 :any?   [ p? . [ #f ] [ >< p? dup 'nip [ drop 'p? any? ] if ] ^seq ] def
@@ -1024,7 +1017,7 @@
 ; >>> () num?
 ; #f
 
-:num?   [ 'int? 'float? bi or ] def
+:num?   [ 'int? 'float? bi-or ] def
 
 ; TODO: is-nan?
 
@@ -2173,6 +2166,81 @@
 
 :try-catch    [ [] try        ] def
 :try-finally  [ nil swap try  ] def
+
+                                                                ; }}}1
+
+; -- Functors, Monads, Either, etc.                             ; {{{1
+
+:Left   ( :val ) defrecord
+:Right  ( :val ) defrecord
+
+:left   'Left  def
+:right  'Right def
+
+:show   ( :Left   ) [ .val show " left"  ++ ] defmulti
+:show   ( :Right  ) [ .val show " right" ++ ] defmulti
+
+; values with two possibilities
+;
+; NB: by convention, left is often for errors and right for "correct"
+; values.
+;
+; >>> , :f [ [ 2 div ] [ 2.0 / ] ^either ] def
+; >>> 5 left f
+; 2
+; >>> 7.0 right f
+; 3.5
+;
+; >>> [ 1 0 div ] try->either
+; ( :DivideByZero "divide by zero" () ) left
+; >>> [ 5 2 div ] try->either
+; 2 right
+;
+; >>> "oops" left either->fail
+; *** ERROR: oops
+; >>> 42 right either->fail
+; 42
+
+:~either  [ <rot ~either'           ] def
+:^either  [ [ '.val % ] bi$ ~either ] def
+:either?  [ 'Left? 'Right? bi-or    ] def
+
+:~either' ( :Left   ) [ f _ x . 'x f ] defmulti
+:~either' ( :Right  ) [ _ g x . 'x g ] defmulti
+
+:try->either  [ f . [ Right( f ) ] [ 3list Left ] [] try ] def
+:either->fail [ 'fail [] ^either ] def
+
+; functor (WIP)
+;
+; >>> , :f [ 'inc -> [ dup * ] -> ] def
+; >>> nil f
+; nil
+; >>> x: 7 f
+; :x 64 =>
+; >>> ( 1 2 3 ) f ->list
+; ( 4 9 16 )
+; >>> ( 1 2 3 ) 'odd? filter f ->list
+; ( 4 16 )
+; >>> :oops left f .val
+; :oops
+; >>> 7 right f .val
+; 64
+
+:-> [ swap ->' ] def
+
+:->'  ( :nil    ) [ nip               ] defmulti
+:->'  ( :pair   ) [ swap ^pair =>     ] defmulti
+:->'  ( :list   ) [ swap map          ] defmulti
+:->'  ( :LSeq   ) [ swap map          ] defmulti
+:->'  ( :Left   ) [ nip               ] defmulti
+:->'  ( :Right  ) [ swap ^Right Right ] defmulti
+
+; monad (WIP)
+;
+; ...
+
+; TODO
 
                                                                 ; }}}1
 
