@@ -20,7 +20,8 @@ defs_src () {
 
 defs_hs () {
   # exclude automatically generated ~Rec, ^Rec, Rec?
-  run_hs -e "$1" | grep -v ^:_ | grep -Ev ':([A-Z].*\?$|[~^][A-Z])'
+  run_hs -e "$1" | grep -v ^:_ \
+    | grep -Ev ':(([A-Z].*|[0-9]t)\?$|[~^]([A-Z].*|[0-9]t)$)'
 }
 
 for mod in __prim__ __bltn__ __prld__ math; do
