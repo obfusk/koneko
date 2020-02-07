@@ -2,9 +2,9 @@
 
     File        : doc/06-multimethods.md
     Maintainer  : Felix C. Stegerman <flx@obfusk.net>
-    Date        : 2019-12-06
+    Date        : 2020-02-07
 
-    Copyright   : Copyright (C) 2019  Felix C. Stegerman
+    Copyright   : Copyright (C) 2020  Felix C. Stegerman
     Version     : v0.0.1
     License     : GPLv3+
 
@@ -42,5 +42,9 @@ module; to extend a multi from e.g. the prelude, alias it first.
 
 NB: multis are "global state": extending e.g. a prelude multi will
 affect all code using that multi.
+
+NB: the language specification prohibits "redefining" a multi for the
+same signature but this is currently not enforced by the
+implementations.
 
 <!-- vim: set tw=70 sw=2 sts=2 et fdm=marker : -->

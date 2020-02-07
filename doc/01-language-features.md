@@ -2,9 +2,9 @@
 
     File        : doc/01-language-features.md
     Maintainer  : Felix C. Stegerman <flx@obfusk.net>
-    Date        : 2019-12-06
+    Date        : 2020-02-07
 
-    Copyright   : Copyright (C) 2019  Felix C. Stegerman
+    Copyright   : Copyright (C) 2020  Felix C. Stegerman
     Version     : v0.0.1
     License     : GPLv3+
 
@@ -51,10 +51,10 @@ Invalid programs will result in errors; these include:
 * key errors (when trying to access a key not in a dict);
 * etc.
 
-There is currently no mechanism for exception handling.  When an error
-occurs, an error message is printed and the program is terminated
-(except when using the repl, in which case the repl continues after
-printing an error message and resetting the stack).
+When an error occurs (and is not caught), an error message is printed
+and the program is terminated (except when using the repl, in which
+case the repl continues after printing an error message and resetting
+the stack).
 
 ### Comments & Whitespace
 

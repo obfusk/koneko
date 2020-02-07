@@ -2,7 +2,7 @@
 
     File        : doc/02-identifiers-and-quoting.md
     Maintainer  : Felix C. Stegerman <flx@obfusk.net>
-    Date        : 2020-02-02
+    Date        : 2020-02-07
 
     Copyright   : Copyright (C) 2020  Felix C. Stegerman
     Version     : v0.0.1
@@ -125,9 +125,10 @@ NB: koneko is a functional language: named parameters cannot be
 "assigned" another value; "redefining" an existing definition in a
 module is not allowed according to the language specification (except
 in the repl), but this is currently not enforced by the
-implementation.  Definitions **should** also only occur at the
-beginning of modules, preceding any other code (but this is also not
-currently enforced).
+implementations (although the JavaScript interpreter does raise a
+warning).  Definitions **should** also only occur at the beginning of
+modules, preceding any other code (but this is also not currently
+enforced).
 
 The default module is `__main__`; primitives, builtins, and the
 prelude are `__prim__`, `__bltn__`, and `__prld__` respectively.

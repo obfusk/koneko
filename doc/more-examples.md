@@ -2,7 +2,7 @@
 
     File        : doc/more-examples.md
     Maintainer  : Felix C. Stegerman <flx@obfusk.net>
-    Date        : 2020-01-13
+    Date        : 2020-02-07
 
     Copyright   : Copyright (C) 2020  Felix C. Stegerman
     Version     : v0.0.1
@@ -14,7 +14,7 @@
 
 ## More Examples
 
-**NB: work in progress.**
+**NB: outdated, work in progress.**
 
 ### FP
 

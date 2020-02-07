@@ -2,7 +2,7 @@
 
     File        : doc/09-primitives-builtins-and-prelude.md
     Maintainer  : Felix C. Stegerman <flx@obfusk.net>
-    Date        : 2020-02-04
+    Date        : 2020-02-07
 
     Copyright   : Copyright (C) 2020  Felix C. Stegerman
     Version     : v0.0.1
@@ -265,6 +265,17 @@ nil
 ( :Fail "oops" ( "oops" ) )
 ```
 
+```
+>>> __version__                       ; version & platform information
+( ( 0 0 1 ) :hs ( "linux x86_64" "ghc 8.6" ) )
+
+>>> __version__
+( ( 0 0 1 ) :js-node ( "linux x64" "node v10.17.0" ) )
+
+>>> __version__ 1st "v${0}.${1}.${2}" fmt
+"v0.0.1"
+```
+
 Of course `def` and `=>` are also primitives.
 
 There are also primitive arithmetic operations, but the prelude
@@ -523,5 +534,10 @@ Hi!
 Hi!
 Hi!
 ```
+
+#### More
+
+→ [Syntax Highlighted Source](https://koneko.dev/lib-doc/prelude.knk.html),
+→ [Function Index](https://koneko.dev/lib-doc/prelude.knk.index.html)
 
 <!-- vim: set tw=70 sw=2 sts=2 et fdm=marker : -->

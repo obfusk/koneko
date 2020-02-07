@@ -2,7 +2,7 @@
 
     File        : README.md
     Maintainer  : Felix C. Stegerman <flx@obfusk.net>
-    Date        : 2020-02-04
+    Date        : 2020-02-07
 
     Copyright   : Copyright (C) 2020  Felix C. Stegerman
     Version     : v0.0.1
@@ -67,6 +67,30 @@ Lisp-like languages.
   - does have side effects (I/O)
   - (mostly) strict evaluation
 * dynamically, strongly typed
+
+### Features
+
+* primitive (built-in):
+  - primitive data types: nil, bool, int, float, str, kwd
+  - composite data types: pair, list, dict
+  - multi(method)s (similar to multiple dispatch & type classes)
+  - records (similar to algebraic data types)
+  - modules
+  - regexes (mostly Perl-compatible and thus not actually "regular" expressions)
+  - concurrency (& parallelism)
+  - exception handling
+  - thunks
+* prelude (standard library):
+  - stack shuffling
+  - combinators (stack-oriented higher-order functions)
+  - arithmetic
+  - string operations
+  - ranges, lazy sequences & sequence operations
+  - slicing & associative structure operations
+  - looping & basic I/O
+  - either, functor, monad
+* nil punning
+* syntactic sugar (on top of a minimal "core language")
 
 ## Whirlwind Tour
 
