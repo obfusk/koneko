@@ -2169,7 +2169,7 @@
 
                                                                 ; }}}1
 
-; -- Functors, Monads, Either, etc.                             ; {{{1
+; -- Either, Functor, Monad, etc. --                            ; {{{1
 
 :Left   ( :val ) defrecord
 :Right  ( :val ) defrecord
@@ -2214,7 +2214,7 @@
 ; functor (WIP)
 ;
 ; >>> , :f [ 'inc -> [ dup * ] -> ] def
-; >>> nil f
+; >>> nil f                           ; NB: using ~> for nil is better
 ; nil
 ; >>> x: 7 f
 ; :x 64 =>
@@ -2222,25 +2222,54 @@
 ; ( 4 9 16 )
 ; >>> ( 1 2 3 ) 'odd? filter f ->list
 ; ( 4 16 )
-; >>> :oops left f .val
-; :oops
-; >>> 7 right f .val
-; 64
+; >>> :oops left f
+; :oops left
+; >>> 7 right f
+; 64 right
 
 :-> [ swap ->' ] def
 
-:->'  ( :nil    ) [ nip               ] defmulti
-:->'  ( :pair   ) [ swap ^pair =>     ] defmulti
-:->'  ( :list   ) [ swap map          ] defmulti
-:->'  ( :LSeq   ) [ swap map          ] defmulti
-:->'  ( :Left   ) [ nip               ] defmulti
-:->'  ( :Right  ) [ swap ^Right Right ] defmulti
+:->'  ( :nil      ) [ nip               ] defmulti
+;     ( :bool     ) [ swap call         ] defmulti              ; TODO
+;     ( :int      ) [ swap call         ] defmulti              ; TODO
+;     ( :float    ) [ swap call         ] defmulti              ; TODO
+;     ( :str      ) [ ...               ] defmulti              ; TODO
+;     ( :kwd      ) [ swap call         ] defmulti              ; TODO
+:->'  ( :pair     ) [ swap ^pair =>     ] defmulti
+:->'  ( :list     ) [ swap map          ] defmulti
+;     ( :dict     ) [ ...               ] defmulti              ; TODO
+:->'  ( :block    ) [ %                 ] defmulti              ; TODO
+:->'  ( :builtin  ) [ %                 ] defmulti              ; TODO
+:->'  ( :multi    ) [ %                 ] defmulti              ; TODO
+
+:->'  ( :LSeq     ) [ swap map          ] defmulti
+:->'  ( :Left     ) [ nip               ] defmulti
+:->'  ( :Right    ) [ swap ^Right Right ] defmulti
 
 ; monad (WIP)
 ;
-; ...
+; >>> ( 1 2 3 ) [ 'inc [ dup * ] bi 2list ] >>= ->list
+; ( 2 1 3 4 4 9 )
+;
+; >>> , :f [ [ drop "neg" left ] [ dup * right ] ~neg ] def
+; >>> "oops" left 'f >>=
+; "oops" left
+; >>> -4 right 'f >>=
+; "neg" left
+; >>> 4 right 'f >>=
+; 16 right
 
-; TODO
+:>>= [ swap >>=' ] def
+
+:>>='       ( :list   ) [ swap map concat ] defmulti
+:>>='       ( :LSeq   ) [ swap map concat ] defmulti
+:>>='       ( :Left   ) [ nip             ] defmulti
+:>>='       ( :Right  ) [ swap ^Right     ] defmulti
+
+:return-as  ( :list   ) [ drop 1list      ] defmulti
+:return-as  ( :LSeq   ) [ drop 1list      ] defmulti
+:return-as  ( :Left   ) [ drop Right      ] defmulti
+:return-as  ( :Right  ) [ drop Right      ] defmulti
 
                                                                 ; }}}1
 
