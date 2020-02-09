@@ -2196,12 +2196,12 @@
 ;
 ; >>> 42 display!
 ; 42
-; >>> "foo" dup&display!
+; >>> "foo" ddisplay!                               ; ⇔ dup display!
 ; foo
 ; "foo"
 
-:display!     [ ->str say!    ] def
-:dup&display! [ dup display!  ] def
+:display!   [ ->str say!    ] def
+:ddisplay!  [ dup display!  ] def
 
 ; output message & show stack (use for debugging only!)
 ;

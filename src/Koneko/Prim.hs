@@ -2,7 +2,7 @@
 --
 --  File        : Koneko/Prim.hs
 --  Maintainer  : Felix C. Stegerman <flx@obfusk.net>
---  Date        : 2020-02-06
+--  Date        : 2020-02-09
 --
 --  Copyright   : Copyright (C) 2020  Felix C. Stegerman
 --  Version     : v0.0.1
@@ -459,8 +459,8 @@ replDef :: Context -> IO ()
 replDef ctx = do
     alias ["show-stack!" , "s!"] Nothing primModule
     alias ["clear-stack!", "c!"] Nothing primModule
-    alias ["d!"] (Just     "display!")   prldModule
-    alias ["D!"] (Just "dup&display!")   prldModule
+    alias ["d!"]      (Just  "display!") prldModule
+    alias ["D!"]      (Just "ddisplay!") prldModule
     defineIn ctx "__repl__" true
   where
     alias new old m = do                            -- safe!

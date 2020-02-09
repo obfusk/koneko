@@ -2,7 +2,7 @@
 //
 //  File        : koneko.js
 //  Maintainer  : Felix C. Stegerman <flx@obfusk.net>
-//  Date        : 2020-02-07
+//  Date        : 2020-02-09
 //
 //  Copyright   : Copyright (C) 2020  Felix C. Stegerman
 //  Version     : v0.0.1
@@ -1654,7 +1654,7 @@ const repl_init = (c, w_show = true) => {
     xs.forEach(x => scope.define(c, x, scope.lookup(c, y)))
   if (w_show) { alias(["show-stack!", "s!"]) }
   alias(["clear-stack!", "c!"])
-  alias(["d!"], "display!"); alias(["D!"], "dup&display!")
+  alias(["d!"], "display!"); alias(["D!"], "ddisplay!")
   scope.define(c, "__repl__", T)
 }
 

@@ -2,7 +2,7 @@
 
     File        : doc/08-syntactic-sugar.md
     Maintainer  : Felix C. Stegerman <flx@obfusk.net>
-    Date        : 2020-02-07
+    Date        : 2020-02-09
 
     Copyright   : Copyright (C) 2020  Felix C. Stegerman
     Version     : v0.0.1
@@ -117,7 +117,7 @@ The repl provides some aliases.
 
 >>> 1 2 + d!                    ; d! ⇔ display!
 3
->>> 1 2 + D! 3 +                ; D! ⇔ dup&display!
+>>> 1 2 + D! 3 +                ; D! ⇔ ddisplay!
 3
 6
 ```
