@@ -2160,20 +2160,37 @@
 :times  [ f n . 'n 0 > [ f 'f 'n dec times ] when ] def
       ; [ [1-n] swap 'drop % each ]         ; currently 10x slower :(
 
-; loop
+; loop, while & until
 ;
-; >>> 12 [ dup d! [ 2 div ] [ 3 * 1 + ] 'even? ~? dup 1 not= ] loop drop
-; 12
-; 6
-; 3
-; 10
-; 5
-; 16
-; 8
-; 4
-; 2
+; >>> , :next-collatz [ [ 2 div ] [ 3 * 1 + ] 'even? ~? ] def
+;
+; >>> ( 12 [ dup next-collatz dup 1 not= ] loop )
+; ( 12 6 3 10 5 16 8 4 2 1 )
+; >>> ( 12 [ dup 1 not= ] [ dup next-collatz ] while )
+; ( 12 6 3 10 5 16 8 4 2 1 )
+; >>> ( 12 [ dup 1 = ] [ dup next-collatz ] until )
+; ( 12 6 3 10 5 16 8 4 2 1 )
+;
+; >>> ( 1 [ dup next-collatz dup 1 not= ] loop )
+; ( 1 4 2 1 )
+;
+; >>> ( 1 [ dup 1 not= ] [ dup next-collatz ] while )     ; may run 0x
+; ( 1 )
+; >>> ( 1 [ dup 1 = ] [ dup next-collatz ] until )
+; ( 1 )
+;
+; >>> ( 1 [ dup 1 not= ] [ dup next-collatz ] do- while ) ; run >= 1x
+; ( 1 4 2 1 )
+; >>> ( 1 [ dup 1 = ] [ dup next-collatz ] do- until )
+; ( 1 4 2 1 )
 
-:loop   [ f . f [ 'f loop ] when ] def
+:loop     [ f . f [ 'f loop ] when ] def
+:while    [ p? f . p? [ f 'p? 'f while ] when ] def
+:until    [ [ 'not @ ] dip while ] def
+
+:do-      [ dup 2dip ] def
+:do-while [ do- while ] def
+:do-until [ do- until ] def
 
 ; print str or value to stdout
 ;
