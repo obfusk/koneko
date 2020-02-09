@@ -976,7 +976,7 @@
 
                                                                 ; }}}1
 
-; -- Nil, Num & Pair --                                         ; {{{1
+; -- Nil, Num, Pair & Tuples --                                 ; {{{1
 
 ; nil "branch"
 ;
@@ -2135,7 +2135,7 @@
 
                                                                 ; }}}1
 
-; -- Miscellaneous: Looping, I/O, Exceptions, etc.              ; {{{1
+; -- Miscellaneous: Looping, I/O, Exceptions, etc. --           ; {{{1
 
 ; identity function
 ;
