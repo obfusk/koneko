@@ -2,7 +2,7 @@
 ;
 ; File        : prelude.knk
 ; Maintainer  : Felix C. Stegerman <flx@obfusk.net>
-; Date        : 2020-02-07
+; Date        : 2020-02-08
 ;
 ; Copyright   : Copyright (C) 2020  Felix C. Stegerman
 ; Version     : v0.0.1
@@ -2269,6 +2269,9 @@
 ; ...   bind-with ->list
 ; ( 2t( 1 4 ) 2t( 1 5 ) 2t( 2 4 ) 2t( 2 5 ) 2t( 3 4 ) 2t( 3 5 ) )
 ;
+; >>> do[ ( 1 2 3 ) :x <- ( 4 5 ) :y <- 'x 'y 2t return ] ->list
+; ( 2t( 1 4 ) 2t( 1 5 ) 2t( 2 4 ) 2t( 2 5 ) 2t( 3 4 ) 2t( 3 5 ) )
+;
 ; >>> , :f [ [ drop "neg" left ] [ dup * right ] ~neg ] def
 ; >>> "oops" left 'f >>=
 ; "oops" left
@@ -2292,7 +2295,11 @@
 
 :bind-with  [ x f . 'x [ [ 'x return-as ] f ] >>= ] def
 
-; TODO: sugar
+:do   [ b . () 'b __block-code__ 'b _do 'b __block__ call ] def
+:_do  [ b . [ () ] [ dup 1st :<- __ident__ =
+        [ uncons^ nip [ :return 2list ] dip 'b _do 'b __block__
+          :bind-with __ident__ 2list ]
+        [ 'b _do cons ] if ] ^list ] def                        ; TODO
 
                                                                 ; }}}1
 
