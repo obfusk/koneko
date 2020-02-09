@@ -1292,6 +1292,9 @@
 ; ( 1 2 3 4 5 6 7 8 9 10 )
 ; >>> [ ( 1 2 3 ) ] lazy-seq seq  ; checking emptiness forces evaluation
 ; ( 1 2 3 )
+;
+; >>> ( nil "foo" { x: 1 } ( 1 2 ) [1-), ( 1 2 ) 'inc map, 42 ) 'seq? map ->list
+; ( #t :partial :partial #t #t #t #f )
 
 :seq    ( :nil    ) [ ] defmulti
 :seq    ( :str    ) [ ->nil '->list ~>  ] defmulti              ; TODO
@@ -1301,6 +1304,14 @@
 :seq    ( :LSeq   ) [ lseq-seq          ] defmulti
 
 :lseq-seq [ dup .chunk empty? [ !thunk seq ] when ] def
+
+:seq?   ( :nil    ) [ drop #t       ] defmulti
+:seq?   ( :str    ) [ drop :partial ] defmulti
+:seq?   ( :dict   ) [ drop :partial ] defmulti
+:seq?   ( :list   ) [ drop #t       ] defmulti
+:seq?   ( :Range  ) [ drop #t       ] defmulti
+:seq?   ( :LSeq   ) [ drop #t       ] defmulti
+:seq?   ( :_      ) [ drop #f       ] defmulti
 
 ; generic "uncons"
 ;
