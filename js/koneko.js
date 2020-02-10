@@ -1308,10 +1308,10 @@ modules.set("__prim__", new Map([                             //  {{{1
         throw e
       }
     }
-    const s3 = !err ? s2 : isNil(g) ? [] :
-      await call(c, stack.new(...info(err), g))
+    const [[b], s3] = !err ? [[F], s2] : isNil(g) ? [[F], []] :
+      stack.pop(await call(c, stack.new(...info(err), g)), "_")
     const s4 = stack.push(s1, ...s3, ...(await call(c, stack.new(h))))
-    if (err && isNil(g)) { throw err }
+    if (err && !truthy(b)) { throw err }
     return s4
   }),
   mkPrimPP("__ident__", x => [ident(x.value)], "kwd"),

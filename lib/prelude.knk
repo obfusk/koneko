@@ -2246,7 +2246,7 @@
 
 ; try w/o finally/catch
 ;
-; >>> [ ... ] [ _ _ _ . :caught ] try-catch
+; >>> [ ... ] [ _ _ _ . :caught #t ] try-catch
 ; :caught
 ; >>> [ ... ] [ :finally ] try-finally
 ; *** ERROR: name __ellipsis__ is not defined
@@ -2295,7 +2295,7 @@
 :~either' ( :Left   ) [ f _ x . 'x f ] defmulti
 :~either' ( :Right  ) [ _ g x . 'x g ] defmulti
 
-:try->either  [ f . [ Right( f ) ] [ 3list Left ] [] try ] def
+:try->either  [ f . [ Right( f ) ] [ 3list Left #t ] [] try ] def
 :either->fail [ 'fail [] ^either ] def
 
 ; functor (WIP)

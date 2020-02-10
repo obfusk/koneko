@@ -2,7 +2,7 @@
 
     File        : doc/09-primitives-builtins-and-prelude.md
     Maintainer  : Felix C. Stegerman <flx@obfusk.net>
-    Date        : 2020-02-07
+    Date        : 2020-02-09
 
     Copyright   : Copyright (C) 2020  Felix C. Stegerman
     Version     : v0.0.1
@@ -200,7 +200,7 @@ What's your name? Foo
 *** ERROR: oops!
 
 >>> , [ :try 1 2 3 ... ]
-...   [ t m i . :catch { type: 't, message: 'm, info: 'i } ]
+...   [ t m i . :catch { type: 't, message: 'm, info: 'i } #t ]
 ...   [ :finally ] try s!       ; try/catch/finally
 --- STACK ---
 :finally
@@ -220,8 +220,18 @@ What's your name? Foo
 ---  END  ---
 >>> , [ ... ] nil [ :finally ] try  ; w/o "catch"
 *** ERROR: name __ellipsis__ is not defined
->>> , [ ... ] [ 3drop "ignoring error!" say! ] [] try
+>>> , [ ... ] [ 3drop "ignoring error!" say! #t ] [] try
 ignoring error!
+```
+
+NB: the `catch` block must return a value that indicates whether the
+exception has been handled; it will be re-raised if it is falsy.  This
+can -- and should! -- be used to only catch certain types of errors.
+
+```koneko
+>>> , [ 1 0 div ] [ 2drop :DivideByZero = ] [] try
+>>> , [ ...     ] [ 2drop :DivideByZero = ] [] try
+*** ERROR: name __ellipsis__ is not defined
 ```
 
 #### Regexes
@@ -256,7 +266,8 @@ nil
 ---  END  ---
 
 >>> , [ [ 1 sleep "oops" fail ]
-...     [ 1 [ D! inc 0.2 sleep #t ] loop ] par ] [ 3list d! ] try-catch
+...     [ 1 [ D! inc 0.2 sleep #t ] loop ] par ]
+...   [ 3list d! #t ] try-catch
 1
 2
 3

@@ -21,13 +21,12 @@ import Control.Concurrent (threadDelay)
 import Control.Concurrent.Async (concurrently)
 import Control.DeepSeq (($!!), force, NFData)
 import Control.Exception (catch, evaluate, throwIO, try)
-import Control.Monad (unless, when)
+import Control.Monad (unless)
 import Data.Bits ((.|.))
 import Data.Char (chr, isDigit)
 import Data.Data (toConstr)
 import Data.Foldable (traverse_)
 import Data.List (isSuffixOf, sort)
-import Data.Maybe (isNothing)
 import Data.Monoid ((<>))
 import Data.Text.Lazy (Text)
 import Data.Version (showVersion, versionBranch)
@@ -302,12 +301,13 @@ try' :: (Block -> Evaluator) -> Builtin
 try' callBlock = mkPrim "try" $ \c s0 -> do
     ((f, g, h), s1) <- pop3' s0
     r <- try $ (return $!!) =<< callBlock f c emptyStack
-    s3 <- either (cat (flip callBlock c) g) (return . id) r
+    (b, s3) <- pop' =<< either (cat (flip callBlock c) g)
+                               (return . (`push` false)) r
     s4 <- (++ s3 ++ s1) <$> callBlock h c emptyStack
-    when (isNothing g) $ either throwIO (const $ return ()) r
+    unless (truthy b) $ either throwIO (const $ return ()) r
     return s4
   where
-    cat cb g e = maybe (return []) (\b -> cb b $ _errInfo e) g
+    cat cb g e = maybe (return [false]) (\b -> cb b $ _errInfo e) g
 
 _errInfo :: KException -> [KValue]                -- NB: reverse order
 _errInfo e = [list $ map T.pack $ exceptionInfo e,
