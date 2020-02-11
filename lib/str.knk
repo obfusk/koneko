@@ -10,7 +10,7 @@
 ;
 ; --                                                            ; }}}1
 
-:str __defmodule__[
+:str defmodule[
 
 ; -- Predicates --                                              ; {{{1
 
