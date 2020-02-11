@@ -2,7 +2,7 @@
 ;
 ; File        : prelude.knk
 ; Maintainer  : Felix C. Stegerman <flx@obfusk.net>
-; Date        : 2020-02-09
+; Date        : 2020-02-10
 ;
 ; Copyright   : Copyright (C) 2020  Felix C. Stegerman
 ; Version     : v0.0.1
@@ -1426,6 +1426,9 @@
 :++     ( :nil  :list ) [ nip ] defmulti                        ; TODO
 :++     ( :nil  :LSeq ) [ nip ] defmulti
 
+:++     ( :list :nil  ) [ drop ] defmulti                       ; TODO
+:++     ( :LSeq :nil  ) [ drop ] defmulti
+
 :++     ( :list :LSeq ) [ [ '++ dip LSeq ] ^LSeq ] defmulti
 :++     ( :LSeq :list ) [ _lseq++ ] defmulti
 :++     ( :LSeq :LSeq ) [ _lseq++ ] defmulti
@@ -1635,6 +1638,20 @@
 ; nil
 
 :find   [ filter 'drop with-seq ] def
+
+; partitioning a sequence (into a sequence of elements that do and one
+; of elements that do not satisfy a predicate)
+;
+; NB: unlike Haskell, we can't do both results at the same time with
+; foldr :(
+;
+; >>> , "Hello World!" [ "aeiou" elem?' ] partition 'join bi$ s!
+; --- STACK ---
+; "Hll Wrld!"
+; "eoo"
+; ---  END  ---
+
+:partition [ 'filter [ 'not @ filter ] 2bi ] def                ; TODO
 
 ; least & largest element of a non-empty sequence
 ;
@@ -2386,6 +2403,32 @@
           [ 'b _do cons ] if ] ^list ] def                      ; TODO
 
 ]
+
+                                                                ; }}}1
+
+; -- The Joy of Recursion --                                    ; {{{1
+
+; linear & binary recursion combinators (inspired by Joy)
+;
+; >>> , :fac1 [ dup zero? 'inc [ dup dec fac1 * ] if ] def
+; >>> 5 fac1
+; 120
+; >>> , :fac2 [ 'zero? 'inc [ dup dec ] '* linrec ] def
+; >>> 5 fac2
+; 120
+;
+; >>> , :qsort1 [ dup empty? [] [ unseq over '< $ partition
+; ...             'qsort1 bi$ [ swap 1list ] dip ++ ++ ] if ] def
+; >>> ( 5 2 7 2 -4 1 ) qsort1 ->list
+; ( -4 1 2 2 5 7 )
+; >>> , :qsort2 [ 'empty? [] [ unseq over '< $ partition ]
+; ...             [ [ swap 1list ] dip ++ ++ ] binrec ] def
+; >>> ( 5 2 7 2 -4 1 ) qsort2 ->list
+; ( -4 1 2 2 5 7 )
+
+:linrec [ p? f g h . dup p? 'f [ g 'p? 'f 'g 'h linrec h ] if ] def
+:binrec [ p? f g h . dup p? 'f [ g [ 'p? 'f 'g 'h binrec ] bi$
+                                 h ] if ] def                   ; TODO
 
                                                                 ; }}}1
 
