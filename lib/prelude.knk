@@ -2432,6 +2432,30 @@
 
                                                                 ; }}}1
 
+; -- Conversion --                                              ; {{{1
+
+; conversion
+;
+; >>> ( 1 2 3 ) [ 'inc map ] as
+; ( 2 3 4 )
+; >>> "foo" [ 'upper-case map ] as
+; "FOO"
+
+:as [ over convert-> 'call dip call ] def
+
+:convert->      ( :str  ) [ drop 'convert->str  ] defmulti      ; TODO
+:convert->      ( :list ) [ drop 'convert->list ] defmulti
+
+:convert->str   ( :str  ) [                     ] defmulti      ; TODO
+:convert->str   ( :list ) [ join                ] defmulti
+:convert->str   ( :LSeq ) [ join                ] defmulti
+
+:convert->list  ( :list ) [                     ] defmulti      ; TODO
+:convert->list  ( :str  ) [ ->list              ] defmulti
+:convert->list  ( :LSeq ) [ ->list              ] defmulti
+
+                                                                ; }}}1
+
 ; -- Modules --                                                 ; {{{1
 
 ; require module (loads from file if not defined)
