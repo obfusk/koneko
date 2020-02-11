@@ -2,7 +2,7 @@
 //
 //  File        : koneko.js
 //  Maintainer  : Felix C. Stegerman <flx@obfusk.net>
-//  Date        : 2020-02-09
+//  Date        : 2020-02-10
 //
 //  Copyright   : Copyright (C) 2020  Felix C. Stegerman
 //  Version     : v0.0.1
@@ -1723,14 +1723,18 @@ const testFiles = async (files, vbs = false, cov = false) => { // {{{1
 }                                                             //  }}}1
 
 const coverageMonkeyPatch = () => {                           //  {{{1
-  for (const m of modules.values()) {
+  const patch = m => {
+    if (m._get) { return }
     m._get = m.get
     m.get = k => {
       const r = m._get(k)
-      if (!r._cov) { r._cov = 0 }; ++r._cov
+      if (r) { if (!r._cov) { r._cov = 0 }; ++r._cov }
       return r
     }
   }
+  for (const m of modules.values()) { patch(m) }
+  modules._set = modules.set
+  modules.set = (k, v) => { patch(v); modules._set(k, v) }
 }                                                             //  }}}1
 
 // TODO: select which modules w/ option
