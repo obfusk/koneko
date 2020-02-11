@@ -1,0 +1,62 @@
+; --                                                            ; {{{1
+;
+; File        : str.knk
+; Maintainer  : Felix C. Stegerman <flx@obfusk.net>
+; Date        : 2020-02-10
+;
+; Copyright   : Copyright (C) 2020  Felix C. Stegerman
+; Version     : v0.0.1
+; License     : LGPLv3+
+;
+; --                                                            ; }}}1
+
+:str __defmodule__[
+
+; -- Predicates --                                              ; {{{1
+
+; character classification
+;
+; >>> :str use
+; >>> "猫" is-letter?
+; #t
+; >>> "foo" is-lower?
+; #t
+; >>> "FOO" is-upper?
+; #t
+; >>> "ⅵ" is-number?
+; #t
+; >>> "…" is-punct?
+; #t
+; >>> "\u0308" is-mark?                               ; diaeresis
+; #t
+; >>> "€" is-symbol?
+; #t
+; >>> "\u2028" is-sep?                                ; line separator
+; #t
+; >>> "\u00a0" is-space?                              ; nbsp
+; #t
+; >>> "42" is-digit?
+; #t
+; >>> "00a0" is-hex?
+; #t
+; >>> "0644" is-oct?
+; #t
+
+:is-letter? [ "^\p{L}+$"        =~ ] def                        ; TODO
+:is-lower?  [ "^\p{Ll}+$"       =~ ] def
+:is-upper?  [ "^\p{Lu}+$"       =~ ] def
+:is-number? [ "^\p{N}+$"        =~ ] def
+:is-punct?  [ "^\p{P}+$"        =~ ] def
+:is-mark?   [ "^\p{M}+$"        =~ ] def
+:is-symbol? [ "^\p{S}+$"        =~ ] def
+:is-sep?    [ "^\p{Z}+$"        =~ ] def
+:is-space?  [ "^\p{Zs}+$"       =~ ] def
+:is-digit?  [ "^[0-9]+$"        =~ ] def
+:is-hex?    [ "^[0-9a-fA-F]+$"  =~ ] def
+:is-oct?    [ "^[0-7]+$"        =~ ] def
+
+                                                                ; }}}1
+
+] ; defmodule
+
+; vim: set tw=70 sw=2 sts=2 et fdm=marker :

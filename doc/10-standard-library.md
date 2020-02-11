@@ -2,7 +2,7 @@
 
     File        : doc/10-standard-library.md
     Maintainer  : Felix C. Stegerman <flx@obfusk.net>
-    Date        : 2020-02-03
+    Date        : 2020-02-10
 
     Copyright   : Copyright (C) 2020  Felix C. Stegerman
     Version     : v0.0.1
@@ -16,7 +16,7 @@
 
 ## Standard Library
 
-→ [Math](#math), ...
+→ [Math](#math), → [Str](#str), ...
 
 ### Math
 
@@ -53,6 +53,11 @@ or `use`d; it can of course still be `import`ed).
 >>> :math __module-defs__
 ( :** :^ :acos :acosh :asin :asinh :atan :atan2 :atanh :cos :cosh :exp :log :pi :sign :sin :sinh :sqrt :tan :tanh )
 ```
+
+### Str
+
+→ [Syntax Highlighted Source](https://koneko.dev/lib-doc/str.knk.html),
+→ [Function Index](https://koneko.dev/lib-doc/str.knk.index.html)
 
 ... TODO ...
 

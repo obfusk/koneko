@@ -2110,46 +2110,6 @@
 
 ; TODO: width, zero-fill, justify, dict key, ...
 
-; character classification
-;
-; >>> "猫" is-letter?
-; #t
-; >>> "foo" is-lower?
-; #t
-; >>> "FOO" is-upper?
-; #t
-; >>> "ⅵ" is-number?
-; #t
-; >>> "…" is-punct?
-; #t
-; >>> "\u0308" is-mark?                               ; diaeresis
-; #t
-; >>> "€" is-symbol?
-; #t
-; >>> "\u2028" is-sep?                                ; line separator
-; #t
-; >>> "\u00a0" is-space?                              ; nbsp
-; #t
-; >>> "42" is-digit?
-; #t
-; >>> "00a0" is-hex?
-; #t
-; >>> "0644" is-oct?
-; #t
-
-:is-letter? [ "^\p{L}+$"        =~ ] def                        ; TODO
-:is-lower?  [ "^\p{Ll}+$"       =~ ] def
-:is-upper?  [ "^\p{Lu}+$"       =~ ] def
-:is-number? [ "^\p{N}+$"        =~ ] def
-:is-punct?  [ "^\p{P}+$"        =~ ] def
-:is-mark?   [ "^\p{M}+$"        =~ ] def
-:is-symbol? [ "^\p{S}+$"        =~ ] def
-:is-sep?    [ "^\p{Z}+$"        =~ ] def
-:is-space?  [ "^\p{Zs}+$"       =~ ] def
-:is-digit?  [ "^[0-9]+$"        =~ ] def
-:is-hex?    [ "^[0-9a-fA-F]+$"  =~ ] def
-:is-oct?    [ "^[0-7]+$"        =~ ] def
-
                                                                 ; }}}1
 
 ; -- "Quasi-Macros" --                                          ; {{{1
