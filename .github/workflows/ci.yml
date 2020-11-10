@@ -7,13 +7,13 @@ jobs:
     strategy:
       matrix:
         version:
-        - { ghc: '8.0.2'  , cabal: 2.4    }  # bionic
-        - { ghc: '8.4.4'  , cabal: 2.4    }  # buster
-        - { ghc: '8.8.1'  , cabal: 3.0    }  # focal
-        - { ghc: '8.8.4'  , cabal: 3.0    }  # unstable
-        - { ghc: '8.10.2' , cabal: 3.0    }  # experimental
+        - { ghc: '8.0.2'  , cabal: '2.4'  }  # bionic
+        - { ghc: '8.4.4'  , cabal: '2.4'  }  # buster
+        - { ghc: '8.8.1'  , cabal: '3.0'  }  # focal
+        - { ghc: '8.8.4'  , cabal: '3.0'  }  # unstable
+        - { ghc: '8.10.2' , cabal: '3.0'  }  # experimental
         - { ghc: latest   , cabal: latest }
-        warnall: [yes, no]
+        warnall: [no, yes]
     steps:
     - uses: actions/checkout@v2
     - name: Set up GHC ${{ matrix.version.ghc }}
