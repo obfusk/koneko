@@ -55,8 +55,8 @@ common deps
     -- included w/ haskell-platform:
     async, random, split, unordered-containers >=0.2.9.0,
     -- separate packages:
-    cmdargs, hashtables, megaparsec ==8.0.*, regex-pcre >=0.94.0.0,
-    safe, silently
+    cmdargs, hashtables, megaparsec ==7.0.* || ==8.0.*,
+    regex-pcre >=0.94.0.0, safe, silently
 
   -- Directories containing source files.
   hs-source-dirs:      src
