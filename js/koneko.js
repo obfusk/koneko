@@ -2,7 +2,7 @@
 //
 //  File        : koneko.js
 //  Maintainer  : Felix C. Stegerman <flx@obfusk.net>
-//  Date        : 2020-02-10
+//  Date        : 2020-11-10
 //
 //  Copyright   : Copyright (C) 2020  Felix C. Stegerman
 //  Version     : v0.0.1
@@ -1565,6 +1565,9 @@ const evalFile = (fname, c = undefined, s = undefined) => {
 
 // NB: Promise
 const loadMod = async name => {                               //  {{{1
+  if (typeof __koneko_prelude__ !== "undefined" && name == "prelude") {
+    return evalText(__koneko_prelude__)
+  }
   if (!_req) {
     return await evalFile(join("lib", `${name}.knk`)).catch(e => {
       throw e instanceof ProgressEvent ?
@@ -1978,7 +1981,8 @@ _mod[_exp] = {
 }
 
 // NB: node.js only
-if (_req && _mod === _req.main) { main() }
+if ((_req && _mod === _req.main) ||
+    typeof __koneko_prelude__ !== "undefined") { main() }
 
 })(
   ...(typeof module === "undefined" ?

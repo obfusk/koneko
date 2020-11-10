@@ -1,0 +1,37 @@
+#!/usr/bin/python3
+import base64, gzip, os, sys
+
+koneko_dir = os.path.dirname(os.path.dirname(__file__))
+
+# FIXME: more libs
+with open(os.path.join(koneko_dir, "lib", "prelude.knk")) as f:
+  prelude = f.read()
+
+with open(os.path.join(koneko_dir, "js", "koneko.js")) as f:
+  koneko_js = f.read()
+
+code = [ line.rstrip("\n") for line in sys.stdin ]
+
+js = """\
+#!/usr/bin/env node
+const _heredoc = f => {
+  const s = f.toString()
+  return s.slice(s.indexOf("/") + 2, s.lastIndexOf("/") - 2)
+}
+const __koneko_prelude__ = _heredoc(() => { /*
+""" + prelude + """\
+*/ })
+""" + koneko_js
+
+data = base64.b64encode(gzip.compress(js.encode())).decode()
+
+sys.stdout.write("""\
+#!/bin/bash
+tail +{} "$0" | base64 -d | gunzip | node - <( tail +{} "$0" | head -{} ) "$@"
+exit
+""".format(4 + len(code), 4, len(code)))
+
+for line in code:
+  print(line)
+
+sys.stdout.write(data)
