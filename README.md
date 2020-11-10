@@ -2,7 +2,7 @@
 
     File        : README.md
     Maintainer  : Felix C. Stegerman <flx@obfusk.net>
-    Date        : 2020-02-07
+    Date        : 2020-11-10
 
     Copyright   : Copyright (C) 2020  Felix C. Stegerman
     Version     : v0.0.1
@@ -12,9 +12,16 @@
 
 <!-- TODO: badges -->
 
+<!--
+[![GitHub Release](https://img.shields.io/github/release/obfusk/koneko.svg?logo=github)](https://github.com/obfusk/koneko/releases)
+-->
+[![CI](https://github.com/obfusk/koneko/workflows/CI/badge.svg)](https://github.com/obfusk/koneko/actions?query=workflow%3ACI)
 [![Build Status](https://travis-ci.org/obfusk/koneko.svg?branch=master)](https://travis-ci.org/obfusk/koneko)
 [![GPLv3+](https://img.shields.io/badge/license-GPLv3+-blue.svg)](https://www.gnu.org/licenses/gpl-3.0.html)
 [![LGPLv3+](https://img.shields.io/badge/license-LGPLv3+-blue.svg)](https://www.gnu.org/licenses/lgpl-3.0.html)
+<!--
+[![Sponsor](https://img.shields.io/badge/%E2%99%A5-support-violet.svg)](https://ko-fi.com/obfusk)
+-->
 
 <p align="center">
   <img src="logo.svg" alt="koneko logo" width="150" /><br />

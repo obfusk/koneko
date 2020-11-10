@@ -1,0 +1,55 @@
+name: CI
+on: [push, pull_request, workflow_dispatch]
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    continue-on-error: ${{ matrix.warnall == 'yes' }}
+    strategy:
+      matrix:
+        version:
+        - { ghc: '8.0.2'  , cabal: 2.4    }  # bionic
+        - { ghc: '8.4.4'  , cabal: 2.4    }  # buster
+        - { ghc: '8.8.1'  , cabal: 3.0    }  # focal
+        - { ghc: '8.8.4'  , cabal: 3.0    }  # unstable
+        - { ghc: '8.10.2' , cabal: 3.0    }  # experimental
+        - { ghc: latest   , cabal: latest }
+        warnall: [yes, no]
+    steps:
+    - uses: actions/checkout@v2
+    - name: Set up GHC ${{ matrix.version.ghc }}
+      uses: actions/setup-haskell@v1.1
+      with:
+        ghc-version: ${{ matrix.version.ghc }}
+        cabal-version: ${{ matrix.version.cabal }}
+      env:
+        WARNALL: ${{ matrix.warnall }}
+    - name: Cache
+      uses: actions/cache@v2
+      with:
+        path:
+        - .cabal
+        - .ghc
+        key: ${{ runner.os }}
+    - name: Setup
+      run: |
+        (
+          set -xe
+          cabal v2-update
+        )
+    - name: Test
+      run: |
+        (
+          set -xe
+          node --version
+          if [ "$WARNALL" = yes ]; then
+            sed -i 's/-fno-warn-unused-imports//' koneko.cabal
+            make cabal_build || {
+              sed -i 's/-Werror//' koneko.cabal
+              make cabal_build
+              false
+            }
+          else
+            make cabal_build
+          fi
+          make test
+        )
