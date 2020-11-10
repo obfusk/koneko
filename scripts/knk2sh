@@ -1,37 +1,38 @@
 #!/usr/bin/python3
-import base64, gzip, os, sys
+import base64, gzip, json, os.path as pth, sys
 
-koneko_dir = os.path.dirname(os.path.dirname(__file__))
+koneko_dir  = pth.dirname(pth.dirname(__file__))
+modules     = { k: None for k in "prelude str".split() }
+code        = [ line.rstrip("\n") for line in sys.stdin ]
 
-# FIXME: more libs
-with open(os.path.join(koneko_dir, "lib", "prelude.knk")) as f:
-  prelude = f.read()
+with open(pth.join(koneko_dir, "package.json")) as f:
+  version = json.load(f)["version"]
 
-with open(os.path.join(koneko_dir, "js", "koneko.js")) as f:
-  koneko_js = f.read()
+for m in modules:
+  with open(pth.join(koneko_dir, "lib", m + ".knk")) as f:
+    modules[m] = f.read()
 
-code = [ line.rstrip("\n") for line in sys.stdin ]
-
-js = """\
-#!/usr/bin/env node
-const _heredoc = f => {
-  const s = f.toString()
-  return s.slice(s.indexOf("/") + 2, s.lastIndexOf("/") - 2)
-}
-const __koneko_prelude__ = _heredoc(() => { /*
-""" + prelude + """\
-*/ })
-""" + koneko_js
-
-data = base64.b64encode(gzip.compress(js.encode())).decode()
-
-sys.stdout.write("""\
+sys.stdout.write('''\
 #!/bin/bash
 tail +{} "$0" | base64 -d | gunzip | node - <( tail +{} "$0" | head -{} ) "$@"
 exit
-""".format(4 + len(code), 4, len(code)))
+'''.format(4 + len(code), 4, len(code)))
 
-for line in code:
-  print(line)
+for line in code: print(line)
 
-sys.stdout.write(data)
+with open(pth.join(koneko_dir, "js", "koneko.js")) as f:
+  sys.stdout.write(base64.b64encode(gzip.compress(('''\
+#!/usr/bin/env node
+const __HEREDOC__ = f => {
+  const s = f.toString()
+  return s.slice(s.indexOf("/") + 2, s.lastIndexOf("/") - 2)
+}
+const __koneko_version__ = "''' + version + '''"
+const __koneko_modules__ = new Map([
+''' + "".join( '''\
+  ["''' + k + '''", __HEREDOC__(() => { /*
+''' + v + '''\
+*/ })],
+''' for k, v in modules.items() ) + '''\
+])
+''' + f.read()).encode())).decode())

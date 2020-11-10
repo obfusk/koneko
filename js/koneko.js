@@ -1528,7 +1528,8 @@ const mkRx = (s, flags = "") => {                             //  {{{1
 
 const _path   = _req ? _req("path") : null
 const join    = (...xs) => _req ? _path.join(...xs) : xs.join("/")
-const baseDir = _req ? join(_path.dirname(module.filename), "..") : ""
+const baseDir = _req && module.id != "[stdin]" ?
+                join(_path.dirname(module.filename), "..") : null
 const bpath   = (...xs) => join(baseDir, ...xs)
 
 // NB: browser only; Promise
@@ -1565,8 +1566,9 @@ const evalFile = (fname, c = undefined, s = undefined) => {
 
 // NB: Promise
 const loadMod = async name => {                               //  {{{1
-  if (typeof __koneko_prelude__ !== "undefined" && name == "prelude") {
-    return evalText(__koneko_prelude__)
+  if (typeof __koneko_modules__ !== "undefined" &&
+      __koneko_modules__.has(name)) {
+    return evalText(__koneko_modules__.get(name))
   }
   if (!_req) {
     return await evalFile(join("lib", `${name}.knk`)).catch(e => {
@@ -1576,8 +1578,8 @@ const loadMod = async name => {                               //  {{{1
   }
   const fs = _req("fs"), d = _path.delimiter
   const ps = (process.env.KONEKOPATH || "").split(d).filter(x => x)
-  const xs = [bpath("lib"), ...ps].map(x => join(x, `${name}.knk`))
-  for (const x of xs) {
+  const xs = baseDir ? [bpath("lib"), ...ps] : ps
+  for (const x of xs.map(x => join(x, `${name}.knk`))) {
     if (fs.existsSync(x)) { return await evalFile(x) }
   }
   throw new KE(...E.ModuleLoadError(name))
@@ -1590,7 +1592,8 @@ const loadPrelude = () => {
 
 /* === version information === */
 
-let _version = null
+let _version  = typeof __koneko_version__ !== "undefined" ?
+                __koneko_version__.split(".") : null
 
 // NB: Promise
 const koneko_version = async () => {
@@ -1961,7 +1964,7 @@ const ask = async s => await (overrides.ask || read_line)(s)
 const nya = async () => {                                     //  {{{1
   if (overrides.nya) {
     return await overrides.nya()
-  } else if (_req) {
+  } else if (baseDir) {
     return readFile(bpath("nya", "tabby.cat"), "utf8").then(
       data => putOut(data, "")
     )
@@ -1981,8 +1984,8 @@ _mod[_exp] = {
 }
 
 // NB: node.js only
-if ((_req && _mod === _req.main) ||
-    typeof __koneko_prelude__ !== "undefined") { main() }
+if (_req && (_mod === _req.main ||
+             typeof __koneko_modules__ !== "undefined")) { main() }
 
 })(
   ...(typeof module === "undefined" ?
