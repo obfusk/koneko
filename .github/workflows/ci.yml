@@ -26,10 +26,10 @@ jobs:
     - name: Cache
       uses: actions/cache@v2
       with:
-        path:
-        - .cabal
-        - .ghc
-        key: ${{ runner.os }}
+        path: |
+          ~/.cabal
+          ~/.ghc
+        key: ${{ runner.os }}-${{ matrix.version.ghc }}
     - name: Setup
       run: |
         (
