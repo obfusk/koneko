@@ -27,7 +27,11 @@ jobs:
         path: |
           ~/.cabal
           ~/.ghc
-        key: ${{ runner.os }}-${{ matrix.version.ghc }}
+        key: ${{ runner.os }}-${{ matrix.version.ghc }}-${{ hashFiles('koneko.cabal') }}
+        restore-keys: |
+          ${{ runner.os }}-${{ matrix.version.ghc }}-${{ hashFiles('koneko.cabal') }}
+          ${{ runner.os }}-${{ matrix.version.ghc }}-
+          ${{ runner.os }}-
     - name: Setup
       run: |
         (
