@@ -303,7 +303,7 @@ const parseOne = (s, p0 = 0, end = null) => {                 //  {{{1
   }
   const hd  = "[0-9a-fA-F]"
   const hex = '(\\\\x'+hd+'{2})|(\\\\u'+hd+'{4})|(\\\\U'+hd+'{8})'
-  const chr = hex + '|(\\\\[rnt\\\\"])|([^"])'
+  const chr = "(?:" + hex + '|(\\\\[rnt\\\\"])|(\\\\.|[^\\\\"])' + ")"
   const esc = { "\\r":"\r", "\\n":"\n", "\\t":"\t", "\\\"":"\"", "\\\\":"\\" }
   const escapedStrBody = k => {
     const l = [], r = Rx(chr, "usy"); r.lastIndex = p0 + k
@@ -312,7 +312,7 @@ const parseOne = (s, p0 = 0, end = null) => {                 //  {{{1
     while (cm = r.exec(s)) {
       l.push(cm[1] || cm[2] || cm[3] ? f(2) : cm[4] ? esc[cm[4]] : cm[5])
     }
-    return l
+    return l.join("")
   }
   const parseBlock = (pre = "") => {
     let params = [], p2 = p1
@@ -335,11 +335,11 @@ const parseOne = (s, p0 = 0, end = null) => {                 //  {{{1
   } else if (t(_flt)) {
     return [p1, float(parseFloat(m[1]))]
   } else if (t('"(' + chr + '*)"')) {
-    return [p1, str_(escapedStrBody(1))]
+    return [p1, str(escapedStrBody(1))]
   } else if (t(":(" + _idt + ")")) {
     return [p1, kwd(m[2])]
   } else if (t(':"(' + chr + '*)"')) {
-    return [p1, kwd(escapedStrBody(2).join(""))]
+    return [p1, kwd(escapedStrBody(2))]
   }
   // values
   else if (t("\\(\\)")) {
