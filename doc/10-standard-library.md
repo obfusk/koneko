@@ -2,7 +2,7 @@
 
     File        : doc/10-standard-library.md
     Maintainer  : Felix C. Stegerman <flx@obfusk.net>
-    Date        : 2020-02-10
+    Date        : 2020-11-11
 
     Copyright   : Copyright (C) 2020  Felix C. Stegerman
     Version     : v0.0.1
@@ -16,7 +16,30 @@
 
 ## Standard Library
 
-→ [Math](#math), → [Str](#str), ...
+→ [JSON](#json), → [Math](#math), → [Str](#str), ...
+
+### JSON
+
+NB: the `json` module is built-in (and does not need to be `require`d
+or `use`d; it can of course still be `import`ed).
+
+```koneko
+>>> { x: 42, y: ( 1 2 3 ) } dup json.<-     ; json str <- value
+"{\"x\":42,\"y\":[1,2,3]}"
+>>> json.->                                 ; json str -> value
+{ :x 42 =>, :y ( 1 2 3 ) => }
+>>> =
+#t
+
+>>> :foo json.<- json.->                    ; kwds become strs
+"foo"
+>>> x: 42 json.<- json.->                   ; pairs become lists
+( "x" 42 )
+
+>>> , :Foo ( :x :y ) defrecord              ; records become dicts
+>>> Foo( 1 2 ) json.<- json.->
+{ :__koneko_type__ "Foo" =>, :x 1 =>, :y 2 => }
+```
 
 ### Math
 

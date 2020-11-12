@@ -2,7 +2,7 @@
 --
 --  File        : Koneko/Prim.hs
 --  Maintainer  : Felix C. Stegerman <flx@obfusk.net>
---  Date        : 2020-02-09
+--  Date        : 2020-11-11
 --
 --  Copyright   : Copyright (C) 2020  Felix C. Stegerman
 --  Version     : v0.0.1
@@ -28,7 +28,7 @@ import Data.Data (toConstr)
 import Data.Foldable (traverse_)
 import Data.List (isSuffixOf, sort)
 import Data.Monoid ((<>))
-import Data.Text.Lazy (Text)
+import Data.Text (Text)
 import Data.Version (showVersion, versionBranch)
 import Prelude hiding (lookup)
 import System.Directory (listDirectory)
@@ -37,13 +37,13 @@ import System.Random (getStdRandom, randomR)
 
 import qualified Control.Exception as E
 import qualified Data.Array as A
-import qualified Data.ByteString.Lazy as BL
-import qualified Data.Text.Lazy as T
-import qualified Data.Text.Lazy.Encoding as LE
-import qualified Data.Text.Lazy.IO as T
+import qualified Data.ByteString as BL
+import qualified Data.Text as T
+import qualified Data.Text.Encoding as E
+import qualified Data.Text.IO as T
 import qualified System.Info as I
 import qualified Text.Regex.PCRE as RE
-import qualified Text.Regex.PCRE.ByteString.Lazy as RE
+import qualified Text.Regex.PCRE.ByteString as RE
 
 import Koneko.Data
 import Koneko.Misc (prompt)
@@ -262,9 +262,7 @@ chr' = mkPrim "chr" $ \_ s -> do
 intToFloat
   = mkPrim "int->float" $ pop1push1 (fromInteger :: Integer -> Double)
 
-recordToDict = mkPrim "record->dict" $ pop1push1 $ \r ->
-  dict [ Pair (Kwd k) v | (k, v) <- zip (recFields $ recType r)
-                                        (recValues r) ]
+recordToDict = mkPrim "record->dict" $ pop1push1 $ dict . recordToPairs
 
 -- primitives: record --
 
@@ -363,7 +361,7 @@ rxSub callBlock = mkPrim "rx-sub" $ \c s -> do
       sub = either strsub blksub s_b
       sub1 (bf,m,af) = do t <- sub m; return $ bf <> t <> af
   rpush1 s' =<< if glob
-    then maybe x id <$> _rxReplaceAll (LE.encodeUtf8 x) (_rxMatchAll x rx) sub
+    then maybe x id <$> _rxReplaceAll (E.encodeUtf8 x) (_rxMatchAll x rx) sub
     else maybe (return x) sub1 (_rxGetMatches $ _rxMatch x rx)
 
 -- TODO
@@ -388,22 +386,22 @@ _dollar t m   = T.pack $ f $ T.unpack t
 _rxCompile :: Text -> IO RE.Regex
 _rxCompile x = f x >>= either (throwIO . InvalidRx . show) return
   where
-    f = RE.compile c RE.execBlank . LE.encodeUtf8
+    f = RE.compile c RE.execBlank . E.encodeUtf8
     c = RE.compBlank .|. RE.compUTF8 .|. RE.compDollarEndOnly
 
 _rxMatch
   :: Text -> RE.Regex
   -> Maybe (BL.ByteString, RE.MatchText BL.ByteString, BL.ByteString)
-_rxMatch s r = RE.matchOnceText r $ LE.encodeUtf8 s
+_rxMatch s r = RE.matchOnceText r $ E.encodeUtf8 s
 
 _rxMatchAll :: Text -> RE.Regex -> [RE.MatchText BL.ByteString]
-_rxMatchAll s r = RE.matchAllText r $ LE.encodeUtf8 s
+_rxMatchAll s r = RE.matchAllText r $ E.encodeUtf8 s
 
 _rxGetMatches
   :: Maybe (BL.ByteString, RE.MatchText BL.ByteString, BL.ByteString)
   -> Maybe (Text, [Text], Text)
 _rxGetMatches
-  = fmap $ \(b,m,a) -> (LE.decodeUtf8 b, _rxMatches m, LE.decodeUtf8 a)
+  = fmap $ \(b,m,a) -> (E.decodeUtf8 b, _rxMatches m, E.decodeUtf8 a)
 
 _rxReplaceAll
   :: BL.ByteString -> [RE.MatchText BL.ByteString]
@@ -411,16 +409,16 @@ _rxReplaceAll
 _rxReplaceAll _   [] _    = return Nothing
 _rxReplaceAll src ms sub  = Just . T.concat . concat <$> f 0 src ms
   where
-    f _ s    []   = return [[LE.decodeUtf8 s]]
+    f _ s    []   = return [[E.decodeUtf8 s]]
     f i s (m:mt)  = do
         t <- sub $ _rxMatches m
-        ([LE.decodeUtf8 s1, t]:) <$> f (off + len) (BL.drop len s2) mt
+        ([E.decodeUtf8 s1, t]:) <$> f (off + len) (BL.drop len s2) mt
       where
         (s1, s2)    = BL.splitAt (off - i) s
         (off, len)  = (toEnum *** toEnum) $ snd (m A.! 0)     -- safe!
 
 _rxMatches :: RE.MatchText BL.ByteString -> [Text]
-_rxMatches = map (LE.decodeUtf8 . fst) . A.elems
+_rxMatches = map (E.decodeUtf8 . fst) . A.elems
 
 -- primitives: concurrency --
 

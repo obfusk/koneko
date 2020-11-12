@@ -2,7 +2,7 @@
 --
 --  File        : Koneko/Misc.hs
 --  Maintainer  : Felix C. Stegerman <flx@obfusk.net>
---  Date        : 2020-01-21
+--  Date        : 2020-11-11
 --
 --  Copyright   : Copyright (C) 2020  Felix C. Stegerman
 --  Version     : v0.0.1
@@ -22,15 +22,15 @@ import Data.Char (isSpace)
 import Data.Functor
 import Data.List ((\\))
 import Data.Maybe (isJust, maybeToList)
-import Data.Text.Lazy (Text)
+import Data.Text (Text)
 import Data.Void (Void)
 import System.IO (hFlush, stdout)
 import System.IO.Error (catchIOError, isEOFError)
 import Text.Megaparsec
 import Text.Megaparsec.Char hiding (space, space1)
 
-import qualified Data.Text.Lazy as T
-import qualified Data.Text.Lazy.IO as T
+import qualified Data.Text as T
+import qualified Data.Text.IO as T
 import qualified Text.Megaparsec.Char.Lexer as L
 
 -- parser: common --

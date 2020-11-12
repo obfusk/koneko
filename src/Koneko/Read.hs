@@ -2,7 +2,7 @@
 --
 --  File        : Koneko/Read.hs
 --  Maintainer  : Felix C. Stegerman <flx@obfusk.net>
---  Date        : 2020-01-24
+--  Date        : 2020-11-11
 --
 --  Copyright   : Copyright (C) 2020  Felix C. Stegerman
 --  Version     : v0.0.1
@@ -42,13 +42,13 @@ import Control.Monad.Fail (MonadFail)
 import Data.Functor
 import Data.List (foldl', init)
 import Data.Maybe (fromJust) -- careful!
-import Data.Text.Lazy (Text)
+import Data.Text (Text)
 import Prelude hiding (quot, read)
 import Text.Megaparsec
 import Text.Megaparsec.Char
 
 import qualified Data.Char as C
-import qualified Data.Text.Lazy as T
+import qualified Data.Text as T
 
 import Koneko.Data (Identifier, Ident, Block(..), KValue(..))
 import Koneko.Misc (Parser, pIdent, pIdent_, pInt, pFloat, lexeme,

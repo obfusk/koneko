@@ -2,7 +2,7 @@
 --
 --  File        : Koneko/Data.hs
 --  Maintainer  : Felix C. Stegerman <flx@obfusk.net>
---  Date        : 2020-02-06
+--  Date        : 2020-11-11
 --
 --  Copyright   : Copyright (C) 2020  Felix C. Stegerman
 --  Version     : v0.0.1
@@ -62,24 +62,25 @@ module Koneko.Data (
   record, Thunk, runThunk, thunk, Scope(..), Context, ctxScope,
   KPrim(..), KValue(..), KType(..), Stack, freeVars, Cmp(..),
   escapeFrom, escapeTo, ToVal, toVal, FromVal, fromVal, toVals,
-  fromVals, maybeToVal, eitherToVal, emptyStack, push', push, rpush,
-  rpush1, pop_, pop, pop2, pop3, pop4, pop_', pop', pop2', pop3',
-  pop4', popN', pop1push, pop2push, pop1push1, pop2push1, primModule,
-  bltnModule, prldModule, mainModule, initMainContext, initMain,
-  initModule, forkContext, forkScope, defineIn, defineIn', importIn,
-  importFromIn, lookup, lookupModule', moduleKeys, moduleNames,
-  typeNames, typeOfPrim, typeOf, typeToKwd, typeToStr, typeAsStr,
-  isNil, isBool, isInt, isFloat, isStr, isKwd, isPair, isList, isDict,
-  isIdent, isQuot, isBlock, isBuiltin, isMulti, isRecordT, isRecord,
-  isThunk, isCallable, isFunction, nil, false, true, bool, int, float,
-  str, kwd, pair, list, dict, block, dictLookup, mkPrim, mkBltn,
-  defPrim, defMulti, truthy, retOrThrow, recordTypeSig, underscored,
-  digitParams, unKwds
+  fromVals, maybeToVal, eitherToVal, toJSON, fromJSON, emptyStack,
+  push', push, rpush, rpush1, pop_, pop, pop2, pop3, pop4, pop_',
+  pop', pop2', pop3', pop4', popN', pop1push, pop2push, pop1push1,
+  pop2push1, primModule, bltnModule, prldModule, mainModule,
+  initMainContext, initMain, initModule, forkContext, forkScope,
+  defineIn, defineIn', importIn, importFromIn, lookup, lookupModule',
+  moduleKeys, moduleNames, typeNames, typeOfPrim, typeOf, typeToKwd,
+  typeToStr, typeAsStr, isNil, isBool, isInt, isFloat, isStr, isKwd,
+  isPair, isList, isDict, isIdent, isQuot, isBlock, isBuiltin,
+  isMulti, isRecordT, isRecord, isThunk, isCallable, isFunction, nil,
+  false, true, bool, int, float, str, kwd, pair, list, dict, block,
+  dictLookup, mkPrim, mkBltn, defPrim, defMulti, truthy, retOrThrow,
+  recordTypeSig, underscored, digitParams, unKwds, recordToPairs
 ) where
 
 import Control.DeepSeq (deepseq, NFData(..))
 import Control.Exception (Exception, throw, throwIO)
 import Control.Monad (liftM, when)
+import Data.Bifunctor (bimap, second)
 import Data.Char (intToDigit, isPrint, ord)
 import Data.Data (Data, cast, gmapQ)
 import Data.Foldable (traverse_)
@@ -88,16 +89,21 @@ import Data.List (intercalate, maximum, sort)
 import Data.Maybe (catMaybes, isNothing)
 import Data.Monoid ((<>))
 import Data.String (IsString)
-import Data.Text.Lazy (Text)
+import Data.Text (Text)
 import GHC.Generics (Generic)
 import Numeric (showHex)
 import Prelude hiding (lookup)
 import System.IO.Unsafe (unsafeInterleaveIO)
 
+import qualified Data.Aeson as AE
 import qualified Data.HashMap.Strict as H
 import qualified Data.HashSet as S
 import qualified Data.HashTable.IO as HT
-import qualified Data.Text.Lazy as T
+import qualified Data.Text as T
+import qualified Data.Text.Encoding as E
+import qualified Data.Text.Lazy as LT
+import qualified Data.Text.Lazy.Encoding as LE
+import qualified Data.Vector as V
 import qualified Prelude as P
 
 import qualified Koneko.Misc as M
@@ -633,6 +639,41 @@ maybeToVal = flip maybe toVal
 eitherToVal :: ToVal a => KValue -> Either e a -> KValue
 eitherToVal = flip either toVal . const
 
+-- toJSON & fromJSON --
+
+toJSON :: KValue -> Either KException Text
+toJSON = second (LT.toStrict . LE.decodeUtf8 . AE.encode) . f --  TODO
+  where
+    f (KPrim KNil)        = Right AE.Null
+    f (KPrim (KBool x))   = Right $ AE.Bool x
+    f (KPrim (KInt x))    = Right $ AE.toJSON x
+    f (KPrim (KFloat x))  = Right $ AE.toJSON x
+    f (KPrim (KStr x))    = Right $ AE.toJSON x
+    f (KPrim (KKwd x))    = Right $ AE.toJSON $ unKwd x
+    f (KPair (Pair k v))  = f $ list [KPrim $ KKwd $ k, v]
+    f (KList (List x))    = second AE.toJSON $ traverse f x
+    f (KDict (Dict x))    = second AE.Object
+                          $ H.traverseWithKey (\_ v -> f v) $ x
+    f (KRecord x)         = f $ dict $ recordToPairs x ++
+                            [Pair (Kwd "__koneko_type__")
+                                  (str $ recName $ recType x)]
+    f x = Left $ Fail $ "json.<-: cannot convert " ++ typeAsStr x
+
+fromJSON :: Text -> Either KException KValue
+fromJSON  = bimap (Fail . ("json.<-: " ++)) f
+          . AE.eitherDecodeStrict' . E.encodeUtf8
+  where
+    f AE.Null         = nil
+    f (AE.Bool x)     = bool x
+    f x@(AE.Number _) = case AE.fromJSON x of
+                          AE.Success y    -> int y
+                          AE.Error _      -> case AE.fromJSON x of
+                            AE.Success y  -> float y
+                            AE.Error _    -> nil              --  TODO
+    f (AE.String x)   = str x
+    f (AE.Array  x)   = list $ map f $ V.toList x
+    f (AE.Object x)   = KDict $ Dict $ H.map f x
+
 -- Stack functions --
 
 emptyStack :: Stack
@@ -1021,5 +1062,10 @@ digitParams Block{..} = map (Ident_ . fst) $ take n parms     -- safe!
 
 unKwds :: [KValue] -> IO [Identifier]
 unKwds = retOrThrow . fmap (map unKwd) . fromVals
+
+recordToPairs :: Record -> [Pair]
+recordToPairs r
+  = [ Pair (Kwd k) v | (k, v) <- zip (recFields $ recType r)
+                                     (recValues r) ]
 
 -- vim: set tw=70 sw=2 sts=2 et fdm=marker :

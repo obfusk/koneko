@@ -53,9 +53,9 @@ common deps
     -- included w/ ghc:
     array, base >=4.9, bytestring, deepseq, directory, filepath, text,
     -- included w/ haskell-platform:
-    async, random, split, unordered-containers >=0.2.9.0,
+    async, random, split, unordered-containers >=0.2.9.0, vector,
     -- separate packages:
-    cmdargs, hashtables, megaparsec ==7.0.* || ==8.0.*,
+    aeson, cmdargs, hashtables, megaparsec ==7.0.* || ==8.0.*,
     regex-pcre >=0.94.0.0, safe, silently
 
   -- Directories containing source files.
@@ -84,6 +84,7 @@ library
     Koneko.Bltn
     Koneko.Data
     Koneko.Eval
+    Koneko.JSON
     Koneko.Math
     Koneko.Misc
     Koneko.Prim
@@ -115,6 +116,7 @@ executable koneko
     Koneko.Bltn
     Koneko.Data
     Koneko.Eval
+    Koneko.JSON
     Koneko.Math
     Koneko.Misc
     Koneko.Prim

@@ -2,7 +2,7 @@
 //
 //  File        : koneko.js
 //  Maintainer  : Felix C. Stegerman <flx@obfusk.net>
-//  Date        : 2020-11-10
+//  Date        : 2020-11-11
 //
 //  Copyright   : Copyright (C) 2020  Felix C. Stegerman
 //  Version     : v0.0.1
@@ -933,7 +933,8 @@ const show = x => {                                           //  {{{1
   }
 }                                                             //  }}}1
 
-const toJS = x => {                                           //  {{{1
+const toJS = (x, options = {}) => {                           //  {{{1
+  const opts = Object.assign({ useObj: false }, options)
   switch (x.type) {
     case "nil":
       return null
@@ -945,29 +946,40 @@ const toJS = x => {                                           //  {{{1
     case "str":
       return strVal(x)
     case "pair":
-      return [x.key.value, toJS(x.value)]
+      return [x.key.value, toJS(x.value, opts)]
     case "list":
-      return x.value.map(toJS)
+      return x.value.map(y => toJS(y, opts))
     case "dict":
-      return new Map(Array.from(x.value.entries(),
-        ([k, v]) => [k, toJS(v)]
-      ))
+      if (opts.useObj) {
+        const o = {}
+        for (const [k, v] of x.value.entries()) {
+          o[k] = toJS(v, opts)
+        }
+        return o
+      } else {
+        return new Map(Array.from(x.value.entries(),
+          ([k, v]) => [k, toJS(v, opts)]
+        ))
+      }
     case "record": {
       const o = { __koneko_type__: x.rectype.name }
       for (const [k, v] of zip(x.rectype.fields, x.values)) {
-        o[k] = toJS(v)
+        o[k] = toJS(v, opts)
       }
       return o
     }
     default:
-      throw new Error(`fromJS: cannot convert ${x.type}`)
+      throw new Error(`toJS: cannot convert ${x.type}`)
   }
 }                                                             //  }}}1
 
-const fromJS = x => {                                         //  {{{1
+const fromJS = (x, options = {}) => {                         //  {{{1
+  const opts = Object.assign({ useObj: false }, options)
   switch (typeof x) {
     case "boolean":
       return bool(x)
+    case "bigint":
+      return int(x)
     case "number":
       return (x == (x|0)) ? int(x) : float(x)
     case "string":
@@ -976,10 +988,14 @@ const fromJS = x => {                                         //  {{{1
       if (x === null) {
         return nil
       } else if (x instanceof Array) {
-        return list(x.map(fromJS))
+        return list(x.map(y => fromJS(y, opts)))
       } else if (x instanceof Map) {
         return dict(Array.from(x.entries(),
-          ([k, v]) => pair(kwd(k), fromJS(v))
+          ([k, v]) => pair(kwd(k), fromJS(v, opts))
+        ))
+      } else if (opts.useObj) {
+        return dict(Array.from(Object.entries(x),
+          ([k, v]) => pair(kwd(k), fromJS(v, opts))
         ))
       }
     default:
@@ -1484,6 +1500,44 @@ modules.set("math", new Map([                                 //  {{{1
   mkPF1("acosh",  Math.acosh),
   mkPF1("atanh",  Math.atanh),
   mkPrim("atan2", opF(Math.atan2)),
+].map(unprim)))                                               //  }}}1
+
+/* === json === */
+
+// NB: converting to JSON turns
+// * kwds into strs
+// * pairs into lists
+// * records into dicts
+
+modules.set("json", new Map([                                 //  {{{1
+  mkPrimPP("->", s => {
+    let x
+    try {
+      x = JSON.parse(strVal(s))
+    } catch (e) {
+      if (e instanceof SyntaxError) {
+        throw new KE(...E.Fail(`json.->: ${e.message}`))      //  TODO
+      } else {
+        throw e
+      }
+    }
+    return [fromJS(x, { useObj: true })]
+  }, "str"),
+  mkPrimPP("<-", x => {
+    let y
+    try {
+      y = toJS(x, { useObj: true })
+    } catch(e) {
+      if (e instanceof Error && e.message.startsWith("toJS: ")) {
+        const msg = e.message.slice(6)
+        throw new KE(...E.Fail(`json.<-: ${msg}`))            //  TODO
+      } else {
+        throw e
+      }
+    }
+    const replace = (k, v) => typeof v === "bigint" ? Number(v) : v
+    return [str(JSON.stringify(y, replace))]
+  }, "_"),
 ].map(unprim)))                                               //  }}}1
 
 /* === event loop === */

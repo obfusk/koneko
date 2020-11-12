@@ -2,7 +2,7 @@
 --
 --  File        : Koneko/Test.hs
 --  Maintainer  : Felix C. Stegerman <flx@obfusk.net>
---  Date        : 2020-01-31
+--  Date        : 2020-11-11
 --
 --  Copyright   : Copyright (C) 2020  Felix C. Stegerman
 --  Version     : v0.0.1
@@ -26,7 +26,7 @@ import Control.Monad (unless, when)
 import Data.Char (isSpace)
 import Data.Foldable (foldl', traverse_)
 import Data.Monoid((<>))
-import Data.Text.Lazy (Text)
+import Data.Text (Text)
 import Prelude hiding (exp, fail)
 import System.Console.CmdArgs.Verbosity (Verbosity(..), getVerbosity)
 import System.Directory (getTemporaryDirectory, removeFile)
@@ -34,8 +34,8 @@ import System.Exit (exitFailure)
 import System.FilePath (takeExtension)
 import System.IO (Handle)
 
-import qualified Data.Text.Lazy as T
-import qualified Data.Text.Lazy.IO as T
+import qualified Data.Text as T
+import qualified Data.Text.IO as T
 import qualified System.IO as IO
 import qualified System.IO.Silently as S
 

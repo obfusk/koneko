@@ -2,7 +2,7 @@
 --
 --  File        : Koneko/Eval.hs
 --  Maintainer  : Felix C. Stegerman <flx@obfusk.net>
---  Date        : 2020-02-06
+--  Date        : 2020-11-11
 --
 --  Copyright   : Copyright (C) 2020  Felix C. Stegerman
 --  Version     : v0.0.1
@@ -55,7 +55,7 @@ import Data.Char (ord)
 import Data.List hiding (lookup)
 import Data.List.Split (wordsBy)
 import Data.Monoid((<>))
-import Data.Text.Lazy (Text)
+import Data.Text (Text)
 import Prelude hiding (lookup)
 import Safe (atMay)
 import System.Directory (doesFileExist)
@@ -65,8 +65,8 @@ import System.IO (hPutStrLn, stderr)
 
 import qualified Data.HashMap.Strict as H
 import qualified Data.HashTable.IO as HT
-import qualified Data.Text.Lazy as T
-import qualified Data.Text.Lazy.IO as T
+import qualified Data.Text as T
+import qualified Data.Text.IO as T
 
 import Koneko.Data hiding (bool)
 import Koneko.Misc (firstJust)
@@ -75,6 +75,7 @@ import Paths_koneko (getDataFileName)
 import qualified Koneko.Read as R
 
 import qualified Koneko.Bltn as Bltn
+import qualified Koneko.JSON as JSON
 import qualified Koneko.Math as Math
 import qualified Koneko.Prim as Prim
 import qualified Koneko.Prld as Prld
@@ -395,6 +396,7 @@ initContext = do
   Prim.initCtx ctx load call apply apply_dict callBlock
   Bltn.initCtx ctx call
   Prld.initCtx ctx load
+  JSON.initCtx ctx
   Math.initCtx ctx
   return ctx
 

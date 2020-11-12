@@ -24,7 +24,7 @@ defs_hs () {
     | grep -Ev ':(([A-Z].*|[0-9]T)\?$|[~^]([A-Z].*|[0-9]T)$)'
 }
 
-for mod in __prim__ __bltn__ __prld__ math; do
+for mod in __prim__ __bltn__ __prld__ json math; do
   echo "==> $mod"
   exp="$(mod_defs "$mod")"
   fmt_wc "$exp"

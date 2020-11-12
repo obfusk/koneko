@@ -2,7 +2,7 @@
 --
 --  File        : Main.hs
 --  Maintainer  : Felix C. Stegerman <flx@obfusk.net>
---  Date        : 2020-01-10
+--  Date        : 2020-11-11
 --
 --  Copyright   : Copyright (C) 2020  Felix C. Stegerman
 --  Version     : v0.0.1
@@ -21,7 +21,7 @@ import Data.Monoid ((<>))
 import Data.Version (showVersion)
 import System.Console.CmdArgs hiding (args)
 
-import qualified Data.Text.Lazy as T
+import qualified Data.Text as T
 import qualified System.Console.CmdArgs as CA
 
 import Koneko.Data (defineIn, emptyStack, list, true)
