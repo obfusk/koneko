@@ -2,7 +2,7 @@
 ;
 ; File        : prelude.knk
 ; Maintainer  : Felix C. Stegerman <flx@obfusk.net>
-; Date        : 2020-11-10
+; Date        : 2020-11-11
 ;
 ; Copyright   : Copyright (C) 2020  Felix C. Stegerman
 ; Version     : v0.0.1
@@ -558,6 +558,20 @@
 :when   [ []     if ] def
 :when1  [ 'drop  if ] def
 :when2  [ '2drop if ] def
+
+; [ ... ] unless ⇔ not [ ... ] when
+;
+; >>> 1 1 = [ "oh no!" say! ] unless                  ; -0 +0 = 0
+; >>> 1 2 = [ "good!"  say! ] unless
+; good!
+; >>> 2 2 2dup = '+ unless1                           ; -2 +1 = 1
+; 2
+; >>> 1 2 3 2dup = [ + * ] unless2                    ; -3 +1 = 2
+; 5
+
+:unless   [ []     swap if ] def
+:unless1  [ 'drop  swap if ] def
+:unless2  [ '2drop swap if ] def
 
 ; predicate "branch"
 ;
@@ -1861,7 +1875,7 @@
 :seq-slice    [ i j s .
                 'i [] 'drop-first ~nil
                 'j [] [ 'i 0 or - take-first ] ~nil
-                's 1 not= [ 's take-nth ] when
+                's 1 = [ 's take-nth ] unless
               ] def                                             ; TODO
 
 ; get value at key/index & membership test
@@ -2237,7 +2251,7 @@
 ; >>> [ 1 2 = ] assert
 ; *** ERROR: assert failed: [ 1 2 = ]
 
-:assert [ b . b not [ "assert failed: " 'b ->str ++ fail ] when ] def
+:assert [ b . b [ "assert failed: " 'b ->str ++ fail ] unless ] def
 
                                                                 ; }}}1
 
@@ -2433,7 +2447,7 @@
 ; >>> , :no-such-module [] defmodule                  ; ^^'
 ; >>> , :no-such-module require
 
-:require [ dup __modules__ !elem? not '__load-module__ when1 ] def
+:require [ dup __modules__ !elem? '__load-module__ unless1 ] def
 
 ; use module (require + import(-from))
 ;
