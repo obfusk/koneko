@@ -2087,6 +2087,20 @@
 
 :=~ ( :str :str ) [ rx-match bool ] defmulti                    ; TODO
 
+; ; all matches
+; ;
+; ; >>> "foo" "o" rx-matches
+; ; ( "o" "o" )
+; ; >>> "abcde" "." rx-matches
+; ; ( "a" "b" "c" "d" "e" )
+; ; >>> "foo
+;
+; :rx-matches [ r . () swap [ dup 'r rx-match [ drop #f ] [
+;                 [ 1list swap '++ dip ]
+;                 [ 1st [ over !index ] 'len bi + 1 max [i-) ] bi
+;                 dup .empty? [ drop #f ] [ #t ] if
+;             ] ~nil ] loop ] def
+
 ; filter using =~
 ;
 ; >>> ( "one" "two" "three" ) "^o|ee" grep ->list
