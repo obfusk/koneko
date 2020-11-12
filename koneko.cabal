@@ -84,6 +84,7 @@ library
     Koneko.Bltn
     Koneko.Data
     Koneko.Eval
+    Koneko.IO
     Koneko.JSON
     Koneko.Math
     Koneko.Misc
@@ -116,6 +117,7 @@ executable koneko
     Koneko.Bltn
     Koneko.Data
     Koneko.Eval
+    Koneko.IO
     Koneko.JSON
     Koneko.Math
     Koneko.Misc

@@ -2,7 +2,7 @@
 //
 //  File        : koneko.js
 //  Maintainer  : Felix C. Stegerman <flx@obfusk.net>
-//  Date        : 2020-11-11
+//  Date        : 2020-11-12
 //
 //  Copyright   : Copyright (C) 2020  Felix C. Stegerman
 //  Version     : v0.0.1
@@ -445,9 +445,10 @@ const popArgs = (s0, params) => {
   return [zip(params, vs), s1]
 }
 
-const popPush = (f, ...parms) => (c, s0) => {
-  const [args, s1] = stack.pop(s0, ...parms)
-  return stack.push(s1, ...f(...args))
+const popPush = (f, ...parms) => async (c, s0) => {
+  const [args, s1]  = stack.pop(s0, ...parms)
+  const results     = await f(...args)
+  return stack.push(s1, ...results)
 }
 
 const pop2push = f => popPush(f, "_", "_")
@@ -1474,38 +1475,38 @@ const compose = (f, g) => block([], ["f", "g"].map(ident),
 const partial = (x, f) => block([], [quot("x"), ident("f")],
   { module: null, table: new Map([["x", x], ["f", f]]) }, "$")
 
-/* === math === */
+/* === io === */
 
-const mkPF1 = (name, op) => mkPrim(name, opF1(op))
-
-modules.set("math", new Map([                                 //  {{{1
-  mkPrimPP("sign",
-    n => [n.type == "int" ? int((n.value > 0) - (n.value < 0)) :
-          float(Math.sign(n.value))], "int or float"
-  ),
-  mkPrim("^",     opI((x, y) => {
-    if (y < 0) { throw new KE(...E.RangeError("negative exponent")) }
-    return x ** y
-  })),
-  mkPrim("**",    opF(Math.pow)),
-  mkPrimPP("pi",  () => [float(Math.PI)]),
-  mkPF1("exp",    Math.exp),
-  mkPF1("log",    Math.log),
-  mkPF1("sqrt",   Math.sqrt),
-  mkPF1("sin",    Math.sin),
-  mkPF1("cos",    Math.cos),
-  mkPF1("tan",    Math.tan),
-  mkPF1("asin",   Math.asin),
-  mkPF1("acos",   Math.acos),
-  mkPF1("atan",   Math.atan),
-  mkPF1("sinh",   Math.sinh),
-  mkPF1("cosh",   Math.cosh),
-  mkPF1("tanh",   Math.tanh),
-  mkPF1("asinh",  Math.asinh),
-  mkPF1("acosh",  Math.acosh),
-  mkPF1("atanh",  Math.atanh),
-  mkPrim("atan2", opF(Math.atan2)),
-].map(unprim)))                                               //  }}}1
+// TODO
+// NB: node.js only
+if (_req) {
+  modules.set("io", new Map([                                 //  {{{1
+    mkPrimPP("contents!", async s => {
+      try {
+        const contents = await readFile(strVal(s))
+        return [str(contents)]
+      } catch (e) {
+        if (e instanceof Error) {
+          throw new KE(...E.Fail(`io.contents!: ${e.message}`)) // TODO
+        } else {
+          throw e
+        }
+      }
+    }, "str"),
+    mkPrimPP("lines!", async s => {
+      try {
+        const lines = await fileLines(strVal(s))
+        return [list(lines.map(([i, l]) => str(l)))]
+      } catch (e) {
+        if (e instanceof Error) {
+          throw new KE(...E.Fail(`io.lines!: ${e.message}`))  //  TODO
+        } else {
+          throw e
+        }
+      }
+    }, "str"),
+  ].map(unprim)))                                             //  }}}1
+}
 
 /* === json === */
 
@@ -1543,6 +1544,39 @@ modules.set("json", new Map([                                 //  {{{1
     const replace = (k, v) => typeof v === "bigint" ? Number(v) : v
     return [str(JSON.stringify(y, replace))]
   }, "_"),
+].map(unprim)))                                               //  }}}1
+
+/* === math === */
+
+const mkPF1 = (name, op) => mkPrim(name, opF1(op))
+
+modules.set("math", new Map([                                 //  {{{1
+  mkPrimPP("sign",
+    n => [n.type == "int" ? int((n.value > 0) - (n.value < 0)) :
+          float(Math.sign(n.value))], "int or float"
+  ),
+  mkPrim("^",     opI((x, y) => {
+    if (y < 0) { throw new KE(...E.RangeError("negative exponent")) }
+    return x ** y
+  })),
+  mkPrim("**",    opF(Math.pow)),
+  mkPrimPP("pi",  () => [float(Math.PI)]),
+  mkPF1("exp",    Math.exp),
+  mkPF1("log",    Math.log),
+  mkPF1("sqrt",   Math.sqrt),
+  mkPF1("sin",    Math.sin),
+  mkPF1("cos",    Math.cos),
+  mkPF1("tan",    Math.tan),
+  mkPF1("asin",   Math.asin),
+  mkPF1("acos",   Math.acos),
+  mkPF1("atan",   Math.atan),
+  mkPF1("sinh",   Math.sinh),
+  mkPF1("cosh",   Math.cosh),
+  mkPF1("tanh",   Math.tanh),
+  mkPF1("asinh",  Math.asinh),
+  mkPF1("acosh",  Math.acosh),
+  mkPF1("atanh",  Math.atanh),
+  mkPrim("atan2", opF(Math.atan2)),
 ].map(unprim)))                                               //  }}}1
 
 /* === event loop === */
@@ -1613,7 +1647,7 @@ const readFile = fname => new Promise((resolve, reject) => {
 // TODO
 // NB: node.js only; Promise
 const fileLines = fname => readFile(fname).then(
-  text => text.split("\n").map((line, i) => [i+1, line])
+  text => text.replace(/\n$/, "").split("\n").map((line, i) => [i+1, line])
 )
 
 // NB: Promise

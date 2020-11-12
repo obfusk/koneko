@@ -2,7 +2,7 @@
 
     File        : doc/10-standard-library.md
     Maintainer  : Felix C. Stegerman <flx@obfusk.net>
-    Date        : 2020-11-11
+    Date        : 2020-11-12
 
     Copyright   : Copyright (C) 2020  Felix C. Stegerman
     Version     : v0.0.1
@@ -16,7 +16,22 @@
 
 ## Standard Library
 
-→ [JSON](#json), → [Math](#math), → [Str](#str), ...
+→ [IO](#io), → [JSON](#json), → [Math](#math), → [Str](#str), ...
+
+### IO
+
+**NB: work in progress.**
+
+NB: the `io` module is built-in (and does not need to be `require`d or
+`use`d; it can of course still be `import`ed).
+
+```koneko
+>>> "lib/_test.knk" io.contents! 24 [-j)    ; file contents
+"\"loading module _test..."
+>>> , "lib/_test.knk" io.lines!             ; file lines
+>>> , "loading" grep 'say! each
+"loading module _test..." say!
+```
 
 ### JSON
 
