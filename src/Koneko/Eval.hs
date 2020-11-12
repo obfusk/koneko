@@ -192,6 +192,7 @@ callStr x _ s = do
                     maybe err (rpush1 s2) $ indexT x i
     "has?"    ->  pr $ pop1push1 $ has lengthT x
     "elem?"   ->  pr $ pop1push1 (`T.isInfixOf` x)
+    "index"   ->  pr $ pop1push1 (`indexOf` x)
     _         ->  throwIO $ UnknownField (T.unpack op) "str"
 
 callPair :: Pair -> Evaluator
@@ -436,6 +437,13 @@ slice :: Num a => (a -> b -> b) -> (a -> b -> b)
 slice tak drp i j _ ll l = tak (f j - i') $ drp i' l
   where
     f n = fromInteger $ if n < 0 then ll + n else n; i' = f i
+
+indexOf :: Text -> Text -> Maybe Integer
+indexOf s = f 0
+  where
+    f i t | s `T.isPrefixOf` t  = Just i
+    f _ ""                      = Nothing
+    f i t                       = f (i+1) $ T.tail t
 
 nilToDef :: FromVal a => KValue -> a -> IO a
 nilToDef x d = if isNil x then return d else retOrThrow $ fromVal x

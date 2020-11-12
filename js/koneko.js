@@ -565,6 +565,11 @@ const call = (c0, s0, tailPos = false) => {                   //  {{{1
           return p(y =>
             [bool(strVal(x).includes(strVal(y)))], "str"
           )
+        case "index":
+          return p(y => {
+            const i = strVal(x).indexOf(strVal(y))
+            return [i == -1 ? nil : int(i)]
+          }, "str")
         default:
           throw new KE(...E.UnknownField(op, x.type))
       }
