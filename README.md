@@ -2,7 +2,7 @@
 
     File        : README.md
     Maintainer  : Felix C. Stegerman <flx@obfusk.net>
-    Date        : 2020-11-10
+    Date        : 2020-11-12
 
     Copyright   : Copyright (C) 2020  Felix C. Stegerman
     Version     : v0.0.1
@@ -509,8 +509,9 @@ The JavaScript implementation requires Node.js.
 ### Debian
 
 ```bash
-$ apt install haskell-platform libghc-cmdargs-dev libghc-doctest-dev \
-  libghc-hashtables-dev libghc-megaparsec-dev libghc-regex-pcre-dev \
+$ apt install haskell-platform libghc-aeson-dev \
+  libghc-cmdargs-dev libghc-doctest-dev libghc-hashtables-dev \
+  libghc-megaparsec-dev libghc-regex-pcre-dev \
   libghc-safe-dev libghc-silently-dev         # Haskell version
 $ apt install nodejs                          # Node.js version
 $ apt install rlwrap                          # (readline support)
