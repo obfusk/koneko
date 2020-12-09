@@ -2,7 +2,7 @@
 //
 //  File        : koneko.js
 //  Maintainer  : Felix C. Stegerman <flx@obfusk.net>
-//  Date        : 2020-11-12
+//  Date        : 2020-12-09
 //
 //  Copyright   : Copyright (C) 2020  Felix C. Stegerman
 //  Version     : v0.0.1
@@ -568,8 +568,13 @@ const call = (c0, s0, tailPos = false) => {                   //  {{{1
           )
         case "index":
           return p(y => {
-            const i = strVal(x).indexOf(strVal(y))
-            return [i == -1 ? nil : int(i)]
+            if (!y.list.length) return [int(0)]
+            for (let i = 0; i < xl.length; ++i) {
+              if (i + y.list.length >= xl.length) break
+              const zl = xl.slice(i, i + y.list.length)
+              if (eqArray(zl, y.list, eqPrim)) return [int(i)]
+            }
+            return [nil]
           }, "str")
         default:
           throw new KE(...E.UnknownField(op, x.type))
