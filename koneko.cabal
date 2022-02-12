@@ -8,7 +8,7 @@ name:                koneko
 -- PVP summary:      +-+------- breaking API changes
 --                   | | +----- non-breaking API additions
 --                   | | | +--- code changes with no API change
-version:             0.0.1
+version:             0.0.2
 
 -- A short (one-line) description of the package.
 synopsis:            a concatenative not-quite-lisp for kittens
@@ -51,7 +51,8 @@ common deps
   -- Other library packages from which modules are imported.
   build-depends:
     -- included w/ ghc:
-    array, base >=4.9, bytestring, deepseq, directory, filepath, text,
+    array, base >=4.9 && <4.15, bytestring, deepseq, directory,
+    filepath, text,
     -- included w/ haskell-platform:
     async, random, split, unordered-containers >=0.2.9.0, vector,
     -- separate packages:
