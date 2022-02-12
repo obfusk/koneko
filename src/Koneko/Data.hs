@@ -2,14 +2,15 @@
 --
 --  File        : Koneko/Data.hs
 --  Maintainer  : Felix C. Stegerman <flx@obfusk.net>
---  Date        : 2020-11-11
+--  Date        : 2022-02-12
 --
---  Copyright   : Copyright (C) 2020  Felix C. Stegerman
+--  Copyright   : Copyright (C) 2022  Felix C. Stegerman
 --  Version     : v0.0.1
 --  License     : GPLv3+
 --
 --  --                                                          ; }}}1
 
+{-# LANGUAGE CPP #-}
 {-# LANGUAGE DeriveAnyClass, DeriveGeneric, DeriveDataTypeable #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE NamedFieldPuns #-}
@@ -85,15 +86,19 @@ import Data.Char (intToDigit, isPrint, ord)
 import Data.Data (Data, cast, gmapQ)
 import Data.Foldable (traverse_)
 import Data.Functor.Classes (liftCompare, liftCompare2)
-import Data.List (intercalate, maximum, sort)
+import Data.List (intercalate, sort)
 import Data.Maybe (catMaybes, isNothing)
-import Data.Monoid ((<>))
 import Data.String (IsString)
 import Data.Text (Text)
 import GHC.Generics (Generic)
 import Numeric (showHex)
 import Prelude hiding (lookup)
 import System.IO.Unsafe (unsafeInterleaveIO)
+
+#if !MIN_VERSION_GLASGOW_HASKELL(8, 8, 1, 0)
+import Data.List (maximum)
+import Data.Monoid ((<>))
+#endif
 
 import qualified Data.Aeson as AE
 import qualified Data.HashMap.Strict as H

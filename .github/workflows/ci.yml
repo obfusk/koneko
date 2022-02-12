@@ -3,7 +3,7 @@ on: [push, pull_request, workflow_dispatch]
 jobs:
   build:
     runs-on: ubuntu-latest
-    continue-on-error: ${{ matrix.warnings == 'error' }}
+    # continue-on-error: ${{ matrix.warnings == 'error' }}
     strategy:
       matrix:
         version:
@@ -13,7 +13,7 @@ jobs:
         - { ghc: '8.8.4'  , cabal: '3.0'  }  # unstable
         - { ghc: '8.10.2' , cabal: '3.0'  }  # experimental
         - { ghc: latest   , cabal: latest }
-        warnings: [default, error]
+        # warnings: [default, error]
     steps:
     - uses: actions/checkout@v2
     - name: Set up GHC ${{ matrix.version.ghc }}
@@ -43,17 +43,17 @@ jobs:
         (
           set -xe
           node --version
-          if [ "$WARNINGS" = error ]; then
-            sed -i 's/-fno-warn-unused-imports//' koneko.cabal
-            make cabal_build || {
-              sed -i 's/-Werror//' koneko.cabal
-              make cabal_build
-              false
-            }
-          else
-            make cabal_build
-          fi
+          # if [ "$WARNINGS" = error ]; then
+          #   sed -i 's/-fno-warn-unused-imports//' koneko.cabal
+          #   make cabal_build || {
+          #     sed -i 's/-Werror//' koneko.cabal
+          #     make cabal_build
+          #     false
+          #   }
+          # else
+          make cabal_build
+          # fi
           make test
         )
-      env:
-        WARNINGS: ${{ matrix.warnings }}
+      # env:
+      #   WARNINGS: ${{ matrix.warnings }}

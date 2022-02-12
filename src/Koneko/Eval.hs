@@ -2,14 +2,15 @@
 --
 --  File        : Koneko/Eval.hs
 --  Maintainer  : Felix C. Stegerman <flx@obfusk.net>
---  Date        : 2020-11-12
+--  Date        : 2022-02-12
 --
---  Copyright   : Copyright (C) 2020  Felix C. Stegerman
+--  Copyright   : Copyright (C) 2022  Felix C. Stegerman
 --  Version     : v0.0.1
 --  License     : GPLv3+
 --
 --  --                                                          ; }}}1
 
+{-# LANGUAGE CPP #-}
 {-# LANGUAGE NoMonomorphismRestriction #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE RecordWildCards #-}
@@ -54,7 +55,6 @@ import Data.Bool (bool)
 import Data.Char (ord)
 import Data.List hiding (lookup)
 import Data.List.Split (wordsBy)
-import Data.Monoid((<>))
 import Data.Text (Text)
 import Prelude hiding (lookup)
 import Safe (atMay)
@@ -62,6 +62,10 @@ import System.Directory (doesFileExist)
 import System.Environment (lookupEnv)
 import System.FilePath ((</>))
 import System.IO (hPutStrLn, stderr)
+
+#if !MIN_VERSION_GLASGOW_HASKELL(8, 8, 1, 0)
+import Data.Monoid((<>))
+#endif
 
 import qualified Data.HashMap.Strict as H
 import qualified Data.HashTable.IO as HT

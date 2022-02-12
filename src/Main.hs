@@ -2,14 +2,15 @@
 --
 --  File        : Main.hs
 --  Maintainer  : Felix C. Stegerman <flx@obfusk.net>
---  Date        : 2020-11-11
+--  Date        : 2022-02-12
 --
---  Copyright   : Copyright (C) 2020  Felix C. Stegerman
+--  Copyright   : Copyright (C) 2022  Felix C. Stegerman
 --  Version     : v0.0.1
 --  License     : GPLv3+
 --
 --  --                                                          ; }}}1
 
+{-# LANGUAGE CPP #-}
 {-# LANGUAGE DeriveDataTypeable #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE RecordWildCards #-}
@@ -17,9 +18,12 @@
 module Main (main) where
 
 import Control.Monad (when)
-import Data.Monoid ((<>))
 import Data.Version (showVersion)
 import System.Console.CmdArgs hiding (args)
+
+#if !MIN_VERSION_GLASGOW_HASKELL(8, 8, 1, 0)
+import Data.Monoid((<>))
+#endif
 
 import qualified Data.Text as T
 import qualified System.Console.CmdArgs as CA

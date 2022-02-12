@@ -10,6 +10,7 @@
 --
 --  --                                                          ; }}}1
 
+{-# LANGUAGE CPP #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE RecordWildCards #-}
@@ -27,13 +28,16 @@ import Data.Char (chr, isDigit)
 import Data.Data (toConstr)
 import Data.Foldable (traverse_)
 import Data.List (isSuffixOf, sort)
-import Data.Monoid ((<>))
 import Data.Text (Text)
 import Data.Version (showVersion, versionBranch)
 import Prelude hiding (lookup)
 import System.Directory (listDirectory)
 import System.FilePath ((</>))
 import System.Random (getStdRandom, randomR)
+
+#if !MIN_VERSION_GLASGOW_HASKELL(8, 8, 1, 0)
+import Data.Monoid ((<>))
+#endif
 
 import qualified Control.Exception as E
 import qualified Data.Array as A

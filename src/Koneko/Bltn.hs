@@ -2,21 +2,25 @@
 --
 --  File        : Koneko/Bltn.hs
 --  Maintainer  : Felix C. Stegerman <flx@obfusk.net>
---  Date        : 2020-02-02
+--  Date        : 2022-02-12
 --
---  Copyright   : Copyright (C) 2020  Felix C. Stegerman
+--  Copyright   : Copyright (C) 2022  Felix C. Stegerman
 --  Version     : v0.0.1
 --  License     : GPLv3+
 --
 --  --                                                          ; }}}1
 
+{-# LANGUAGE CPP #-}
 {-# LANGUAGE OverloadedStrings #-}
 
 module Koneko.Bltn (initCtx) where
 
 import Data.Foldable (traverse_)
 import Data.Maybe (fromJust) -- careful!
+
+#if !MIN_VERSION_GLASGOW_HASKELL(8, 8, 1, 0)
 import Data.Monoid ((<>))
+#endif
 
 import qualified Data.HashMap.Strict as H
 

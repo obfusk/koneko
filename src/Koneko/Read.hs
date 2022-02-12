@@ -2,14 +2,15 @@
 --
 --  File        : Koneko/Read.hs
 --  Maintainer  : Felix C. Stegerman <flx@obfusk.net>
---  Date        : 2020-11-11
+--  Date        : 2022-02-12
 --
---  Copyright   : Copyright (C) 2020  Felix C. Stegerman
+--  Copyright   : Copyright (C) 2022  Felix C. Stegerman
 --  Version     : v0.0.1
 --  License     : GPLv3+
 --
 --  --                                                          ; }}}1
 
+{-# LANGUAGE CPP #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE RecordWildCards #-}
 
@@ -38,14 +39,18 @@ module Koneko.Read (read, read') where
 
 import Control.Exception (throw)
 import Control.Monad (replicateM)
-import Control.Monad.Fail (MonadFail)
 import Data.Functor
-import Data.List (foldl', init)
+import Data.List (foldl')
 import Data.Maybe (fromJust) -- careful!
 import Data.Text (Text)
 import Prelude hiding (quot, read)
 import Text.Megaparsec
 import Text.Megaparsec.Char
+
+#if !MIN_VERSION_GLASGOW_HASKELL(8, 8, 1, 0)
+import Control.Monad.Fail (MonadFail)
+import Data.List (init)
+#endif
 
 import qualified Data.Char as C
 import qualified Data.Text as T
