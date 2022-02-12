@@ -2,9 +2,9 @@
 --
 --  File        : Koneko/Repl.hs
 --  Maintainer  : Felix C. Stegerman <flx@obfusk.net>
---  Date        : 2020-11-11
+--  Date        : 2022-02-12
 --
---  Copyright   : Copyright (C) 2020  Felix C. Stegerman
+--  Copyright   : Copyright (C) 2022  Felix C. Stegerman
 --  Version     : v0.0.1
 --  License     : GPLv3+
 --
@@ -49,7 +49,7 @@ repl' breakOnError pr ctx st = replDef ctx >> loop ctx st
                           if breakOnError then return s else loop c s
           either err (loop c) r
     showTop c line s = s <$ unless (shouldSkip s line)
-      (() <$ et "__prld__.show __say!__" c (take 1 s))        --  TODO
+      (() <$ et "__prld__.show __prld__.say!" c (take 1 s))   --  TODO
     et = evalText "(repl)"
 
 shouldSkip :: Stack -> Text -> Bool

@@ -2,9 +2,9 @@
 //
 //  File        : koneko.js
 //  Maintainer  : Felix C. Stegerman <flx@obfusk.net>
-//  Date        : 2020-12-09
+//  Date        : 2022-02-12
 //
-//  Copyright   : Copyright (C) 2020  Felix C. Stegerman
+//  Copyright   : Copyright (C) 2022  Felix C. Stegerman
 //  Version     : v0.0.1
 //  License     : GPLv3+
 //
@@ -147,7 +147,7 @@ const scope = {                                               //  {{{1
   define: (c, k, v) => {
     const m = modules.get(c.module)
     if (c.module != "__main__" && m.has(k)) {
-      putErr(`warning: redefining ${c.module}.${k}`)          //  TODO
+      putErr(`warning: redefining ${c.module}.${k}\n`)        //  TODO
     }
     m.set(k, v)
   },
@@ -498,7 +498,7 @@ class Eval {
 // TODO
 // NB: maybe Promise, maybe Eval (if tailPos)
 const call = (c0, s0, tailPos = false) => {                   //  {{{1
-  debug(c0, () => putErr("*** call ***"))
+  debug(c0, () => putErr("*** call ***\n"))
   const [[x], s1] = stack.pop(s0, "_"), xv = x.value
   const popOp = () => {
     const [[k], s2] = stack.pop(s1, "kwd")
@@ -719,7 +719,7 @@ const call = (c0, s0, tailPos = false) => {                   //  {{{1
 // TODO
 // NB: maybe Promise
 const apply = (c0, s0) => {                                   //  {{{1
-  debug(c0, () => putErr("*** apply ***"))
+  debug(c0, () => putErr("*** apply ***\n"))
   const [[x], s1] = stack.pop(s0, "_"), xv = x.value
   switch (x.type) {
     case "block": {
@@ -752,7 +752,7 @@ const apply = (c0, s0) => {                                   //  {{{1
 // TODO
 // NB: maybe Promise
 const apply_dict = (c0, s0) => {                              //  {{{1
-  debug(c0, () => putErr("*** apply-dict ***"))
+  debug(c0, () => putErr("*** apply-dict ***\n"))
   const [[x], s1] = stack.pop(s0, "_"), xv = x.value
   switch (x.type) {
     case "block": {
@@ -797,16 +797,16 @@ const evaluate = x => {                                       //  {{{1
       if (c._meta && c._meta.abort) { throw new Error("ABORT") }
       const f = code[i]
       debug(c, () => {
-        putErr(`==> eval ${show(f)}`)
-        putErr("--> " + s.map(show).join(" "))
+        putErr(`==> eval ${show(f)}\n`)
+        putErr(`--> ${s.map(show).join(" ")}\n`)
       })
       s = await f.run(c, s)
-      debug(c, () => putErr("<-- " + (s.it || s).map(show).join(" ")))
+      debug(c, () => putErr(`<-- ${(s.it || s).map(show).join(" ")}\n`))
       if (s instanceof Defer) {
         const tailPos = i == code.length - 1
         s = await call(c, s.it, tailPos)
         if (tailPos && s instanceof Eval) {
-          debug(c, () => putErr("*** tail call ***"))
+          debug(c, () => putErr("*** tail call ***\n"))
           code = comp(s.block); c = scope.switch(c, s.scope)
           s = s.stack; i = -1
         }
@@ -1209,7 +1209,7 @@ modules.set("__prim__", new Map([                             //  {{{1
   }, "list"),
   mkPrim("__swap__", pop2push((x, y) => [y, x])),
   mkPrimPP("__show__", x => [str(show(x))], "_"),
-  mkPrimPP("__say!__", x => { say(strVal(x)); return [] }, "str"),
+  mkPrimPP("__puts!__", x => { puts(strVal(x)); return [] }, "str"),
   mkPrim("__ask!__", (c, s0) => {
     const [[x], s1] = stack.pop(s0, "str or nil")
     const p = maybeK(strVal, x)
@@ -1404,13 +1404,16 @@ modules.set("__prim__", new Map([                             //  {{{1
     return stack.push(s, list([v, t, p]))
   }),
   mkPrim("__show-stack!__", async (c, s) => {
-    say("--- STACK ---")
-    for (const x of stack.toArray(s)) { say(await prld_show(x)) }
-    say("---  END  ---")
+    puts("--- STACK ---\n")
+    for (const x of stack.toArray(s)) {
+      const y = await prld_show(x)
+      puts(y + "\n")
+    }
+    puts("---  END  ---\n")
     return s
   }),
   mkPrim("__clear-stack!__", (c, s) => {
-    say("*** STACK CLEARED ***")
+    puts("*** STACK CLEARED ***\n")
     return stack.new()
   }),
   mkPrim("__nya!__", (c, s) => nya().then(() => s)),
@@ -1716,8 +1719,8 @@ const platform = () => {
 /* === output === */
 
 // NB: node.js only
-const putOut = (s = "", end = "\n") => process.stdout.write(s + end)
-const putErr = (s = "", end = "\n") => process.stderr.write(s + end)
+const putOut = s => process.stdout.write(s)
+const putErr = s => process.stderr.write(s)
 
 /* === input === */
 
@@ -1790,7 +1793,7 @@ const repl = async (verbose = false, c = scope.new()) => {    //  {{{1
   if (verbose) { scope.define(c, "__debug__", T) }
   const f = async () => {
     const line = await read_line(">>> ")
-    if (line == null) { putOut(); return }
+    if (line == null) { putOut("\n"); return }
     s = await repl_process_line(line, c, s, process.stdout, process.stderr)
     await f()
   }
@@ -1814,13 +1817,13 @@ const testFiles = async (files, vbs = false, cov = false) => { // {{{1
   for (const [fname, lines] of fs) {
     const md      = /\.md$/u.test(fname)
     const test    = md ? testMarkdownFile : testKonekoFile
-    putOut(`=== Testing ${fname} (${md ? "markdown" : "koneko"}) ===`)
+    putOut(`=== Testing ${fname} (${md ? "markdown" : "koneko"}) ===\n`)
     const [t,o,f] = await test(fname, lines, vbs)
     total += t; ok += o; fail += f
-    putOut()
+    putOut("\n")
   }
-  putOut("=== Summary ===")
-  putOut(`Files: ${files.length}.`)
+  putOut("=== Summary ===\n")
+  putOut(`Files: ${files.length}.\n`)
   printTestSummary(total, ok, fail)
   if (cov) { coverageReport() }
   return [total, ok, fail]
@@ -1844,7 +1847,7 @@ const coverageMonkeyPatch = () => {                           //  {{{1
 // TODO: select which modules w/ option
 const coverageReport = () => {                                //  {{{1
   const blacklist = ["__main__", "_test", "foo", "no-such-module"]
-  putOut("\n=== Coverage ===")
+  putOut("\n=== Coverage ===\n")
   for (const [mn, mo] of [...modules.entries()].sort()) {
     if (blacklist.includes(mn)) { continue }
     let uncov = [...mo.entries()].sort()
@@ -1853,9 +1856,9 @@ const coverageReport = () => {                                //  {{{1
       uncov = uncov.filter(k => !modules.get("__bltn__").has(k))
     }
     const n = mo.size - uncov.length, p = Math.round(n / mo.size * 100)
-    putOut(`Module: ${mn} (${n}/${mo.size}, ${p}%)`)
-    if (uncov.length) { putOut(`Uncovered: ${uncov.join(" ")}.`) }
-    putOut()
+    putOut(`Module: ${mn} (${n}/${mo.size}, ${p}%)\n`)
+    if (uncov.length) { putOut(`Uncovered: ${uncov.join(" ")}.\n`) }
+    putOut("\n")
   }
 }                                                             //  }}}1
 
@@ -1928,7 +1931,7 @@ const testExamples = async (es, verbose = false) => {         //  {{{1
     total += t; ok += o; fail += f
   }
   if (verbose) {
-    putOut("=== Summary ===")
+    putOut("=== Summary ===\n")
     printTestSummary(total, ok, fail)
   }
   return [total, ok, fail]
@@ -1936,13 +1939,13 @@ const testExamples = async (es, verbose = false) => {         //  {{{1
 
 // NB: Promise
 const testExampleGroup = async (g, verbose = false) => {      //  {{{1
-  const wr = l => ({ write: s => l.push(s.slice(0, -1)) })
+  const wr = l => ({ write: s => l.push(s) })
   defMain()                                                   //  TODO
   const c = scope.new(); let s = stack.new(); repl_init(c)
   let ok = 0, fail = 0
   for (const e of g) {
     const out = [], err = []
-    overrides.say = s => out.push(s)                          //  TODO
+    overrides.puts = s => out.push(s)                         //  TODO
     s = await repl_process_line(e.input, c, s, wr(out), wr(err))
     if (compareExampleOutput(e.output, out, err)) {
       ok +=1
@@ -1965,37 +1968,38 @@ const testMarkdownFile  = _testFile(mdCodeBlocks)
 
 const compareExampleOutput = (exp, got, err) => {
   // NB: can't == arrays :(
-  const exp_ = exp.map(l => l == "<BLANKLINE>" ? "" : l).join("\n")
-  const got_ = got.join("\n"), err_ = err.join("\n")
-  return !err.length ? exp_ == got_ : !got.length && exp_ == err_ &&
-    /^\*\*\* ERROR: /u.test(err[0])
+  const exp_ = exp.map(l => l == "<BLANKLINE>" ? "\n" : `${l}\n`).join("")
+  const got_ = got.join(""), err_ = err.join("")
+  return !err_.length ? exp_ == got_ : !got_.length && exp_ == err_ &&
+    /^\*\*\* ERROR: /u.test(err_)
 }
 
 const printTestSummary = (total, ok, fail) => {
   printTTPF(total, ok, fail)
-  putOut(`Test ${fail == 0 ? "passed" : "failed"}.`)
+  putOut(`Test ${fail == 0 ? "passed" : "failed"}.\n`)
 }
 
 const printTTPF = (total, ok, fail) =>
-  putOut(`Total: ${total}, Tried: ${ok + fail}, Passed: ${ok}, Failed: ${fail}.`)
+  putOut(`Total: ${total}, Tried: ${ok + fail}, Passed: ${ok}, Failed: ${fail}.\n`)
 
 const printSucc = ex => {
-  putOut("Trying:\n  " + ex.input)
-  putOut("Expecting:")
-  for (const l of ex.output) { putOut("  " + l) }
-  putOut("ok")
+  putOut(`Trying:\n  ${ex.input}\n`)
+  putOut("Expecting:\n")
+  for (const l of ex.output) { putOut(`  ${l}\n`) }
+  putOut("ok\n")
 }
 
 const printFail = (ex, out, err) => {                         //  {{{1
-  putErr(`File ${ex.fname}, line ${ex.lineno}`)
-  putErr("Failed example:\n  " + ex.input)
-  putErr("Expected:")
-  for (const l of ex.output) { putErr("  " + l) }
-  putErr("Got:")
-  for (const l of out) { putErr("  " + l) }
+  const out_ = out.join(""), err_ = err.join("")
+  putErr(`File ${ex.fname}, line ${ex.lineno}\n`)
+  putErr(`Failed example:\n  ${ex.input}\n`)
+  putErr("Expected:\n")
+  for (const l of ex.output) { putErr(`  ${l}\n`) }
+  putErr("Got:\n")
+  if (out_.length) putErr(out_.split("\n").map(l => `  ${l}`).join("\n"))
   if (err.length) {
-    putErr("Errors:")
-    for (const l of err) { putErr("  " + l) }
+    putErr("Errors:\n")
+    if (err_.length) putErr(err_.split("\n").map(l => `  ${l}`).join("\n"))
   }
 }                                                             //  }}}1
 
@@ -2009,7 +2013,7 @@ const main = () => {                                          //  {{{1
   process.on("rejectionHandled"   , e => {})
   main_().catch(e => {
     if (e instanceof KonekoError || e.name == "Error") {
-      putErr("koneko: " + e.message)
+      putErr(`koneko: ${e.message}\n`)
     } else {
       console.error("koneko:", e)
     }
@@ -2027,7 +2031,7 @@ const main_ = async () => {                                   //  {{{1
   const verbose = opts.includes("-v") || opts.includes("--verbose")
   if (opts.includes("--version")) {
     const version = await koneko_version()
-    putOut(`koneko 「子猫」 ${version.join(".")}`)
+    putOut(`koneko 「子猫」 ${version.join(".")}\n`)
   } else if (opts.includes("--doctest")) {
     const cov = opts.includes("--coverage")
     if (!(await doctest(args, verbose, cov))) { process.exitCode = 1 }
@@ -2053,7 +2057,8 @@ const prld_show = async x => {
   return strVal(y)
 }
 
-const say = s => (overrides.say || (_req ? putOut : console.log))(s)
+// FIXME
+const puts = s => (overrides.puts || putOut)(s)
 
 // NB: Promise
 const ask = async s => await (overrides.ask || read_line)(s)
@@ -2063,9 +2068,7 @@ const nya = async () => {                                     //  {{{1
   if (overrides.nya) {
     return await overrides.nya()
   } else if (baseDir) {
-    return readFile(bpath("nya", "tabby.cat"), "utf8").then(
-      data => putOut(data, "")
-    )
+    return readFile(bpath("nya", "tabby.cat"), "utf8").then(putOut)
   } else {
     throw new KE(...E.NotImplemented("__nya__"))
   }

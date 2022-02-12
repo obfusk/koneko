@@ -2,9 +2,9 @@
 ;
 ; File        : prelude.knk
 ; Maintainer  : Felix C. Stegerman <flx@obfusk.net>
-; Date        : 2020-11-11
+; Date        : 2022-02-12
 ;
-; Copyright   : Copyright (C) 2020  Felix C. Stegerman
+; Copyright   : Copyright (C) 2022  Felix C. Stegerman
 ; Version     : v0.0.1
 ; License     : LGPLv3+
 ;
@@ -47,7 +47,7 @@
 :=>                 '__=>__                   def
 :dict               '__dict__                 def
 
-:say!               '__say!__                 def
+:puts!              '__puts!__                def
 :ask!               '__ask!__                 def
 
 :type               '__type__                 def
@@ -2116,7 +2116,7 @@
 
 ; string formatting (WIP)
 ;
-; >>> ( :x 42 "foo"  ) "${2} ${1} ${0}" fmt
+; >>> ( :x 42 "foo" ) "${2} ${1} ${0}" fmt
 ; "foo 42 :x"
 
 :fmt    [ >< .[ '1 >< str->int get ->str nip ]
@@ -2206,14 +2206,22 @@
 
 ; print str or value to stdout
 ;
+; >>> "Hello, World!" say!
+; Hello, World!
+;
 ; >>> 42 display!
 ; 42
 ; >>> "foo" ddisplay!                               ; ⇔ dup display!
 ; foo
 ; "foo"
+;
+; >>> , ( :x 42 "foo" ) "${2} ${1} ${0}\n" fmt!     ; ⇔ fmt puts!
+; foo 42 :x
 
-:display!   [ ->str say!    ] def
-:ddisplay!  [ dup display!  ] def
+:say!       [ "\n" !append puts! ] def
+:display!   [ ->str say! ] def
+:ddisplay!  [ dup display! ] def
+:fmt!       [ fmt puts! ] def
 
 ; output message & show stack (use for debugging only!)
 ;

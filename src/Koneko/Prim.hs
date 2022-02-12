@@ -2,9 +2,9 @@
 --
 --  File        : Koneko/Prim.hs
 --  Maintainer  : Felix C. Stegerman <flx@obfusk.net>
---  Date        : 2020-11-11
+--  Date        : 2022-02-12
 --
---  Copyright   : Copyright (C) 2020  Felix C. Stegerman
+--  Copyright   : Copyright (C) 2022  Felix C. Stegerman
 --  Version     : v0.0.1
 --  License     : GPLv3+
 --
@@ -59,7 +59,7 @@ initCtx ctxMain load call apply apply_dict callBlock = do
       mkPrim "call" call, mkPrim "apply" apply,
       mkPrim "apply-dict" apply_dict, if' call,
       def, defmulti, defrecord call, mkPair, mkDict, swap,
-      show', say, ask, types, type', callable, function,
+      show', puts, ask, types, type', callable, function,
       defmodule call, modules, moduleGet, moduleDefs, moduleName,
       import', importFrom, loadModule load,
       comp "=" (==), comp "not=" (/=),
@@ -148,12 +148,12 @@ swap = mkPrim "swap" $ pop2push $ \x y -> [y, x] :: [KValue]
 
 -- primitives: show, I/O & types --
 
-show', say, ask, types, type', callable, function :: Builtin
+show', puts, ask, types, type', callable, function :: Builtin
 
 show' = mkPrim "show" $ pop1push1 $ T.pack . (show :: KValue -> String)
 
 -- NB: uses stdio
-say = mkPrim "say!" $ \_ s -> do (x, s') <- pop' s; s' <$ T.putStrLn x
+puts = mkPrim "puts!" $ \_ s -> do (x, s') <- pop' s; s' <$ T.putStr x
 
 -- NB: uses stdio
 ask = mkPrim "ask!" $ \_ s -> do

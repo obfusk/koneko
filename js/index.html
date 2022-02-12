@@ -55,10 +55,9 @@
         const version = (await koneko.get_version()).join(".")
         elem("version").innerText = "koneko 「子猫」 " + version
         await koneko.loadPrelude()
-        const print = text => {
-          co.value += text + "\n"; co.scrollTop = co.scrollHeight
+        const puts = koneko.overrides.puts = text => {
+          co.value += text; co.scrollTop = co.scrollHeight
         }
-        koneko.overrides.say = print
         koneko.overrides.ask = s => window.prompt(s || "")
         koneko.overrides.nya = () => { window.open("nya/tabby.png") }
         const c = koneko.initContext(); let s = koneko.emptyStack()
@@ -73,7 +72,7 @@
               s = await koneko.evalText(l, c, s)
             } catch(e) {
               if (e instanceof koneko.KonekoError) {
-                print("*** ERROR: " + e.message)
+                puts(`*** ERROR: ${e.message}\n`)
                 return
               } else {
                 throw e

@@ -2,9 +2,9 @@
 
     File        : doc/08-syntactic-sugar.md
     Maintainer  : Felix C. Stegerman <flx@obfusk.net>
-    Date        : 2020-02-09
+    Date        : 2022-02-12
 
-    Copyright   : Copyright (C) 2020  Felix C. Stegerman
+    Copyright   : Copyright (C) 2022  Felix C. Stegerman
     Version     : v0.0.1
     License     : GPLv3+
 
@@ -87,11 +87,11 @@ Point{ :x 1 =>, :y 2 => }
 >>> ( 1 2 3 ) [ 3 * 2 div ] map ->list      ; equivalent
 ( 1 3 4 )
 
->>> '__prld__.say!                          ; module access
-#<primitive:__say!__>
->>> :say! :__prld__ __module-get__          ; desugared
-#<primitive:__say!__>
->>> , "hi!" __prld__.say!                   ; unquoted -> call
+>>> '__prld__.puts!                         ; module access
+#<primitive:__puts!__>
+>>> :puts! :__prld__ __module-get__         ; desugared
+#<primitive:__puts!__>
+>>> , "hi!\n" __prld__.puts!                ; unquoted -> call
 hi!
 
 >>> , :foo defmodule[ :x 1 def ]            ; block "constructor"

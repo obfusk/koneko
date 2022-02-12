@@ -5,7 +5,7 @@
 
     Lexers for the koneko language.
 
-    :copyright: Copyright 2020 by Felix C. Stegerman.
+    :copyright: Copyright 2022 by Felix C. Stegerman.
     :license: BSD, see LICENSE for details.
 """
 
@@ -39,11 +39,11 @@ class KonekoLexer(RegexLexer):
 
     builtin_prims = words("""
       def call apply apply-dict if defmulti defrecord => dict show
-      say! ask!  type callable? function? defmodule import import-from
-      = not= < <= > >= <=> eq neq lt lte gt gte cmp abs trunc round
-      ceil floor int->float record->dict record-type record-values
-      record-type-name record-type-fields fail try rx-match rx-sub par
-      sleep
+      puts! say! ask!  type callable? function? defmodule import
+      import-from = not= < <= > >= <=> eq neq lt lte gt gte cmp abs
+      trunc round ceil floor int->float record->dict record-type
+      record-values record-type-name record-type-fields fail try
+      rx-match rx-sub par sleep
     """.split(), suffix=opar+sep)
 
     tokens = {
