@@ -55,7 +55,7 @@ common deps
     -- included w/ haskell-platform:
     async, random, split, unordered-containers >=0.2.9.0, vector,
     -- separate packages:
-    aeson, cmdargs, hashtables, megaparsec ==7.0.* || ==8.0.*,
+    aeson <2.0.0.0, cmdargs, hashtables, megaparsec ==7.0.* || ==8.0.*,
     regex-pcre >=0.94.0.0, safe, silently
 
   -- Directories containing source files.
