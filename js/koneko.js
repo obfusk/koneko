@@ -1405,10 +1405,7 @@ modules.set("__prim__", new Map([                             //  {{{1
   }),
   mkPrim("__show-stack!__", async (c, s) => {
     puts("--- STACK ---\n")
-    for (const x of stack.toArray(s)) {
-      const y = await prld_show(x)
-      puts(y + "\n")
-    }
+    for (const x of stack.toArray(s)) { puts(await prld_show(x) + "\n") }
     puts("---  END  ---\n")
     return s
   }),
@@ -1996,10 +1993,10 @@ const printFail = (ex, out, err) => {                         //  {{{1
   putErr("Expected:\n")
   for (const l of ex.output) { putErr(`  ${l}\n`) }
   putErr("Got:\n")
-  if (out_.length) putErr(out_.split("\n").map(l => `  ${l}`).join("\n"))
+  if (out_.length) { putErr(out_.split("\n").map(l => `  ${l}`).join("\n")) }
   if (err.length) {
     putErr("Errors:\n")
-    if (err_.length) putErr(err_.split("\n").map(l => `  ${l}`).join("\n"))
+    if (err_.length) { putErr(err_.split("\n").map(l => `  ${l}`).join("\n")) }
   }
 }                                                             //  }}}1
 
