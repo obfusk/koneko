@@ -1,0 +1,5 @@
+#!/usr/bin/env -S cabal -v0 v2-run koneko
+; ^ TODO
+[ [ 2.1 sleep [ "fizz\x1b[K" puts! 3 sleep #t ] loop ]
+  [ 4.2 sleep [ "buzz\x1b[K" puts! 5 sleep #t ] loop ] par ]
+[ 0 [ inc dup 1list "\n${0}\r" fmt! 1 sleep #t ] loop ] par
