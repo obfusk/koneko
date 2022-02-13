@@ -1,4 +1,4 @@
-<!-- {{{1 -->
+<!-- {{{1
 
     File        : README.md
     Maintainer  : Felix C. Stegerman <flx@obfusk.net>
@@ -8,7 +8,7 @@
     Version     : v0.0.2
     License     : GPLv3+, LGPLv3+
 
-<!-- }}}1 -->
+}}}1 -->
 
 <!-- TODO: badges -->
 
