@@ -12,9 +12,9 @@
 
 <!-- TODO: badges -->
 
-<!--
 [![GitHub Release](https://img.shields.io/github/release/obfusk/koneko.svg?logo=github)](https://github.com/obfusk/koneko/releases)
--->
+[![Hackage](https://img.shields.io/hackage/v/koneko)](https://hackage.haskell.org/package/koneko)
+[![npm](https://img.shields.io/npm/v/koneko)](https://www.npmjs.com/package/koneko)
 [![CI](https://github.com/obfusk/koneko/workflows/CI/badge.svg)](https://github.com/obfusk/koneko/actions?query=workflow%3ACI)
 [![GPLv3+](https://img.shields.io/badge/license-GPLv3+-blue.svg)](https://www.gnu.org/licenses/gpl-3.0.html)
 [![LGPLv3+](https://img.shields.io/badge/license-LGPLv3+-blue.svg)](https://www.gnu.org/licenses/lgpl-3.0.html)
