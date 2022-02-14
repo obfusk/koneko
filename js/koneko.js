@@ -297,7 +297,7 @@ const pFloat    = s => isFloat(s) ? parseFloat(s) : null
 const parseOne = (s, p0, fname, end = null) => {              //  {{{1
   let m, p1
   const t = pat => {
-    const r = new Rx("("+pat+")(?:"+_spc+"|$)", "usy")
+    const r = Rx("("+pat+")(?:"+_spc+"|$)", "usy")
     r.lastIndex = p0; m = r.exec(s); p1 = r.lastIndex
     return !!m
   }
@@ -1906,10 +1906,10 @@ const mdCodeBlocks = lines => {                               //  {{{1
   const bs = []
   let b, in_b = false
   for (const [ln, l] of lines) {
-    if (!in_b && RegExp("^```koneko$").test(l)) {
+    if (!in_b && Rx("^```koneko$").test(l)) {
       b = []; in_b = true
     } else if (in_b) {
-      if (RegExp("^```$").test(l)) {
+      if (Rx("^```$").test(l)) {
         bs.push(b); in_b = false
       } else {
         b.push([ln, l])
