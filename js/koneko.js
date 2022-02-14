@@ -1628,15 +1628,12 @@ const baseDir = _req && module.id != "[stdin]" ?
 const bpath   = (...xs) => join(baseDir, ...xs)
 
 // NB: browser only; Promise
-const requestFile = fname => new Promise((resolve, reject) => { //{{{1
-  const r = new XMLHttpRequest()
-  r.addEventListener("load", e =>
-    r.status == 200 ? resolve(r.responseText) : reject(e)
-  )
-  r.addEventListener("error", reject)
-  r.open("GET", fname)
-  r.send()
-})                                                            //  }}}1
+const requestFile = fname => fetch(fname).then(r => {
+  if (!r.ok) {
+    throw new Error(`response (${r.status} ${r.statusText}) was not ok`)
+  }
+  return r.text()
+})
 
 // NB: node.js only; Promise
 const readFile = fname => new Promise((resolve, reject) => {
@@ -1668,8 +1665,12 @@ const loadMod = async name => {                               //  {{{1
   }
   if (!_req) {
     return await evalFile(join("lib", `${name}.knk`)).catch(e => {
-      throw e instanceof ProgressEvent ?
-        new KE(...E.ModuleLoadError(name)) : e
+      if (e instanceof KonekoError) {
+        throw e
+      } else {
+        console.error(e)
+        throw new KE(...E.ModuleLoadError(name))
+      }
     })
   }
   const fs = _req("fs"), d = _path.delimiter
