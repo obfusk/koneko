@@ -5,17 +5,11 @@
 
   "version"     : "0.0.2",
   "author"      : "Felix C. Stegerman <flx@obfusk.net>",
+  "license"     : "GPL-3.0-or-later",
 
   "keywords"    : [
     "programming-language", "functional-programming", "concatenative",
     "stack", "lisp", "language"
-  ],
-
-  "licenses": [
-    { "type"    : "GPLv3+",
-      "url"     : "https://www.gnu.org/licenses/gpl-3.0.html" },
-    { "type"    : "LGPLv3+",
-      "url"     : "https://www.gnu.org/licenses/lgpl-3.0.html" }
   ],
 
   "repository": {
