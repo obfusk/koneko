@@ -2,7 +2,7 @@
 //
 //  File        : koneko.js
 //  Maintainer  : Felix C. Stegerman <flx@obfusk.net>
-//  Date        : 2022-02-12
+//  Date        : 2022-02-14
 //
 //  Copyright   : Copyright (C) 2022  Felix C. Stegerman
 //  Version     : v0.0.1
@@ -123,7 +123,7 @@ const stack = {                                               //  {{{1
     }
     return [r, s1]
   },
-  popN: (s0, n) => stack.pop(s0, ...Array(n).fill("_")),
+  popN: (s0, n) => stack.pop(s0, ..."_".repeat(n)),
   toArray: s => [...s].reverse(),
 }                                                             //  }}}1
 
@@ -294,7 +294,7 @@ const _idt      = "(?:(?!"+_badId+")"+_naiveId+")"
 const pInt      = s => isInt  (s) ? strToInt  (s) : null
 const pFloat    = s => isFloat(s) ? parseFloat(s) : null
 
-const parseOne = (s, p0 = 0, end = null) => {                 //  {{{1
+const parseOne = (s, p0, fname, end = null) => {              //  {{{1
   let m, p1
   const t = pat => {
     const r = new Rx("("+pat+")(?:"+_spc+"|$)", "usy")
@@ -321,7 +321,7 @@ const parseOne = (s, p0 = 0, end = null) => {                 //  {{{1
         params = m[2].split(Rx(_spc, "us")).filter(x => x); p2 = p1
       }
     }
-    const [p3, vs] = parseMany(s, p2, "]")
+    const [p3, vs] = parseMany(s, p2, fname, "]")
     return [p3, block(params, vs)]
   }
 
@@ -345,7 +345,7 @@ const parseOne = (s, p0 = 0, end = null) => {                 //  {{{1
   else if (t("\\(\\)")) {
     return [p1, list([])]
   } else if (t("\\(")) {
-    const [p2, vs] = parseMany(s, p1, ")")
+    const [p2, vs] = parseMany(s, p1, fname, ")")
     return [p2, list(vs)]
   } else if (t(_idt)) {
     return [p1, ident(m[1])]
@@ -372,14 +372,14 @@ const parseOne = (s, p0 = 0, end = null) => {                 //  {{{1
     const vs = [kwd(m[4]), sw, ca, ...(m[3] == "!" ? [ca]: [])]
     return [p1, ...(m[2] ? [block([], vs)] : vs)]
   } else if (t("\\{")) {
-    const [p2, vs] = parseMany(s, p1, "}")
+    const [p2, vs] = parseMany(s, p1, fname, "}")
     return [p2, list(vs), ident("__dict__")]
   } else if (t("(" + _naiveId + "):") && isIdent(m[2])) {
-    const [p2, ...v] = parseOne(s, p1)
+    const [p2, ...v] = parseOne(s, p1, fname)
     return [p2, kwd(m[2]), ...v, ident("__=>__")]
   } else if (t("(" + _naiveId + ")([({])") && isIdent(m[2])) {
     const curly = m[3] == "{"
-    const [p2, vs] = parseMany(s, p1, curly ? "}" : ")")
+    const [p2, vs] = parseMany(s, p1, fname, curly ? "}" : ")")
     const l = list(vs), q = quot(m[2])
     if (curly) {
       return [p2, l, ident("__dict__"), q, ident("__apply-dict__")]
@@ -395,41 +395,38 @@ const parseOne = (s, p0 = 0, end = null) => {                 //  {{{1
   else if (t("[)}\\]]") && end == m[1]) {
     return [p1, { end }]
   }
-  throw new KE(...E.ParseError(
-    `no match at pos ${p0}:\n` + parseErrorContext(s, p0)
-  ))
+  throw new KE(...E.ParseError(parseError(s, p0, fname, "no match")))
 }                                                             //  }}}1
 
-const parseMany = (s, p, end = null) => {                     //  {{{1
+const parseMany = (s, p, fname, end = null) => {              //  {{{1
   const vs = []; let v
   while (p < s.length) {
-    [p, ...v] = parseOne(s, p, end)
+    [p, ...v] = parseOne(s, p, fname, end)
     if (end && v[0].end) { return [p, vs] }
     vs.push(...v)
   }
   if (end) {
-    throw new KE(...E.ParseError(
-      `expected "${end}" at pos ${p}:\n` + parseErrorContext(s, p)
-    ))
+    throw new KE(...E.ParseError(parseError(s, p, fname, `expected "${end}"`)))
   }
   return [p, vs]
 }                                                             //  }}}1
 
-// TODO: show line number
-const parseErrorContext = (s, p) => {
+const parseError = (s, p, fn, e) => {
   const back = s.lastIndexOf("\n", p), front = s.indexOf("\n", p)
   const b = back  != -1 ? back+1 : 0
   const f = front != -1 ? front  : s.length
-  return " | \n | " + s.slice(b, f) + "\n | " +
-    Array(p-b).fill(" ").join("") + "^"
+  const l = s.slice(b, f) || "<empty line>"
+  const n = s.slice(0, p).split("\n").length                  // FIXME
+  const x = " ".repeat(n.toString().length), y = " ".repeat(p - b)
+  return `${fn}:${n}:${p-b+1}:\n${x} |\n${n} | ${l}\n${x} | ${y}^\n${e}`
 }
 
-const read = s => {
+const read = (s, fname = "(read)") => {
   let p = 0, m
   if (m = /^#!.*\n/u.exec(s)) { p = m[0].length }
   const r = Rx(_spc, "usy"); r.lastIndex = p
   if (m = r.exec(s)) { p += m[0].length }
-  return parseMany(s, p)[1]
+  return parseMany(s, p, fname)[1]
 }
 
 /* === evaluation === */
@@ -831,8 +828,8 @@ const evl = {
 */
 
 // NB: Promise
-const evalText = (text, c = undefined, s = undefined) =>
-  evaluate({ code: read(text) })(c, s)
+const evalText = (text, c = undefined, s = undefined, fn = undefined) =>
+  evaluate({ code: read(text, fn) })(c, s)
 
 /* === compilation === */
 
@@ -1658,7 +1655,7 @@ const fileLines = fname => readFile(fname).then(
 // NB: Promise
 const evalFile = (fname, c = undefined, s = undefined) => {
   return (_req ? readFile : requestFile)(fname).then(
-    text => evalText(text, c, s)
+    text => evalText(text, c, s, fname)
   )
 }
 
@@ -1666,7 +1663,8 @@ const evalFile = (fname, c = undefined, s = undefined) => {
 const loadMod = async name => {                               //  {{{1
   if (typeof __koneko_modules__ !== "undefined" &&
       __koneko_modules__.has(name)) {
-    return evalText(__koneko_modules__.get(name))
+    const s = __koneko_modules__.get(name)
+    return evalText(s, undefined, undefined, `(module:${name})`)
   }
   if (!_req) {
     return await evalFile(join("lib", `${name}.knk`)).catch(e => {
@@ -1767,7 +1765,7 @@ const repl_process_line =                                     //  {{{1
   async (line, c, s, stdout, stderr) => {
     if (!line) { return s }
     try {
-      s = await evalText(line, c, s)
+      s = await evalText(line, c, s, "(repl)")
       if (!stack.null(s) && !",;".includes(line[0])) {
         stdout.write(await prld_show(stack.top(s)) + "\n")    //  TODO
       }
