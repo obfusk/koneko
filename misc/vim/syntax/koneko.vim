@@ -1,6 +1,6 @@
 " Vim syntax file
 " Language:   koneko
-" Maintainer: Felix C. Stegerman <flx@obfusk.net>
+" Maintainer: FC Stegerman <flx@obfusk.net>
 " URL:        https://github.com/obfusk/koneko
 
 if exists('b:current_syntax')

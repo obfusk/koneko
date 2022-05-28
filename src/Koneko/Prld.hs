@@ -1,10 +1,10 @@
 --  --                                                          ; {{{1
 --
 --  File        : Koneko/Prld.hs
---  Maintainer  : Felix C. Stegerman <flx@obfusk.net>
+--  Maintainer  : FC Stegerman <flx@obfusk.net>
 --  Date        : 2020-01-20
 --
---  Copyright   : Copyright (C) 2020  Felix C. Stegerman
+--  Copyright   : Copyright (C) 2020  FC Stegerman
 --  Version     : v0.0.1
 --  License     : GPLv3+
 --

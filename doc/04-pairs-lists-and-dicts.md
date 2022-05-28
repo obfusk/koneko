@@ -1,10 +1,10 @@
 <!-- {{{1 -->
 
     File        : doc/04-pairs-lists-and-dicts.md
-    Maintainer  : Felix C. Stegerman <flx@obfusk.net>
+    Maintainer  : FC Stegerman <flx@obfusk.net>
     Date        : 2019-12-06
 
-    Copyright   : Copyright (C) 2019  Felix C. Stegerman
+    Copyright   : Copyright (C) 2019  FC Stegerman
     Version     : v0.0.1
     License     : GPLv3+
 

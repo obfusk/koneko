@@ -1,10 +1,10 @@
 --  --                                                          ; {{{1
 --
 --  File        : Koneko/Bltn.hs
---  Maintainer  : Felix C. Stegerman <flx@obfusk.net>
+--  Maintainer  : FC Stegerman <flx@obfusk.net>
 --  Date        : 2022-02-12
 --
---  Copyright   : Copyright (C) 2022  Felix C. Stegerman
+--  Copyright   : Copyright (C) 2022  FC Stegerman
 --  Version     : v0.0.1
 --  License     : GPLv3+
 --

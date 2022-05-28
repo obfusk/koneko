@@ -5,7 +5,7 @@
 
     Lexers for the koneko language.
 
-    :copyright: Copyright 2022 by Felix C. Stegerman.
+    :copyright: Copyright 2022 by FC Stegerman.
     :license: BSD, see LICENSE for details.
 """
 

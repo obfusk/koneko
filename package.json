@@ -4,7 +4,7 @@
   "description" : "a concatenative not-quite-lisp for kittens",
 
   "version"     : "0.0.2",
-  "author"      : "Felix C. Stegerman <flx@obfusk.net>",
+  "author"      : "FC Stegerman <flx@obfusk.net>",
   "license"     : "GPL-3.0-or-later",
 
   "keywords"    : [
