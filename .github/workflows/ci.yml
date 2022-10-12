@@ -3,7 +3,7 @@ on: [push, pull_request, workflow_dispatch]
 jobs:
   build:
     runs-on: ubuntu-latest
-    # continue-on-error: ${{ matrix.warnings == 'error' }}
+    continue-on-error: ${{ matrix.version.ghc == 'latest' }}
     strategy:
       matrix:
         version:
@@ -42,17 +42,6 @@ jobs:
         (
           set -xe
           node --version
-          # if [ "$WARNINGS" = error ]; then
-          #   sed -i 's/-fno-warn-unused-imports//' koneko.cabal
-          #   make cabal_build || {
-          #     sed -i 's/-Werror//' koneko.cabal
-          #     make cabal_build
-          #     false
-          #   }
-          # else
           make cabal_build
-          # fi
           make test
         )
-      # env:
-      #   WARNINGS: ${{ matrix.warnings }}
