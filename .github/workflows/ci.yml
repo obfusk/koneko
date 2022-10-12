@@ -7,17 +7,16 @@ jobs:
     strategy:
       matrix:
         version:
-        - { ghc: '8.0.2'  , cabal: '2.4'  }  # bionic
-        - { ghc: '8.4.4'  , cabal: '2.4'  }  # buster
-        - { ghc: '8.8.1'  , cabal: '3.0'  }  # focal
-        - { ghc: '8.8.4'  , cabal: '3.0'  }  # unstable
-        - { ghc: '8.10.2' , cabal: '3.0'  }  # experimental
+        - { ghc: '8.4.4'  , cabal: '2.2'  } # buster
+        - { ghc: '8.8.1'  , cabal: '2.4'  } # focal
+        - { ghc: '8.8.4'  , cabal: '3.0'  } # bullseye & jammy
+        - { ghc: '9.0.2'  , cabal: '3.4'  } # unstable
         - { ghc: latest   , cabal: latest }
         # warnings: [default, error]
     steps:
     - uses: actions/checkout@v2
     - name: Set up GHC ${{ matrix.version.ghc }}
-      uses: actions/setup-haskell@v1.1.3
+      uses: haskell/actions/setup@v2
       with:
         ghc-version: ${{ matrix.version.ghc }}
         cabal-version: ${{ matrix.version.cabal }}
