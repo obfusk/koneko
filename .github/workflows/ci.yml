@@ -7,7 +7,7 @@ jobs:
     strategy:
       matrix:
         version:
-        - { ghc: '8.4.4'  , cabal: '2.2'  } # buster
+        - { ghc: '8.4.4'  , cabal: '2.4'  } # buster (cabal 2.2 not available)
         - { ghc: '8.8.1'  , cabal: '2.4'  } # focal
         - { ghc: '8.8.4'  , cabal: '3.0'  } # bullseye & jammy
         - { ghc: '9.0.2'  , cabal: '3.4'  } # unstable
