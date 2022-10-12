@@ -2,7 +2,7 @@
 --
 --  File        : Koneko/Data.hs
 --  Maintainer  : FC Stegerman <flx@obfusk.net>
---  Date        : 2022-02-12
+--  Date        : 2022-10-12
 --
 --  Copyright   : Copyright (C) 2022  FC Stegerman
 --  Version     : v0.0.1
@@ -101,6 +101,7 @@ import Data.Monoid ((<>))
 #endif
 
 import qualified Data.Aeson as AE
+import qualified Data.Aeson.KeyMap as KM
 import qualified Data.HashMap.Strict as H
 import qualified Data.HashSet as S
 import qualified Data.HashTable.IO as HT
@@ -657,7 +658,7 @@ toJSON = second (LT.toStrict . LE.decodeUtf8 . AE.encode) . f --  TODO
     f (KPrim (KKwd x))    = Right $ AE.toJSON $ unKwd x
     f (KPair (Pair k v))  = f $ list [KPrim $ KKwd $ k, v]
     f (KList (List x))    = second AE.toJSON $ traverse f x
-    f (KDict (Dict x))    = second AE.Object
+    f (KDict (Dict x))    = second (AE.Object . KM.fromHashMapText)
                           $ H.traverseWithKey (\_ v -> f v) $ x
     f (KRecord x)         = f $ dict $ recordToPairs x ++
                             [Pair (Kwd "__koneko_type__")
@@ -677,7 +678,7 @@ fromJSON  = bimap (Fail . ("json.<-: " ++)) f
                             AE.Error _    -> nil              --  TODO
     f (AE.String x)   = str x
     f (AE.Array  x)   = list $ map f $ V.toList x
-    f (AE.Object x)   = KDict $ Dict $ H.map f x
+    f (AE.Object x)   = KDict $ Dict $ H.map f $ KM.toHashMapText x
 
 -- Stack functions --
 
