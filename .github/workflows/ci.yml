@@ -12,7 +12,6 @@ jobs:
         - { ghc: '8.8.4'  , cabal: '3.0'  } # bullseye & jammy
         - { ghc: '9.0.2'  , cabal: '3.4'  } # unstable
         - { ghc: latest   , cabal: latest }
-        # warnings: [default, error]
     steps:
     - uses: actions/checkout@v2
     - name: Set up GHC ${{ matrix.version.ghc }}
