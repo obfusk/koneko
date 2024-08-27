@@ -357,7 +357,7 @@ const parseOne = (s, p0, fname, end = null) => {              //  {{{1
   // sugar
   else if (t("\\.{3}")) {
     return [p1, ident("__ellipsis__")]
-  } else if (t("('?)(" + _idt + ")\.(" + _idt + ")")) {
+  } else if (t("('?)(" + _idt + ")\\.(" + _idt + ")")) {
     return [p1, kwd(m[4]), kwd(m[3]), ident("__module-get__"),
             ...(m[2] ? [] : [ident("__call__")])]
   } else if (t("(['.])\\[")) {
