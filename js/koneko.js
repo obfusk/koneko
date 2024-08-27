@@ -2086,8 +2086,8 @@ if (_req && (_mod === _req.main ||
 
 })(
   ...(typeof module === "undefined" ?
-    [this  , "koneko" , null   , XRegExp] : // browser
-    [module, "exports", require,  RegExp])  // node.js
+    [this  , "koneko" , null   , RegExp] :  // browser
+    [module, "exports", require, RegExp])   // node.js
 )
 
 // vim: set tw=70 sw=2 sts=2 et fdm=marker :
