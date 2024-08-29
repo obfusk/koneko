@@ -92,7 +92,7 @@ _str  = char '"' >> T.concat <$> manyTill (choice [
           esc, hex "\\x" 2, hex "\\u" 4, hex "\\U" 8, chr
         ]) (char '"')
   where
-    esc     = choice [ t <$ string f | (f,t) <- bsl ] <?> "escape sequence"
+    esc     = choice [ T.singleton t <$ string f | (f,t) <- bsl ] <?> "escape sequence"
     chr     = T.singleton <$> anySingle <?> "character"
     bsl     = zip D.escapeFrom D.escapeTo
     hex p n = string p >> T.singleton <$> _hex n

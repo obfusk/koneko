@@ -498,11 +498,12 @@ showStr s = T.unpack $ T.concat ["\"", T.concatMap f s, "\""]
     g c = if isPrint c then T.singleton c else h (ord c)
     h n = let (p,m) = if n <= 0xffff then ("\\u",4) else ("\\U",8)
           in p <> T.justifyRight m '0' (T.pack $ showHex n "")
-    bsl = zip (map T.head escapeTo) escapeFrom
+    bsl = zip escapeTo escapeFrom
 
-escapeFrom, escapeTo :: [Text]
+escapeFrom :: [Text]
+escapeTo :: [Char]
 escapeFrom  = ["\\r","\\n","\\t","\\\"","\\\\"]
-escapeTo    = [ "\r", "\n", "\t",  "\"",  "\\"]
+escapeTo    = [ '\r', '\n', '\t',  '\"',  '\\']
 
 -- ToVal & FromVal --
 

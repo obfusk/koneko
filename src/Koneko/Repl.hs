@@ -43,17 +43,18 @@ repl' breakOnError pr ctx st = replDef ctx >> loop ctx st
     loop :: Context -> Stack -> IO Stack
     loop c s = prompt (Just pr) >>= maybe (s <$ T.putStrLn "") f
       where
-        f line = if T.null line then loop c s else do
-          r <- tryK $ et line c s >>= showTop c line
+        f line = maybe (loop c s) (g line) $ T.uncons line
+        g line (h, _) = do
+          r <- tryK $ et line c s >>= showTop c h
           let err e = do  hPutStrLn stderr $ errorText ++ show e
                           if breakOnError then return s else loop c s
           either err (loop c) r
-    showTop c line s = s <$ unless (shouldSkip s line)
+    showTop c h s = s <$ unless (shouldSkip s h)
       (() <$ et "__prld__.show __prld__.say!" c (take 1 s))   --  TODO
     et = evalText "(repl)"
 
-shouldSkip :: Stack -> Text -> Bool
-shouldSkip s line = null s || T.head line `elem` [',',';']    -- safe!
+shouldSkip :: Stack -> Char -> Bool
+shouldSkip s h = null s || h `elem` [',',';']
 
 promptText, errorText :: IsString s => s
 promptText  = ">>> "

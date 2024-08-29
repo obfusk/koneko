@@ -168,10 +168,10 @@ callStr x _ s = do
   (Kwd op, s') <- pop' s
   let o = "str." <> op; p = rpush1 s'; pr = p . mkOp o
   case op of
-    "ord"     ->  do  unless (T.length x == 1) $ throwIO $ stackExpected
-                        (Left $ "str of length " ++ show (T.length x))
+    "ord"     ->  case T.uncons x of
+      Just (h, "")  ->  p $ toInteger $ ord h
+      _             ->  throwIO $ stackExpected (Left $ "str of length " ++ show (T.length x))
                         "str of length 1"
-                      p $ toInteger $ ord $ T.head x
     "lower"   ->  p $ T.toLower x
     "upper"   ->  p $ T.toUpper x
     "reverse" ->  p $ T.reverse x
@@ -450,8 +450,7 @@ indexOf :: Text -> Text -> Maybe Integer
 indexOf s = f 0
   where
     f i t | s `T.isPrefixOf` t  = Just i
-    f _ ""                      = Nothing
-    f i t                       = f (i+1) $ T.tail t
+    f i t = maybe Nothing (\(_, tt) -> f (i+1) tt) $ T.uncons t
 
 nilToDef :: FromVal a => KValue -> a -> IO a
 nilToDef x d = if isNil x then return d else retOrThrow $ fromVal x
