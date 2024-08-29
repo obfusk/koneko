@@ -7,20 +7,24 @@ jobs:
     strategy:
       matrix:
         version:
-        - { ghc: '8.4.4'  , cabal: '2.4'  } # buster (cabal 2.2 not available)
-        - { ghc: '8.8.1'  , cabal: '3.0'  } # focal  (cabal 2.4 says ghc < 8.7)
-        - { ghc: '8.8.4'  , cabal: '3.0'  } # bullseye & jammy
-        - { ghc: '9.0.2'  , cabal: '3.4'  } # unstable
-        - { ghc: latest   , cabal: latest }
+        - { ghc: '8.8.1'  , cabal: '3.0'      } # focal (cabal 2.4 says ghc < 8.7)
+        - { ghc: '8.8.4'  , cabal: '3.0'      } # bullseye & jammy
+        - { ghc: '9.0.2'  , cabal: '3.4.1.0'  } # bookworm
+        - { ghc: '9.4.7'  , cabal: '3.8.1.0'  } # noble & sid
+        - { ghc: latest   , cabal: latest     }
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+        persist-credentials: false
+        submodules: true
     - name: Set up GHC ${{ matrix.version.ghc }}
-      uses: haskell/actions/setup@v2
+      uses: haskell-actions/setup@v2
       with:
         ghc-version: ${{ matrix.version.ghc }}
         cabal-version: ${{ matrix.version.cabal }}
     - name: Cache
-      uses: actions/cache@v2
+      uses: actions/cache@v4
       with:
         path: |
           ~/.cabal
