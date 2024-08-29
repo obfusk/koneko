@@ -51,7 +51,7 @@ common deps
   -- Other library packages from which modules are imported.
   build-depends:
     -- included w/ ghc:
-    array, base >=4.9 && <4.18, bytestring, deepseq, directory,
+    array, base >=4.9 && <4.21, bytestring, deepseq, directory,
     filepath, text,
     -- included w/ haskell-platform:
     async, random, split, unordered-containers >=0.2.9.0, vector,
