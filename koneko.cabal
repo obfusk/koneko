@@ -53,11 +53,10 @@ common deps
     -- included w/ ghc:
     array, base >=4.9 && <4.21, bytestring, deepseq, directory,
     filepath, text,
-    -- included w/ haskell-platform:
-    async, random, split, unordered-containers >=0.2.9.0, vector,
     -- separate packages:
-    aeson >=2.0.0.0, cmdargs, hashtables, megaparsec >=7.0,
-    regex-pcre >=0.94.0.0, safe, silently
+    aeson >=2.0.0.0, async, cmdargs, hashtables, megaparsec >=7.0,
+    random, regex-pcre >=0.94.0.0, safe, silently, split,
+    unordered-containers >=0.2.9.0, vector
 
   -- Directories containing source files.
   hs-source-dirs:      src

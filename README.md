@@ -469,49 +469,49 @@ See [(Build) Requirements](#build-requirements).
 ### Linux (& Probably macOS and *BSD)
 
 ```bash
-$ make cabal_build                            # Haskell Build
-$ ./scripts/repl_hs                           # Haskell REPL
+$ make cabal_build                                      # Haskell Build
+$ ./scripts/repl_hs                                     # Haskell REPL
 
-$ ./scripts/repl_js                           # Node.js REPL
-$ make repl_browser                           # Browser REPL
+$ ./scripts/repl_js                                     # Node.js REPL
+$ make repl_browser                                     # Browser REPL
 ```
 
 ### Windows (Untested)
 
 ```
 $ cabal v2-build --write-ghc-environment-files=always --enable-tests
-$ cabal v2-run koneko                         # Haskell REPL
+$ cabal v2-run koneko                                   # Haskell REPL
 
-$ node js\koneko                              # Node.js REPL
+$ node js\koneko                                        # Node.js REPL
 ```
 
 ... TODO ...
 
 ## (Build) Requirements
 
-The Haskell implementation requires the [Haskell
-Platform](https://www.haskell.org/platform) (and a few additional
-libraries that the Cabal build system provided with the Platform can
-install); see `koneko.cabal` for the dependencies.
+The Haskell implementation requires [GHC](https://www.haskell.org/ghc/),
+[`cabal-install`](https://cabal.readthedocs.io/) (and a few additional libraries
+that can be installed using Cabal); see `koneko.cabal` for the dependencies.
 
 The JavaScript implementation requires Node.js.
 
 ### Debian
 
 ```bash
-$ apt install haskell-platform libghc-aeson-dev \
+$ apt install cabal-install libghc-aeson-dev libghc-async-dev \
   libghc-cmdargs-dev libghc-doctest-dev libghc-hashtables-dev \
-  libghc-megaparsec-dev libghc-regex-pcre-dev \
-  libghc-safe-dev libghc-silently-dev         # Haskell version
-$ apt install nodejs                          # Node.js version
-$ apt install rlwrap                          # (readline support)
+  libghc-megaparsec-dev libghc-random-dev libghc-regex-pcre-dev \
+  libghc-safe-dev libghc-silently-dev libghc-split-dev \
+  libghc-unordered-containers-dev libghc-vector-dev     # Haskell version
+$ apt install nodejs                                    # Node.js version
+$ apt install rlwrap                                    # (readline support)
 ```
 
 ## Specs & Docs
 
 ```bash
-$ make cabal_build test_haskell               # Haskell
-$ make test_node                              # JavaScript
+$ make cabal_build test_haskell                         # Haskell
+$ make test_node                                        # JavaScript
 ```
 
 TODO: haddock
