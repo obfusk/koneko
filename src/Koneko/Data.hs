@@ -11,7 +11,7 @@
 --  --                                                          ; }}}1
 
 {-# LANGUAGE CPP #-}
-{-# LANGUAGE DeriveAnyClass, DeriveGeneric, DeriveDataTypeable #-}
+{-# LANGUAGE DeriveAnyClass, DeriveGeneric, DeriveDataTypeable, DerivingStrategies #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE OverloadedStrings #-}
@@ -177,28 +177,34 @@ exceptionInfo x = concat $ gmapQ (maybe [] (:[]) . cast) x
 
 -- TODO: intern?!
 newtype Kwd = Kwd { unKwd :: Identifier }
-  deriving (Eq, Ord, Generic, NFData)
+  deriving (Eq, Ord, Generic)
+  deriving anyclass NFData
 
 newtype Ident = Ident_ { unIdent :: Identifier }
-  deriving (Eq, Ord, Generic, NFData)
+  deriving (Eq, Ord, Generic)
+  deriving anyclass NFData
 
 ident :: Identifier -> Maybe Ident
 ident s = if M.isIdent s then Just $ Ident_ s else Nothing
 
 data Pair = Pair { key :: Kwd, value :: KValue }
-  deriving (Eq, Ord, Generic, NFData)
+  deriving (Eq, Ord, Generic)
+  deriving anyclass NFData
 
 newtype List = List { unList :: [KValue] }
-  deriving (Eq, Ord, Generic, NFData)
+  deriving (Eq, Ord, Generic)
+  deriving anyclass NFData
 
 newtype Dict = Dict { unDict :: DictTable }
-  deriving (Eq, Ord, Generic, NFData)
+  deriving (Eq, Ord, Generic)
+  deriving anyclass NFData
 
 data Block = Block {
   blkParams :: [Ident],
   blkCode   :: [KValue],
   blkScope  :: Maybe Scope
-} deriving (Generic, NFData)
+} deriving Generic
+  deriving anyclass NFData
 
 data Builtin = Builtin {
   biPrim  :: Bool,
@@ -223,12 +229,14 @@ instance NFData Multi where
 data RecordT = RecordT {
   recName   :: Identifier,
   recFields :: [Identifier]
-} deriving (Eq, Ord, Generic, NFData)
+} deriving (Eq, Ord, Generic)
+  deriving anyclass NFData
 
 data Record = Record {
   recType   :: RecordT,
   recValues :: [KValue]
-} deriving (Eq, Ord, Generic, NFData)
+} deriving (Eq, Ord, Generic)
+  deriving anyclass NFData
 
 record :: RecordT -> [KValue] -> Either KException Record
 record recType@RecordT{..} recValues
@@ -267,20 +275,23 @@ data Context = Context {
 data KPrim
     = KNil | KBool Bool | KInt Integer | KFloat Double
     | KStr Text | KKwd Kwd
-  deriving (Eq, Ord, Generic, NFData)
+  deriving (Eq, Ord, Generic)
+  deriving anyclass NFData
 
 -- TODO
 data KValue
     = KPrim KPrim | KPair Pair | KList List | KDict Dict
     | KIdent Ident | KQuot Ident | KBlock Block | KBuiltin Builtin
     | KMulti Multi | KRecordT RecordT | KRecord Record | KThunk Thunk
-  deriving (Eq, Ord, Generic, NFData)
+  deriving (Eq, Ord, Generic)
+  deriving anyclass NFData
 
 data KType
     = TNil | TBool | TInt | TFloat | TStr | TKwd | TPair | TList
     | TDict | TIdent | TQuot | TBlock | TBuiltin | TMulti | TRecordT
     | TRecord | TThunk
-  deriving (Eq, Ord, Generic, NFData)
+  deriving (Eq, Ord, Generic)
+  deriving anyclass NFData
 
 type Stack = [KValue]
 
