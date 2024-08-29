@@ -75,7 +75,7 @@ common deps
 
   ghc-options:         -Wall -fwarn-incomplete-uni-patterns -Werror
   if impl(ghc >= 9.8)
-    ghc-options:       -Wwarn=unused-imports -Wwarn=x-partial
+    ghc-options:       -Wwarn=x-partial
 
 
 library

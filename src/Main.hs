@@ -22,7 +22,7 @@ import Data.Version (showVersion)
 import System.Console.CmdArgs hiding (args)
 
 #if !MIN_VERSION_GLASGOW_HASKELL(8, 8, 1, 0)
-import Data.Monoid((<>))
+import Data.Monoid ((<>))
 #endif
 
 import qualified Data.Text as T

@@ -40,7 +40,6 @@ module Koneko.Read (read, read') where
 import Control.Exception (throw)
 import Control.Monad (replicateM)
 import Data.Functor
-import Data.List (foldl')
 import Data.Maybe (fromJust) -- careful!
 import Data.Text (Text)
 import Prelude hiding (quot, read)
@@ -50,6 +49,9 @@ import Text.Megaparsec.Char
 #if !MIN_VERSION_GLASGOW_HASKELL(8, 8, 1, 0)
 import Control.Monad.Fail (MonadFail)
 import Data.List (init)
+#endif
+#if !MIN_VERSION_GLASGOW_HASKELL(9, 10, 1, 0)
+import Data.List (foldl')
 #endif
 
 import qualified Data.Char as C

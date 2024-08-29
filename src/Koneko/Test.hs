@@ -25,7 +25,7 @@ import GHC.IO.Handle (hDuplicate, hDuplicateTo)
 import Control.Exception (bracket)
 import Control.Monad (unless, when)
 import Data.Char (isSpace)
-import Data.Foldable (foldl', traverse_)
+import Data.Foldable (traverse_)
 import Data.Text (Text)
 import Prelude hiding (exp, fail)
 import System.Console.CmdArgs.Verbosity (Verbosity(..), getVerbosity)
@@ -35,7 +35,10 @@ import System.FilePath (takeExtension)
 import System.IO (Handle)
 
 #if !MIN_VERSION_GLASGOW_HASKELL(8, 8, 1, 0)
-import Data.Monoid((<>))
+import Data.Monoid ((<>))
+#endif
+#if !MIN_VERSION_GLASGOW_HASKELL(9, 10, 1, 0)
+import Data.List (foldl')
 #endif
 
 import qualified Data.Text as T
