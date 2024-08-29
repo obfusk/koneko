@@ -636,12 +636,13 @@ const call = (c0, s0, tailPos = false) => {                   //  {{{1
     }
     case "dict": {
       // TODO: inefficient implementation
+      // FIXME: insertion order?!
       const [opv, op, r] = popOp(), p = primPP(op, r)
       switch (opv) {
         case "keys":
-          return r(list([...xv.keys()].map(kwd)))
+          return r(list([...xv.entries()].sort().map(([k, v]) => kwd(k))))
         case "values":
-          return r(list([...xv.values()]))
+          return r(list([...xv.entries()].sort().map(([k, v]) => v)))
         case "pairs":
           return r(list([...xv.entries()].sort().map(
             ([k, v]) => pair(kwd(k), v)

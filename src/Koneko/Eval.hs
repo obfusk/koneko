@@ -239,13 +239,14 @@ callList (List l) _ s = do
     _         ->  throwIO $ UnknownField (T.unpack op) "list"
 
 -- TODO
+-- FIXME: insertion order?!
 callDict :: Dict -> Evaluator
 callDict (Dict h) _ s = do
   (Kwd op, s') <- pop' s
   let o = "dict." <> op; p = rpush1 s'; pr = p . mkOp o
   case op of
-    "keys"    ->  p $ map kwd $ H.keys h
-    "values"  ->  p $ H.elems h
+    "keys"    ->  p $ map (kwd . fst) $ sort $ H.toList h
+    "values"  ->  p $ map snd $ sort $ H.toList h
     "pairs"   ->  p [ pair (Kwd k) v | (k, v) <- sort $ H.toList h ]
     "merge"   ->  pr $ \_ s1 -> do
                     (Dict h2, s2) <- pop' s1
