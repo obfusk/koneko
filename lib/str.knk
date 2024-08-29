@@ -1,14 +1,5 @@
-; --                                                            ; {{{1
-;
-; File        : str.knk
-; Maintainer  : FC Stegerman <flx@obfusk.net>
-; Date        : 2020-02-10
-;
-; Copyright   : Copyright (C) 2020  FC Stegerman
-; Version     : v0.0.1
-; License     : LGPLv3+
-;
-; --                                                            ; }}}1
+; SPDX-FileCopyrightText: 2024 FC (Fay) Stegerman <flx@obfusk.net>
+; SPDX-License-Identifier: LGPL-3.0-or-later
 
 :str defmodule[
 

@@ -1,14 +1,5 @@
-<!-- {{{1
-
-    File        : README.md
-    Maintainer  : FC Stegerman <flx@obfusk.net>
-    Date        : 2022-05-29
-
-    Copyright   : Copyright (C) 2022  FC Stegerman
-    Version     : v0.0.2
-    License     : GPLv3+, LGPLv3+
-
-}}}1 -->
+<!-- SPDX-FileCopyrightText: 2024 FC (Fay) Stegerman <flx@obfusk.net> -->
+<!-- SPDX-License-Identifier: GPL-3.0-or-later -->
 
 <!-- TODO: badges -->
 

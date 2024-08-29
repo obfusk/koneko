@@ -1,14 +1,5 @@
-//  --                                                          ; {{{1
-//
-//  File        : koneko.js
-//  Maintainer  : FC Stegerman <flx@obfusk.net>
-//  Date        : 2022-02-14
-//
-//  Copyright   : Copyright (C) 2022  FC Stegerman
-//  Version     : v0.0.1
-//  License     : GPLv3+
-//
-//  --                                                          ; }}}1
+// SPDX-FileCopyrightText: 2024 FC (Fay) Stegerman <flx@obfusk.net>
+// SPDX-License-Identifier: GPL-3.0-or-later
 
 // -- TODO --
 //
