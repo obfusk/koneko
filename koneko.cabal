@@ -73,8 +73,9 @@ common deps
   -- Base language which the package is written in.
   default-language:    Haskell2010
 
-  ghc-options:         -Wall -fwarn-incomplete-uni-patterns
-                       -Werror
+  ghc-options:         -Wall -fwarn-incomplete-uni-patterns -Werror
+  if impl(ghc >= 9.8)
+    ghc-options:       -Wwarn=unused-imports -Wwarn=x-partial
 
 
 library
