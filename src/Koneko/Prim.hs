@@ -288,9 +288,9 @@ mkThunk callBlock = mkPrim "thunk" $ \c s -> do
   (b, s') <- pop' s
   t <- thunk $ do
     l <- callBlock b c emptyStack
-    unless (length l == 1) $ throwIO $
-      expected "thunk to produce exactly 1 value"
-    return $ head l   -- safe!
+    case l of
+      [h] -> return h
+      _   -> throwIO $ expected "thunk to produce exactly 1 value"
   rpush1 s' $ KThunk t
 
 -- primitives: exceptions --
@@ -459,15 +459,15 @@ _platform = map T.pack [I.os ++ " " ++ I.arch, c ++ " " ++ v]
 
 replDef :: Context -> IO ()
 replDef ctx = do
-    alias ["show-stack!" , "s!"] Nothing primModule
-    alias ["clear-stack!", "c!"] Nothing primModule
-    alias ["d!"]      (Just  "display!") prldModule
-    alias ["D!"]      (Just "ddisplay!") prldModule
+    alias "show-stack!"   ["s!"]  Nothing             primModule
+    alias "clear-stack!"  ["c!"]  Nothing             primModule
+    alias "d!"            []      (Just  "display!")  prldModule
+    alias "D!"            []      (Just "ddisplay!")  prldModule
     defineIn ctx "__repl__" true
   where
-    alias new old m = do                            -- safe!
-      x <- lookupModule' ctx (maybe (underscored $ head new) id old) m
-      traverse_ (flip (defineIn ctx) x) new
+    alias new news old m = do
+      x <- lookupModule' ctx (maybe (underscored new) id old) m
+      traverse_ (flip (defineIn ctx) x) (new:news)
 
 -- TODO
 showStack :: Evaluator -> Builtin

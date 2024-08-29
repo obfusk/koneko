@@ -132,37 +132,41 @@ examples fp = filter (not . null) . map (exampleGroup fp [])
 
 -- TODO
 exampleGroup :: FilePath -> ExampleGroup -> [(Int, Text)] -> ExampleGroup
-exampleGroup fileName es ls
-    = if null ls || null ls' then reverse es
-      else exampleGroup fileName (Example{..}:es) ls''
+exampleGroup fileName es ls = case (ls, ls') of
+    ((_:_), (h:t))  -> f h t
+    (_, _)          -> reverse es
   where
-    ls'             = dropWhile (not . isPrompt' . snd) ls
-    (e, ls'')       = span (isSameExample . snd) $ tail ls'   -- safe!
-    e'              = map (dropPrefix . snd) e
-    (c,outputLines) = span isCont e'
-    (lineNo, fl)    = head ls'                                -- safe!
-    inputLine       = T.concat $ map dropPrompt (dropPrefix fl:c)
-    isSameExample s = maybe False (\x -> not $ isPrompt x || T.null x)
-                    $ T.stripPrefix prefix s
-    dropPrefix      = T.drop $ T.length prefix
-    dropPrompt      = T.drop $ T.length RE.promptText
-    prefix          = T.takeWhile isSpace fl
-    isPrompt'       = isPrompt . T.dropWhile isSpace
-    isPrompt        = T.isPrefixOf RE.promptText
-    isCont          = T.isPrefixOf "... "                     --  TODO
+    ls'                 = dropWhile (not . isPrompt' . snd) ls
+    f h t               = exampleGroup fileName (Example{..}:es) ls''
+      where
+        (e, ls'')       = span (isSameExample . snd) t
+        e'              = map (dropPrefix . snd) e
+        (c,outputLines) = span isCont e'
+        (lineNo, fl)    = h
+        inputLine       = T.concat $ map dropPrompt (dropPrefix fl:c)
+        isSameExample s = maybe False (\x -> not $ isPrompt x || T.null x)
+                        $ T.stripPrefix prefix s
+        dropPrefix      = T.drop $ T.length prefix
+        dropPrompt      = T.drop $ T.length RE.promptText
+        prefix          = T.takeWhile isSpace fl
+    isPrompt'           = isPrompt . T.dropWhile isSpace
+    isPrompt            = T.isPrefixOf RE.promptText
+    isCont              = T.isPrefixOf "... "                     --  TODO
 
 -- TODO
 knkCommentBlocks :: [[(Int, Text)]] -> [(Int, Text)] -> [[(Int, Text)]]
-knkCommentBlocks bs ls
-    = if null ls || null ls' then reverse bs
-      else knkCommentBlocks (b':bs) ls''
+knkCommentBlocks bs ls = case (ls, ls') of
+    ((_:_), (h:_))  -> f h
+    (_, _)          -> reverse bs
   where
-    ls'             = dropWhile (not . isComment) ls
-    (b, ls'')       = span isSameComment ls'
-    b'              = [ (n,T.drop (T.length prefix) x) | (n,x) <- b ]
-    isComment       = T.isPrefixOf ";" . T.dropWhile isSpace . snd
-    isSameComment   = T.isPrefixOf prefix . snd
-    prefix          = T.takeWhile isSpace (snd $ head ls') <> ";" -- safe!
+    ls'                 = dropWhile (not . isComment) ls
+    f h                 = knkCommentBlocks (b':bs) ls''
+      where
+        (b, ls'')       = span isSameComment ls'
+        b'              = [ (n,T.drop (T.length prefix) x) | (n,x) <- b ]
+        isSameComment   = T.isPrefixOf prefix . snd
+        prefix          = T.takeWhile isSpace (snd h) <> ";"
+    isComment           = T.isPrefixOf ";" . T.dropWhile isSpace . snd
 
 -- TODO
 mdCodeBlocks :: [[(Int, Text)]] -> [(Int, Text)] -> [[(Int, Text)]]
@@ -221,9 +225,9 @@ testExampleGroup ctx verb g = do
 
 -- TODO: "...", ...
 compareOutput :: [Text] -> [Text] -> [Text] -> Bool
-compareOutput exp got err
-    = if null err then exp' == got else null got &&
-      T.isPrefixOf RE.errorText (head err) && exp' == err     -- safe!
+compareOutput exp got err = case err of
+    []    -> exp' == got
+    (h:_) -> null got && T.isPrefixOf RE.errorText h && exp' == err
   where
     exp' = [ if l == "<BLANKLINE>" then "" else l | l <- exp ]
 

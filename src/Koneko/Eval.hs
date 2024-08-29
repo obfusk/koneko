@@ -53,7 +53,8 @@ import Control.Exception (throwIO, try)
 import Control.Monad (unless, when)
 import Data.Bool (bool)
 import Data.Char (ord)
-import Data.List (delete, elemIndex, genericLength, intercalate, partition, sort, sortBy, (\\))
+import Data.List (delete, elemIndex, genericLength, intercalate, partition,
+                  sort, sortBy, uncons, (\\))
 import Data.List.Split (wordsBy)
 import Data.Text (Text)
 import Prelude hiding (lookup)
@@ -213,11 +214,11 @@ callList :: List -> Evaluator
 callList (List l) _ s = do
   (Kwd op, s') <- pop' s
   let o = "list." <> op; p = rpush1 s'; pr = p . mkOp o
-      g = when (null l) $ throwIO $ EmptyList $ T.unpack o
+      g f = maybe (throwIO $ EmptyList $ T.unpack o) f $ uncons l
   case op of
-    "head^"   ->  g >> p (head l)                             -- safe!
-    "tail^"   ->  g >> p (tail l)                             -- safe!
-    "uncons^" ->  g >> rpush s' [head l, list $ tail l]       -- safe!
+    "head^"   ->  g $ \(h, _) -> p h
+    "tail^"   ->  g $ \(_, t) -> p t
+    "uncons^" ->  g $ \(h, t) -> rpush s' [h, list t]
     "cons"    ->  pr $ pop1push1 (:l)
     "sort"    ->  p $ sort l
     "sort'"   ->  p $ sortBy cmp l
