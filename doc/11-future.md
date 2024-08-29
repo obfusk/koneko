@@ -1,14 +1,5 @@
-<!-- {{{1 -->
-
-    File        : doc/11-future.md
-    Maintainer  : FC Stegerman <flx@obfusk.net>
-    Date        : 2020-02-05
-
-    Copyright   : Copyright (C) 2020  FC Stegerman
-    Version     : v0.0.1
-    License     : GPLv3+
-
-<!-- }}}1 -->
+<!-- SPDX-FileCopyrightText: 2024 FC (Fay) Stegerman <flx@obfusk.net> -->
+<!-- SPDX-License-Identifier: GPL-3.0-or-later -->
 
 → [README](../README.md),
 → prev: [Standard Library](10-standard-library.md)

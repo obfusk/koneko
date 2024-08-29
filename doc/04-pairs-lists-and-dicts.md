@@ -1,14 +1,5 @@
-<!-- {{{1 -->
-
-    File        : doc/04-pairs-lists-and-dicts.md
-    Maintainer  : FC Stegerman <flx@obfusk.net>
-    Date        : 2019-12-06
-
-    Copyright   : Copyright (C) 2019  FC Stegerman
-    Version     : v0.0.1
-    License     : GPLv3+
-
-<!-- }}}1 -->
+<!-- SPDX-FileCopyrightText: 2024 FC (Fay) Stegerman <flx@obfusk.net> -->
+<!-- SPDX-License-Identifier: GPL-3.0-or-later -->
 
 → [README](../README.md),
 → prev: [Primitive Data Types](03-primitive-data-types.md),

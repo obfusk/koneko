@@ -1,14 +1,5 @@
-<!-- {{{1 -->
-
-    File        : doc/01-language-features.md
-    Maintainer  : FC Stegerman <flx@obfusk.net>
-    Date        : 2020-02-07
-
-    Copyright   : Copyright (C) 2020  FC Stegerman
-    Version     : v0.0.1
-    License     : GPLv3+
-
-<!-- }}}1 -->
+<!-- SPDX-FileCopyrightText: 2024 FC (Fay) Stegerman <flx@obfusk.net> -->
+<!-- SPDX-License-Identifier: GPL-3.0-or-later -->
 
 → [README](../README.md),
 → next: [Ident(ifiers) & Quoting](02-identifiers-and-quoting.md)

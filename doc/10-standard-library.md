@@ -1,14 +1,5 @@
-<!-- {{{1 -->
-
-    File        : doc/10-standard-library.md
-    Maintainer  : FC Stegerman <flx@obfusk.net>
-    Date        : 2020-11-12
-
-    Copyright   : Copyright (C) 2020  FC Stegerman
-    Version     : v0.0.1
-    License     : GPLv3+
-
-<!-- }}}1 -->
+<!-- SPDX-FileCopyrightText: 2024 FC (Fay) Stegerman <flx@obfusk.net> -->
+<!-- SPDX-License-Identifier: GPL-3.0-or-later -->
 
 → [README](../README.md),
 → prev: [Primitives, Builtins & Prelude](09-primitives-builtins-and-prelude.md),
